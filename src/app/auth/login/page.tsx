@@ -156,6 +156,12 @@ export default function LoginPage() {
             Iniciar Sesión con Google
           </Button>
         </form>
+        <div className="mt-4 text-center text-sm">
+          ¿No tienes una cuenta?{" "}
+          <Link href="/auth/signup" className="underline">
+            Regístrate
+          </Link>
+        </div>
         <div className="relative mt-6">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
