@@ -30,11 +30,7 @@ export default function SignupPage() {
         await updateProfile(userCredential.user, { displayName });
       }
 
-      toast({
-        title: "Cuenta creada exitosamente",
-        description: "Ahora puedes iniciar sesión con tus credenciales.",
-      });
-      router.push("/auth/login");
+      router.push("/auth/pending-approval");
 
     } catch (error: any) {
       let description = "Ocurrió un error inesperado.";
