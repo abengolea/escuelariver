@@ -12,15 +12,36 @@ import { ArrowUpRight, Calendar, HeartPulse, PlusCircle, Users } from "lucide-re
 import Link from "next/link";
 import { sessions } from "@/lib/mock-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useCollection } from "@/firebase";
+import { useCollection, useUserProfile } from "@/firebase";
 import type { Player } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import React, { useMemo } from "react";
 
 export default function DashboardPage() {
-  const { data: players, loading } = useCollection<Player>('players');
+  const { profile, isReady, isAdmin, isCoach } = useUserProfile();
   const upcomingSession = sessions[0];
+  
+  const collectionOptions = useMemo(() => {
+    if (!isReady) return null;
 
-  if (loading) {
+    if (isAdmin) {
+      return { orderBy: ['createdAt', 'desc'] as const };
+    }
+    if (isCoach && profile?.clubId) {
+      return {
+        where: ['clubId', '==', profile.clubId] as const,
+        orderBy: ['createdAt', 'desc'] as const,
+      };
+    }
+    return null;
+  }, [isReady, isAdmin, isCoach, profile?.clubId]);
+  
+  const { data: players, loading } = useCollection<Player>(
+      collectionOptions ? 'players' : '',
+      collectionOptions ?? undefined
+  );
+
+  if (!isReady || loading) {
     return (
        <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between space-y-2">
@@ -106,7 +127,7 @@ export default function DashboardPage() {
           <Button asChild>
             <Link href="/dashboard/players/new">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Nueva Evaluación
+                Añadir Jugador
             </Link>
           </Button>
         </div>
@@ -120,7 +141,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{activePlayers}</div>
             <p className="text-xs text-muted-foreground">
-              +2 desde el mes pasado
+              {players ? `${players.length} en total` : ''}
             </p>
           </CardContent>
         </Card>
@@ -132,7 +153,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{injuredPlayers}</div>
             <p className="text-xs text-muted-foreground">
-              1 recuperación pendiente
+              {isAdmin ? 'En todos los clubes' : 'En tu club'}
             </p>
           </CardContent>
         </Card>

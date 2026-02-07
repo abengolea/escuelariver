@@ -13,16 +13,36 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Player } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { calculateAge } from "@/lib/utils";
-import { useCollection } from "@/firebase";
+import { useCollection, useUserProfile } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
+import React, { useMemo } from "react";
 
 export function PlayerTable() {
   const router = useRouter();
-  const { data: players, loading, error } = useCollection<Player>('players', {
-    orderBy: ['createdAt', 'desc']
-  });
+  const { profile, isReady, isAdmin, isCoach } = useUserProfile();
 
-  if (loading) {
+  const collectionOptions = useMemo(() => {
+    if (!isReady) return null;
+
+    if (isAdmin) {
+      return { orderBy: ['createdAt', 'desc'] as const };
+    }
+    if (isCoach && profile?.clubId) {
+      return {
+        where: ['clubId', '==', profile.clubId] as const,
+        orderBy: ['createdAt', 'desc'] as const,
+      };
+    }
+    return null; // Don't fetch if not ready or no permission
+  }, [isReady, isAdmin, isCoach, profile?.clubId]);
+
+  const { data: players, loading, error } = useCollection<Player>(
+    collectionOptions ? 'players' : '',
+    collectionOptions ?? undefined
+  );
+
+
+  if (!isReady || loading) {
     return (
         <div className="rounded-md border">
             <Table>

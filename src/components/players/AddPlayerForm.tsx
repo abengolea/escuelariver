@@ -31,7 +31,7 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
-import { useFirestore } from "@/firebase";
+import { useFirestore, useUserProfile } from "@/firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -56,6 +56,7 @@ export function AddPlayerForm() {
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
+    const { profile } = useUserProfile();
 
     const form = useForm<z.infer<typeof playerSchema>>({
         resolver: zodResolver(playerSchema),
@@ -71,8 +72,18 @@ export function AddPlayerForm() {
     });
 
     function onSubmit(values: z.infer<typeof playerSchema>) {
+        if (!profile?.clubId) {
+            toast({
+                variant: "destructive",
+                title: "Error de Perfil",
+                description: "Tu perfil de usuario no está asociado a un club. No puedes añadir jugadores.",
+            });
+            return;
+        }
+
         const playerData = {
             ...values,
+            clubId: profile.clubId,
             birthDate: Timestamp.fromDate(values.birthDate),
             createdAt: Timestamp.now(),
         };
@@ -87,7 +98,7 @@ export function AddPlayerForm() {
             })
             .catch((serverError) => {
                 const permissionError = new FirestorePermissionError({
-                    path: '/players',
+                    path: 'players',
                     operation: 'create',
                     requestResourceData: playerData,
                 });

@@ -2,10 +2,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
     function isUserInRole(userId, role) {
-      // Use direct property access instead of .get() method which is for map fields
       return exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.role == role;
+             getUserData(userId).role == role;
     }
 
     function isUserAdmin(userId) {
@@ -17,16 +20,33 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // Admins can read/write any user profile.
+      // Users can read and write their own profile. The client-side code
+      // prevents them from changing their own role.
       allow read, write: if request.auth != null && (request.auth.uid == userId || isUserAdmin(request.auth.uid));
     }
 
     match /players/{playerId} {
-      // Only authenticated admins or coaches can read players
-      allow read: if request.auth != null && (isUserAdmin(request.auth.uid) || isUserCoach(request.auth.uid));
-      // Only authenticated admins or coaches can create players
-      allow create: if request.auth != null && (isUserAdmin(request.auth.uid) || isUserCoach(request.auth.uid));
-      // Only admins can update or delete
-      allow update, delete: if request.auth != null && isUserAdmin(request.auth.uid);
+      // Admins can read any player.
+      // Coaches can only read players from their own club.
+      allow read: if request.auth != null &&
+                  (isUserAdmin(request.auth.uid) ||
+                   (isUserCoach(request.auth.uid) && resource.data.clubId == getUserData(request.auth.uid).clubId));
+                   
+      // Admins can create players for any club.
+      // Coaches can only create players for their own club.
+      allow create: if request.auth != null &&
+                    (isUserAdmin(request.auth.uid) ||
+                     (isUserCoach(request.auth.uid) && request.resource.data.clubId == getUserData(request.auth.uid).clubId));
+
+      // Admins can update any player.
+      // Coaches can only update players from their own club.
+      allow update: if request.auth != null &&
+                    (isUserAdmin(request.auth.uid) ||
+                     (isUserCoach(request.auth.uid) && request.resource.data.clubId == getUserData(request.auth.uid).clubId));
+
+      // Only admins can delete players.
+      allow delete: if request.auth != null && isUserAdmin(request.auth.uid);
     }
   }
 }

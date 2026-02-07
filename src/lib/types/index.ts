@@ -10,6 +10,7 @@ export type Player = {
   height: number;
   weight: number;
   city: string;
+  clubId: string;
 };
 
 export type PhysicalTest = {
@@ -58,4 +59,13 @@ export type Injury = {
   injuryDate: Date;
   status: "activo" | "recuperando" | "alta";
   severity: "leve" | "moderada" | "grave";
+}
+
+export type UserProfile = {
+  id: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  role: 'admin' | 'entrenador';
+  clubId: string;
 }

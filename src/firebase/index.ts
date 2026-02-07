@@ -14,6 +14,7 @@ import { FirebaseApp } from 'firebase/app';
 
 export * from './provider';
 export * from './auth/use-user';
+export * from './auth/use-user-profile';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
 
