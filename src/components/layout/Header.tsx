@@ -23,7 +23,7 @@ export function Header() {
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push('/login');
+    router.push('/auth/login');
   };
 
   return (
