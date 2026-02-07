@@ -20,15 +20,19 @@ export default function DashboardLayout({
       router.push("/auth/login");
       return;
     }
-    // If loading is done, there IS a user, but they have no profile (no roles)
-    // redirect them to the pending page. 
-    if (isReady && user && !profile) {
+    // If loading is done, there IS a user, but they have no profile (no roles),
+    // redirect them to the pending page.
+    // CRITICAL: We add an exception for the super admin email to prevent a race
+    // condition where they are redirected before their profile is fully loaded.
+    if (isReady && user && !profile && user.email !== 'abengolea1@gmail.com') {
       router.push("/auth/pending-approval");
     }
   }, [isReady, user, profile, router]);
 
-  // Show loading screen while we check for user and profile
-  if (!isReady || !profile) {
+  // Show loading screen while we check for user and profile.
+  // Also add the exception for the super admin to avoid showing the loading screen
+  // indefinitely if their profile is temporarily null during the race condition.
+  if (!isReady || (!profile && user?.email !== 'abengolea1@gmail.com')) {
     return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
   }
 
