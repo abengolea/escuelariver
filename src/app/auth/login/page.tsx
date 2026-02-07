@@ -58,7 +58,7 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="w-full max-w-sm shadow-2xl">
+    <Card className="w-full max-w-sm shadow-2xl border-2">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Login</CardTitle>
         <CardDescription>

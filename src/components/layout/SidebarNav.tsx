@@ -7,7 +7,6 @@ import {
   HeartPulse,
   FileText,
   Settings,
-  Target,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,6 +20,7 @@ import {
   SidebarMenuButton,
   SidebarFooter
 } from "@/components/ui/sidebar";
+import { RiverPlateLogo } from "../icons/RiverPlateLogo";
 
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -37,8 +37,8 @@ export function SidebarNav() {
     <>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
-          <Target className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold font-headline text-primary">GoalMind</span>
+          <RiverPlateLogo className="h-8 w-8" />
+          <span className="text-xl font-bold font-headline text-primary">Escuela de River</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
