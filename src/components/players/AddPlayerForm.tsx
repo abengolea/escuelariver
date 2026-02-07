@@ -43,36 +43,33 @@ const playerSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido."),
   lastName: z.string().min(1, "El apellido es requerido."),
   birthDate: z.date({ required_error: "La fecha de nacimiento es requerida."}),
-  city: z.string().min(1, "La ciudad es requerida."),
-  category: z.string().min(1, "La categoría es requerida."),
-  primaryPosition: z.string().min(1, "La posición es requerida."),
-  status: z.enum(["activo", "inactivo", "lesionado"]),
-  height: z.coerce.number().positive("Debe ser un número positivo.").optional(),
-  weight: z.coerce.number().positive("Debe ser un número positivo.").optional(),
-  avatarUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
+  categoryId: z.string().min(1, "La categoría es requerida."),
+  tutorName: z.string().min(1, "El nombre del tutor es requerido."),
+  tutorPhone: z.string().min(1, "El teléfono del tutor es requerido."),
+  status: z.enum(["active", "inactive"]),
+  observations: z.string().optional(),
+  photoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
 });
 
 export function AddPlayerForm() {
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
-    const { profile } = useUserProfile();
+    const { profile, activeSchoolId } = useUserProfile();
 
     const form = useForm<z.infer<typeof playerSchema>>({
         resolver: zodResolver(playerSchema),
         defaultValues: {
             firstName: "",
             lastName: "",
-            city: "",
-            category: "U18",
-            primaryPosition: "",
-            status: "activo",
-            avatarUrl: "",
+            status: "active",
+            photoUrl: "",
+            observations: "",
         },
     });
 
     function onSubmit(values: z.infer<typeof playerSchema>) {
-        if (!profile?.escuelaId) {
+        if (!profile || !activeSchoolId) {
             toast({
                 variant: "destructive",
                 title: "Error de Perfil",
@@ -82,13 +79,24 @@ export function AddPlayerForm() {
         }
 
         const playerData = {
-            ...values,
-            escuelaId: profile.escuelaId,
+            firstName: values.firstName,
+            lastName: values.lastName,
             birthDate: Timestamp.fromDate(values.birthDate),
+            categoryId: values.categoryId,
+            tutorContact: {
+                name: values.tutorName,
+                phone: values.tutorPhone,
+            },
+            status: values.status,
+            photoUrl: values.photoUrl,
+            observations: values.observations,
             createdAt: Timestamp.now(),
+            createdBy: profile.uid,
         };
 
-        addDoc(collection(firestore, "players"), playerData)
+        const playersCollectionRef = collection(firestore, `schools/${activeSchoolId}/players`);
+
+        addDoc(playersCollectionRef, playerData)
             .then(() => {
                 toast({
                     title: "Jugador añadido",
@@ -98,7 +106,7 @@ export function AddPlayerForm() {
             })
             .catch((serverError) => {
                 const permissionError = new FirestorePermissionError({
-                    path: 'players',
+                    path: `schools/${activeSchoolId}/players`,
                     operation: 'create',
                     requestResourceData: playerData,
                 });
@@ -173,7 +181,7 @@ export function AddPlayerForm() {
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 disabled={(date) =>
-                                date > new Date() || date < new Date("1950-01-01")
+                                date > new Date() || date < new Date("2005-01-01")
                                 }
                                 initialFocus
                             />
@@ -185,20 +193,7 @@ export function AddPlayerForm() {
                 />
                  <FormField
                     control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Ciudad</FormLabel>
-                        <FormControl>
-                        <Input placeholder="Rosario" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="category"
+                    name="categoryId"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Categoría</FormLabel>
@@ -209,25 +204,37 @@ export function AddPlayerForm() {
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                                {/* In a real app, these would be fetched from /schools/{schoolId}/categories */}
                                 <SelectItem value="U14">Sub-14</SelectItem>
                                 <SelectItem value="U16">Sub-16</SelectItem>
                                 <SelectItem value="U18">Sub-18</SelectItem>
-                                <SelectItem value="U20">Sub-20</SelectItem>
-                                <SelectItem value="Reserva">Reserva</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />
                         </FormItem>
                     )}
                 />
-                <FormField
+                 <FormField
                     control={form.control}
-                    name="primaryPosition"
+                    name="tutorName"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Posición Principal</FormLabel>
+                        <FormLabel>Nombre del Tutor</FormLabel>
                         <FormControl>
-                        <Input placeholder="Delantero" {...field} />
+                        <Input placeholder="Jorge Messi" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="tutorPhone"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Teléfono del Tutor</FormLabel>
+                        <FormControl>
+                        <Input placeholder="+54 9 ..." {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -246,51 +253,37 @@ export function AddPlayerForm() {
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="activo">Activo</SelectItem>
-                                <SelectItem value="inactivo">Inactivo</SelectItem>
-                                <SelectItem value="lesionado">Lesionado</SelectItem>
+                                <SelectItem value="active">Activo</SelectItem>
+                                <SelectItem value="inactive">Inactivo</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />
                         </FormItem>
                     )}
                 />
-                <FormField
-                    control={form.control}
-                    name="height"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Altura (cm)</FormLabel>
-                        <FormControl>
-                        <Input type="number" placeholder="170" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
                  <FormField
                     control={form.control}
-                    name="weight"
+                    name="photoUrl"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Peso (kg)</FormLabel>
-                        <FormControl>
-                        <Input type="number" placeholder="72" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="avatarUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>URL del Avatar (Opcional)</FormLabel>
+                        <FormLabel>URL de Foto (Opcional)</FormLabel>
                         <FormControl>
                         <Input placeholder="https://..." {...field} />
                         </FormControl>
                         <FormDescription>URL pública de la imagen del jugador.</FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="observations"
+                    render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                        <FormLabel>Observaciones</FormLabel>
+                        <FormControl>
+                            <Input placeholder="Cualquier nota adicional..." {...field} />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                     )}

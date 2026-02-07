@@ -1,52 +1,87 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isSuperAdmin() {
+      return get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data.super_admin == true;
+    }
+
+    function getSchoolUserData(schoolId, userId) {
+      return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(userId)).data;
+    }
+
+    function isSchoolAdmin(schoolId) {
+      return exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)) &&
+             getSchoolUserData(schoolId, request.auth.uid).role == 'school_admin';
+    }
+
+    function isCoach(schoolId) {
+      return exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)) &&
+             getSchoolUserData(schoolId, request.auth.uid).role == 'coach';
+    }
+
+    function isMemberOfSchool(schoolId) {
+      return isSchoolAdmin(schoolId) || isCoach(schoolId);
+    }
+
+    function isAssignedToCategory(schoolId, categoryId) {
+      return categoryId in getSchoolUserData(schoolId, request.auth.uid).assignedCategories;
+    }
     
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+    // --- Collection Group Functions ---
+    // Rule for any read on a collection group, e.g. /schools/{schoolId}/players
+    function canReadCollectionGroup(collectionName) {
+      // Example: User is trying to read from /schools/sanjuan/players/player123
+      // resource.data.__name__[6] will be 'sanjuan' (the schoolId)
+      let schoolId = resource.data.__name__[6];
+      return isSuperAdmin() || isMemberOfSchool(schoolId);
+    }
+    
+    // --- Global Collections ---
+    match /platformUsers/{userId} {
+      allow read: if isSuperAdmin() || request.auth.uid == userId;
+      allow write: if isSuperAdmin();
     }
 
-    function isUserInRole(userId, role) {
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             getUserData(userId).role == role;
+    match /schools/{schoolId} {
+      allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
+      allow create, update: if isSuperAdmin(); // Only super admins can create/edit school details
+      allow delete: if false; // Schools should be soft-deleted by changing status
     }
 
-    function isUserAdmin(userId) {
-      return isUserInRole(userId, 'admin');
+    // --- School Sub-Collections ---
+    
+    // School user profiles can be read by any member of the school, but only written by admins.
+    match /schools/{schoolId}/users/{userId} {
+        allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
+        allow write: if isSuperAdmin() || isSchoolAdmin(schoolId);
+    }
+    
+    // Categories can be read by any member of the school, but only written by admins.
+    match /schools/{schoolId}/categories/{categoryId} {
+        allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
+        allow write: if isSuperAdmin() || isSchoolAdmin(schoolId);
+    }
+    
+    // Player data is the most sensitive.
+    match /schools/{schoolId}/players/{playerId} {
+      allow read, update: if isSuperAdmin() || isMemberOfSchool(schoolId);
+      allow create, delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
 
-    function isUserCoach(userId) {
-      return isUserInRole(userId, 'entrenador');
+    // --- Rules for collections that are not yet implemented in the MVP ---
+    // These are placeholders for when trainings and evaluations are added.
+    match /schools/{schoolId}/trainings/{trainingId} {
+       allow read, write: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
-
-    match /users/{userId} {
-      // Admins can read/write any user profile.
-      // Users can read and write their own profile. The client-side code
-      // prevents them from changing their own role.
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isUserAdmin(request.auth.uid));
+    
+    match /schools/{schoolId}/evaluations/{evalId} {
+       allow read, write: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
-
-    match /players/{playerId} {
-      // Admins can read any player.
-      // Coaches can only read players from their own school.
-      allow read: if request.auth != null &&
-                  (isUserAdmin(request.auth.uid) ||
-                   (isUserCoach(request.auth.uid) && resource.data.escuelaId == getUserData(request.auth.uid).escuelaId));
-                   
-      // Admins can create players for any school.
-      // Coaches can only create players for their own school.
-      allow create: if request.auth != null &&
-                    (isUserAdmin(request.auth.uid) ||
-                     (isUserCoach(request.auth.uid) && request.resource.data.escuelaId == getUserData(request.auth.uid).escuelaId));
-
-      // Admins can update any player.
-      // Coaches can only update players from their own school.
-      allow update: if request.auth != null &&
-                    (isUserAdmin(request.auth.uid) ||
-                     (isUserCoach(request.auth.uid) && request.resource.data.escuelaId == getUserData(request.auth.uid).escuelaId));
-
-      // Only admins can delete players.
-      allow delete: if request.auth != null && isUserAdmin(request.auth.uid);
+    
+    match /schools/{schoolId}/invites/{inviteId} {
+       allow read, write: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
   }
 }

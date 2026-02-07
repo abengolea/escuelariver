@@ -8,40 +8,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowUpRight, Calendar, HeartPulse, PlusCircle, Users } from "lucide-react";
+import { ArrowUpRight, PlusCircle, Users, School } from "lucide-react";
 import Link from "next/link";
-import { sessions } from "@/lib/mock-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useCollection, useUserProfile } from "@/firebase";
-import type { Player } from "@/lib/types";
+import { useCollection, useUserProfile, useDoc } from "@/firebase";
+import type { Player, School as SchoolType } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import React, { useMemo } from "react";
+import React from "react";
 
 export default function DashboardPage() {
-  const { profile, isReady, isAdmin, isCoach } = useUserProfile();
-  const upcomingSession = sessions[0];
+  const { profile, isReady, activeSchoolId } = useUserProfile();
   
-  const collectionOptions = useMemo(() => {
-    if (!isReady) return null;
-
-    if (isAdmin) {
-      return { orderBy: ['createdAt', 'desc'] as const };
-    }
-    if (isCoach && profile?.escuelaId) {
-      return {
-        where: ['escuelaId', '==', profile.escuelaId] as const,
-        orderBy: ['createdAt', 'desc'] as const,
-      };
-    }
-    return null;
-  }, [isReady, isAdmin, isCoach, profile?.escuelaId]);
-  
-  const { data: players, loading } = useCollection<Player>(
-      collectionOptions ? 'players' : '',
-      collectionOptions ?? undefined
+  const { data: school, loading: schoolLoading } = useDoc<SchoolType>(
+    activeSchoolId ? `schools/${activeSchoolId}` : ''
   );
 
-  if (!isReady || loading) {
+  const { data: players, loading: playersLoading } = useCollection<Player>(
+      activeSchoolId ? `schools/${activeSchoolId}/players` : '',
+      { limit: 4 }
+  );
+
+  if (!isReady || schoolLoading || playersLoading) {
     return (
        <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between space-y-2">
@@ -50,7 +37,7 @@ export default function DashboardPage() {
          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Jugadores Activos</CardTitle>
+                    <CardTitle className="text-sm font-medium">Jugadores Totales</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -59,35 +46,11 @@ export default function DashboardPage() {
             </Card>
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Jugadores Lesionados</CardTitle>
-                    <HeartPulse className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Sede</CardTitle>
+                    <School className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                     <Skeleton className="h-8 w-1/4" />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Próxima Sesión</CardTitle>
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold capitalize">{upcomingSession.type}</div>
-                    <p className="text-xs text-muted-foreground">
-                    {upcomingSession.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}
-                    </p>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Cumplimiento</CardTitle>
-                    <CardTitle className="text-sm font-medium text-accent">92%</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">Objetivos</div>
-                    <p className="text-xs text-muted-foreground">
-                    Objetivos de jugadores en curso
-                    </p>
+                     <Skeleton className="h-8 w-3/4" />
                 </CardContent>
             </Card>
          </div>
@@ -102,7 +65,7 @@ export default function DashboardPage() {
             </Card>
              <Card className="col-span-3">
                 <CardHeader>
-                    <CardTitle>Jugadores en Seguimiento</CardTitle>
+                    <CardTitle>Jugadores Recientes</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <Skeleton className="h-10 w-full" />
@@ -115,14 +78,13 @@ export default function DashboardPage() {
     );
   }
 
-  const activePlayers = players?.filter(p => p.status === 'activo').length || 0;
-  const injuredPlayers = players?.filter(p => p.status === 'lesionado').length || 0;
-
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight font-headline">Panel Principal</h1>
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight font-headline">Panel de {profile?.role === 'school_admin' ? 'Administración' : 'Entrenador'}</h1>
+            <p className="text-muted-foreground">Bienvenido, {profile?.displayName}.</p>
+        </div>
         <div className="flex items-center space-x-2">
           <Button asChild>
             <Link href="/dashboard/players/new">
@@ -139,7 +101,7 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activePlayers}</div>
+            <div className="text-2xl font-bold">{players?.filter(p => p.status === 'active').length || 0}</div>
             <p className="text-xs text-muted-foreground">
               {players ? `${players.length} en total` : ''}
             </p>
@@ -147,37 +109,13 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jugadores Lesionados</CardTitle>
-            <HeartPulse className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Sede Actual</CardTitle>
+            <School className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{injuredPlayers}</div>
+            <div className="text-2xl font-bold">{school?.name || 'Sede no encontrada'}</div>
             <p className="text-xs text-muted-foreground">
-              {isAdmin ? 'En todas las escuelas' : 'En tu escuela'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Próxima Sesión</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold capitalize">{upcomingSession.type}</div>
-            <p className="text-xs text-muted-foreground">
-              {upcomingSession.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cumplimiento</CardTitle>
-            <CardTitle className="text-sm font-medium text-accent">92%</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Objetivos</div>
-            <p className="text-xs text-muted-foreground">
-              Objetivos de jugadores en curso
+              {school?.city || ''}
             </p>
           </CardContent>
         </Card>
@@ -191,28 +129,27 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            {/* This would be a list of recent activities */}
-            <p className="text-sm text-muted-foreground p-4">No hay actividad reciente para mostrar.</p>
+            <p className="text-sm text-muted-foreground p-4">Funcionalidad en construcción.</p>
           </CardContent>
         </Card>
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Jugadores en Seguimiento</CardTitle>
+            <CardTitle>Jugadores Añadidos Recientemente</CardTitle>
             <CardDescription>
-              Jugadores que requieren atención o seguimiento.
+              Últimos jugadores registrados en la escuela.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {players?.slice(0, 4).map((player) => (
+              {players?.map((player) => (
                 <div key={player.id} className="flex items-center">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={player.avatarUrl} alt="Avatar" data-ai-hint="person portrait" />
+                    <AvatarImage src={player.photoUrl} alt="Avatar" data-ai-hint="person portrait" />
                     <AvatarFallback>{player.firstName[0]}{player.lastName[0]}</AvatarFallback>
                   </Avatar>
                   <div className="ml-4 space-y-1">
                     <p className="text-sm font-medium leading-none">{player.firstName} {player.lastName}</p>
-                    <p className="text-sm text-muted-foreground">{player.primaryPosition}</p>
+                    <p className="text-sm text-muted-foreground">{player.categoryId}</p>
                   </div>
                   <Link href={`/dashboard/players/${player.id}`} className="ml-auto">
                     <Button variant="ghost" size="sm">
@@ -221,6 +158,9 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               ))}
+               {(!players || players.length === 0) && (
+                 <p className="text-sm text-center text-muted-foreground p-4">No hay jugadores para mostrar.</p>
+                )}
             </div>
           </CardContent>
         </Card>

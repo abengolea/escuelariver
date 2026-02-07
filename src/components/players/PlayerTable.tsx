@@ -15,30 +15,15 @@ import { useRouter } from "next/navigation";
 import { calculateAge } from "@/lib/utils";
 import { useCollection, useUserProfile } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
-import React, { useMemo } from "react";
+import React from "react";
 
 export function PlayerTable() {
   const router = useRouter();
-  const { profile, isReady, isAdmin, isCoach } = useUserProfile();
-
-  const collectionOptions = useMemo(() => {
-    if (!isReady) return null;
-
-    if (isAdmin) {
-      return { orderBy: ['createdAt', 'desc'] as const };
-    }
-    if (isCoach && profile?.escuelaId) {
-      return {
-        where: ['escuelaId', '==', profile.escuelaId] as const,
-        orderBy: ['createdAt', 'desc'] as const,
-      };
-    }
-    return null; // Don't fetch if not ready or no permission
-  }, [isReady, isAdmin, isCoach, profile?.escuelaId]);
+  const { isReady, activeSchoolId } = useUserProfile();
 
   const { data: players, loading, error } = useCollection<Player>(
-    collectionOptions ? 'players' : '',
-    collectionOptions ?? undefined
+    isReady && activeSchoolId ? `schools/${activeSchoolId}/players` : '',
+    { orderBy: ['lastName', 'asc'] }
   );
 
 
@@ -72,11 +57,11 @@ export function PlayerTable() {
   }
 
   if (error) {
-    return <div className="text-destructive p-4">Error al cargar los jugadores: {error.message}</div>
+    return <div className="text-destructive p-4">Error al cargar los jugadores. Es posible que no tengas permisos para verlos.</div>
   }
   
   if (!players || players.length === 0) {
-      return <div className="text-center text-muted-foreground p-4">No hay jugadores para mostrar.</div>
+      return <div className="text-center text-muted-foreground p-4">No hay jugadores para mostrar en esta escuela.</div>
   }
 
   return (
@@ -86,7 +71,6 @@ export function PlayerTable() {
           <TableRow>
             <TableHead>Nombre</TableHead>
             <TableHead>Categoría</TableHead>
-            <TableHead>Posición</TableHead>
             <TableHead>Edad</TableHead>
             <TableHead>Estado</TableHead>
           </TableRow>
@@ -101,27 +85,24 @@ export function PlayerTable() {
               <TableCell className="font-medium">
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={player.avatarUrl} alt={player.firstName} data-ai-hint="person portrait" />
+                    <AvatarImage src={player.photoUrl} alt={player.firstName} data-ai-hint="person portrait" />
                     <AvatarFallback>{player.firstName[0]}{player.lastName[0]}</AvatarFallback>
                   </Avatar>
                   <span>{player.firstName} {player.lastName}</span>
                 </div>
               </TableCell>
-              <TableCell>{player.category}</TableCell>
-              <TableCell>{player.primaryPosition}</TableCell>
+              <TableCell>{player.categoryId}</TableCell>
               <TableCell>{calculateAge(player.birthDate)}</TableCell>
               <TableCell>
                 <Badge
                   variant={
-                    player.status === "activo"
+                    player.status === "active"
                       ? "secondary"
-                      : player.status === "lesionado"
-                      ? "destructive"
-                      : "outline"
+                      : "destructive"
                   }
-                  className={`capitalize ${player.status === "activo" ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400" : ""}`}
+                  className={`capitalize ${player.status === "active" ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400" : ""}`}
                 >
-                  {player.status}
+                  {player.status === 'active' ? 'Activo' : 'Inactivo'}
                 </Badge>
               </TableCell>
             </TableRow>

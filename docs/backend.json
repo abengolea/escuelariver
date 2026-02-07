@@ -1,125 +1,101 @@
 {
-    "entities": {
-      "Player": {
-        "title": "Jugador",
-        "description": "Representa a un jugador en el sistema.",
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "El ID único del jugador."
-          },
-          "firstName": {
-            "type": "string",
-            "description": "El nombre del jugador."
-          },
-          "lastName": {
-            "type": "string",
-            "description": "El apellido del jugador."
-          },
-          "birthDate": {
-            "type": "string",
-            "format": "date",
-            "description": "La fecha de nacimiento del jugador."
-          },
-          "category": {
-            "type": "string",
-            "description": "La categoría a la que pertenece el jugador (ej. U18)."
-          },
-          "primaryPosition": {
-            "type": "string",
-            "description": "La posición principal del jugador."
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "activo",
-              "inactivo",
-              "lesionado"
-            ],
-            "description": "El estado actual del jugador."
-          },
-          "avatarUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL de la foto de perfil del jugador."
-          },
-          "height": {
-            "type": "number",
-            "description": "La altura del jugador en centímetros."
-          },
-          "weight": {
-            "type": "number",
-            "description": "El peso del jugador en kilogramos."
-          },
-          "city": {
-            "type": "string",
-            "description": "La ciudad de residencia del jugador."
-          },
-          "escuelaId": {
-            "type": "string",
-            "description": "El ID de la escuela a la que pertenece el jugador."
-          }
-        },
-        "required": [
-          "firstName",
-          "lastName",
-          "birthDate",
-          "category",
-          "primaryPosition",
-          "status",
-          "escuelaId"
-        ]
-      },
-      "UserProfile": {
-        "title": "Perfil de Usuario",
-        "description": "Representa la información del perfil de un usuario.",
-        "type": "object",
-        "properties": {
-          "displayName": {
-            "type": "string",
-            "description": "El nombre a mostrar del usuario."
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "La dirección de correo electrónico del usuario."
-          },
-          "photoURL": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL de la foto de perfil del usuario."
-          },
-          "role": {
-            "type": "string",
-            "description": "El rol del usuario en la aplicación.",
-            "enum": ["admin", "entrenador"]
-          },
-          "escuelaId": {
-            "type": "string",
-            "description": "El ID de la escuela a la que pertenece el usuario."
-          }
+  "entities": {
+    "PlatformUser": {
+      "title": "Usuario de Plataforma",
+      "description": "Representa un usuario con roles globales en la plataforma, como super_admin.",
+      "type": "object",
+      "properties": {
+        "super_admin": {
+          "type": "boolean",
+          "description": "Si es verdadero, el usuario es un super administrador con acceso total."
         }
       }
     },
-    "auth": {
-      "providers": [
-        "google.com",
-        "password"
-      ]
-    },
-    "firestore": {
-      "/players/{playerId}": {
-        "schema": {
-          "$ref": "#/entities/Player"
-        },
-        "description": "Almacena a todos los jugadores."
+    "School": {
+      "title": "Escuela",
+      "description": "Representa una escuela o sede de fútbol.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nombre de la escuela." },
+        "city": { "type": "string", "description": "Ciudad donde se ubica la escuela." },
+        "province": { "type": "string", "description": "Provincia donde se ubica la escuela." },
+        "address": { "type": "string", "description": "Dirección de la escuela." },
+        "logoUrl": { "type": "string", "format": "uri", "description": "URL del logo de la escuela." },
+        "status": { "type": "string", "enum": ["active", "suspended"], "description": "Estado de la escuela." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Fecha de creación de la escuela." }
       },
-       "/users/{userId}": {
-        "schema": {
-          "$ref": "#/entities/UserProfile"
+      "required": ["name", "city", "province", "status", "createdAt"]
+    },
+    "SchoolUser": {
+      "title": "Usuario de Escuela",
+      "description": "Representa el rol y los permisos de un usuario dentro de una escuela específica.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["school_admin", "coach"] },
+        "assignedCategories": { "type": "array", "items": { "type": "string" }, "description": "IDs de las categorías asignadas al entrenador."}
+      },
+      "required": ["displayName", "email", "role"]
+    },
+    "Category": {
+      "title": "Categoría",
+      "description": "Una categoría de edad dentro de una escuela (ej. U10).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nombre de la categoría (ej. U10)." }
+      },
+      "required": ["name"]
+    },
+    "Player": {
+      "title": "Jugador",
+      "description": "Un jugador de fútbol en una categoría de una escuela.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "birthDate": { "type": "string", "format": "date-time" },
+        "categoryId": { "type": "string", "description": "ID de la categoría actual del jugador." },
+        "tutorContact": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "phone": { "type": "string" }
+          },
+          "required": ["name", "phone"]
         },
-        "description": "Almacena la información del perfil de usuario."
-      }
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "photoUrl": { "type": "string", "format": "uri" },
+        "observations": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string", "description": "UID del usuario que creó al jugador." }
+      },
+      "required": ["firstName", "lastName", "birthDate", "categoryId", "tutorContact", "status", "createdAt", "createdBy"]
     }
+  },
+  "auth": {
+    "providers": ["password", "google.com"]
+  },
+  "firestore": {
+    "/platformUsers/{userId}": {
+      "schema": { "$ref": "#/entities/PlatformUser" },
+      "description": "Almacena los roles globales de los usuarios (ej. super_admin)."
+    },
+    "/schools/{schoolId}": {
+      "schema": { "$ref": "#/entities/School" },
+      "description": "Colección de todas las escuelas."
+    },
+    "/schools/{schoolId}/users/{userId}": {
+      "schema": { "$ref": "#/entities/SchoolUser" },
+      "description": "Usuarios y sus roles específicos para esta escuela."
+    },
+    "/schools/{schoolId}/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Categorías dentro de una escuela."
+    },
+    "/schools/{schoolId}/players/{playerId}": {
+      "schema": { "$ref": "#/entities/Player" },
+      "description": "Jugadores pertenecientes a esta escuela."
+    }
+  }
 }

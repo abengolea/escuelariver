@@ -7,9 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, type User } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Timestamp } from "firebase/firestore";
+
+const DEFAULT_SCHOOL_ID = 'escuela-123-sn';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,33 +29,52 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
-  const createUserProfile = async (user: User) => {
-    const userDocRef = doc(firestore, 'users', user.uid);
-    const docSnap = await getDoc(userDocRef);
-    if (!docSnap.exists()) {
-      // New user, create profile with default role and a placeholder school ID
-      await setDoc(userDocRef, {
+  // NOTE: In a real app, user profile and school creation would be handled
+  // by secure Cloud Functions. This is a temporary setup for the MVP.
+  const createInitialData = async (user: User) => {
+    const batch = writeBatch(firestore);
+
+    // 1. Create a default School if it doesn't exist
+    const schoolRef = doc(firestore, 'schools', DEFAULT_SCHOOL_ID);
+    const schoolSnap = await getDoc(schoolRef);
+    if (!schoolSnap.exists()) {
+      batch.set(schoolRef, {
+        name: 'Escuela de River - San Nicolás',
+        city: 'San Nicolás de los Arroyos',
+        province: 'Buenos Aires',
+        address: 'Calle Falsa 123',
+        status: 'active',
+        createdAt: Timestamp.now(),
+      });
+    }
+
+    // 2. Create the user's profile within that school
+    const schoolUserRef = doc(firestore, `schools/${DEFAULT_SCHOOL_ID}/users`, user.uid);
+    const schoolUserSnap = await getDoc(schoolUserRef);
+
+    if (!schoolUserSnap.exists()) {
+      batch.set(schoolUserRef, {
         displayName: user.displayName || user.email?.split('@')[0],
         email: user.email,
-        photoURL: user.photoURL,
-        role: 'entrenador',
-        escuelaId: 'escuela-123', // NOTE: All new coaches are assigned to a default school
+        role: 'school_admin', // Default new users to school_admin for MVP
+        assignedCategories: [],
       });
-    } else {
-      // Existing user, just update some fields, but crucially, not the role or escuelaId
-      await setDoc(userDocRef, {
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        email: user.email,
-      }, { merge: true });
     }
+
+    // 3. For abengolea1@gmail.com, make them a super_admin
+    if (user.email === 'abengolea1@gmail.com') {
+      const platformUserRef = doc(firestore, 'platformUsers', user.uid);
+      batch.set(platformUserRef, { super_admin: true });
+    }
+
+    await batch.commit();
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await createUserProfile(userCredential.user);
+      await createInitialData(userCredential.user);
       router.push("/dashboard");
     } catch (error: any) {
       toast({
@@ -67,7 +89,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await createUserProfile(result.user);
+      await createInitialData(result.user);
       router.push("/dashboard");
     } catch (error: any) {
       toast({
@@ -87,7 +109,7 @@ export default function LoginPage() {
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Iniciar Sesión</CardTitle>
         <CardDescription>
-          Ingresa tu correo electrónico para acceder a tu cuenta.
+          Ingresa tu correo para acceder al panel de tu escuela.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -97,7 +119,7 @@ export default function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="coach@example.com"
+              placeholder="profe@example.com"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -125,12 +147,6 @@ export default function LoginPage() {
             Iniciar Sesión con Google
           </Button>
         </form>
-        <div className="mt-4 text-center text-sm">
-          ¿No tienes una cuenta?{" "}
-          <Link href="#" className="underline">
-            Regístrate
-          </Link>
-        </div>
       </CardContent>
     </Card>
   );
