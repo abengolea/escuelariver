@@ -99,6 +99,15 @@ export default function LoginPage() {
       });
     }
   };
+
+  const prefillSuperAdmin = () => {
+    setEmail('abengolea1@gmail.com');
+    setPassword('password123');
+    toast({
+        title: "Credenciales de Super Admin cargadas",
+        description: "Pulsa 'Iniciar Sesión' para continuar. La contraseña por defecto es 'password123'.",
+    });
+  }
   
   if (loading || user) {
       return <div className="flex items-center justify-center min-h-screen">Cargando...</div>
@@ -147,6 +156,24 @@ export default function LoginPage() {
             Iniciar Sesión con Google
           </Button>
         </form>
+        <div className="relative mt-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">
+              Opciones de Desarrollo
+            </span>
+          </div>
+        </div>
+        <Button
+          variant="secondary"
+          className="w-full mt-4"
+          type="button"
+          onClick={prefillSuperAdmin}
+        >
+          Acceso Rápido como Super Admin
+        </Button>
       </CardContent>
     </Card>
   );
