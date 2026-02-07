@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser, useFirestore } from "@/firebase";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, type User } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, type User, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -123,6 +123,33 @@ export default function LoginPage() {
     });
   };
 
+  const handlePasswordReset = async () => {
+    if (!email) {
+      toast({
+        title: "Correo requerido",
+        description: "Por favor, ingresa tu correo electrónico para restablecer la contraseña.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsLoggingIn(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: "Correo de restablecimiento enviado",
+        description: `Se ha enviado un enlace a ${email} para que puedas crear una nueva contraseña.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo enviar el correo. Verifica que la dirección sea correcta.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const prefillSuperAdmin = () => {
     setEmail('abengolea1@gmail.com');
     setPassword('');
@@ -175,9 +202,15 @@ export default function LoginPage() {
           <div className="grid gap-2">
             <div className="flex items-center">
               <Label htmlFor="password">Contraseña</Label>
-              <Link href="#" className="ml-auto inline-block text-sm underline">
+              <Button
+                type="button"
+                variant="link"
+                onClick={handlePasswordReset}
+                disabled={isLoggingIn}
+                className="ml-auto inline-block p-0 h-auto text-sm underline"
+              >
                 ¿Olvidaste tu contraseña?
-              </Link>
+              </Button>
             </div>
             <Input 
               id="password" 
