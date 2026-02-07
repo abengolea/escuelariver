@@ -46,7 +46,7 @@ service cloud.firestore {
     // --- School Sub-collections ---
     
     match /schools/{schoolId}/users/{userId} {
-        // Un usuario puede leer su propio documento de perfil.
+        // Un usuario siempre puede leer su propio documento de perfil.
         // Un admin de escuela o super admin puede leer cualquier perfil en la escuela.
         allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId;
         allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
@@ -60,8 +60,8 @@ service cloud.firestore {
     match /schools/{schoolId}/players/{playerId} {
       // Un miembro de la escuela puede ver los jugadores de su escuela.
       allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
-      // Solo admins pueden crear/modificar jugadores.
-      allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
+      // Solo admins o coaches pueden crear/modificar jugadores.
+      allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
     }
 
     match /schools/{schoolId}/trainings/{trainingId} {
