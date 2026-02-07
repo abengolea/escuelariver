@@ -11,6 +11,8 @@ import { doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Timestamp } from "firebase/firestore";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Shield } from "lucide-react";
 
 const DEFAULT_SCHOOL_ID = 'escuela-123-sn';
 
@@ -116,7 +118,21 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-sm shadow-2xl border-2">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Iniciar Sesión</CardTitle>
+        <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl font-headline">Iniciar Sesión</CardTitle>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prefillSuperAdmin}>
+                            <Shield className="h-5 w-5 text-muted-foreground" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Acceso Rápido Super Admin</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        </div>
         <CardDescription>
           Ingresa tu correo para acceder al panel de tu escuela.
         </CardDescription>
@@ -162,24 +178,6 @@ export default function LoginPage() {
             Regístrate
           </Link>
         </div>
-        <div className="relative mt-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
-              Opciones de Desarrollo
-            </span>
-          </div>
-        </div>
-        <Button
-          variant="secondary"
-          className="w-full mt-4"
-          type="button"
-          onClick={prefillSuperAdmin}
-        >
-          Acceso Rápido como Super Admin
-        </Button>
       </CardContent>
     </Card>
   );
