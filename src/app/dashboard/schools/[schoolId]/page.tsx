@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChevronLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SchoolUsersList } from "@/components/admin/SchoolUsersList";
+import { useEffect } from "react";
 
 export default function SchoolAdminPage() {
   const params = useParams();
@@ -19,12 +20,20 @@ export default function SchoolAdminPage() {
   const { data: school, loading: schoolLoading } = useDoc<School>(`schools/${schoolId}`);
 
   // Redirect if user is not a super admin and loading is done
-  if (profileReady && !isSuperAdmin) {
-    router.push('/dashboard');
-    return null; // Render nothing while redirecting
-  }
+  useEffect(() => {
+    if (profileReady && !isSuperAdmin) {
+      router.push('/dashboard');
+    }
+  }, [profileReady, isSuperAdmin, router]);
+
 
   const isLoading = schoolLoading || !profileReady;
+
+  // Don't render the component if the user is not a super admin
+  // This prevents flashing the content before redirecting
+  if (profileReady && !isSuperAdmin) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-4">
