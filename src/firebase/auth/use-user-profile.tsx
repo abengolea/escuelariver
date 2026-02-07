@@ -2,12 +2,11 @@
 
 import { useUser } from './use-user';
 import { useDoc } from '../firestore/use-doc';
-import { useCollection } from '../firestore/use-collection';
 import type { PlatformUser, SchoolUser, UserProfile, SchoolMembership } from '@/lib/types';
 import { useMemo } from 'react';
 
 // For the MVP, we will use a hardcoded active school.
-// In the future, this would come from a user selection.
+// In a real app, this would come from a user selection.
 const ACTIVE_SCHOOL_ID = 'escuela-123-sn';
 
 /**
@@ -17,13 +16,10 @@ const ACTIVE_SCHOOL_ID = 'escuela-123-sn';
 export function useUserProfile() {
   const { user, loading: authLoading } = useUser();
   
-  // Fetch the global platform user profile (to check for super_admin)
   const { data: platformUser, loading: platformUserLoading } = useDoc<PlatformUser>(
     user ? `platformUsers/${user.uid}` : ''
   );
   
-  // In a real app, we would query the 'users' collection group to find all
-  // school memberships. For this MVP, we'll just check the hardcoded school.
   const { data: schoolUser, loading: schoolUserLoading } = useDoc<SchoolUser>(
     user ? `schools/${ACTIVE_SCHOOL_ID}/users/${user.uid}` : ''
   );
@@ -31,7 +27,28 @@ export function useUserProfile() {
   const loading = authLoading || platformUserLoading || schoolUserLoading;
 
   const profile: UserProfile | null = useMemo(() => {
-    if (loading || !user || !schoolUser) {
+    if (loading || !user) {
+      return null;
+    }
+
+    const isSuperAdmin = platformUser?.super_admin ?? false;
+
+    // Handle super admin case first. They might not be in a school.
+    if (isSuperAdmin) {
+      return {
+        uid: user.uid,
+        displayName: user.displayName || user.email || 'Super Admin',
+        email: user.email!,
+        role: 'school_admin', // A super admin can have a base role
+        assignedCategories: [],
+        isSuperAdmin: true,
+        activeSchoolId: schoolUser ? ACTIVE_SCHOOL_ID : undefined,
+        memberships: schoolUser ? [{ schoolId: ACTIVE_SCHOOL_ID, role: schoolUser.role }] : [],
+      };
+    }
+
+    // If not super admin, they MUST be a school user to have a profile.
+    if (!schoolUser) {
       return null;
     }
 
@@ -43,7 +60,7 @@ export function useUserProfile() {
     return {
       ...schoolUser,
       uid: user.uid,
-      isSuperAdmin: platformUser?.super_admin ?? false,
+      isSuperAdmin: false,
       activeSchoolId: ACTIVE_SCHOOL_ID,
       memberships: [membership],
     };
@@ -58,9 +75,8 @@ export function useUserProfile() {
     loading,
     isReady,
     activeSchoolId: profile?.activeSchoolId,
-    // Role checks are now based on the active school profile
     isAdmin: profile?.isSuperAdmin || profile?.role === 'school_admin',
     isCoach: profile?.role === 'coach',
-    isSuperAdmin: profile?.isSuperAdmin,
+    isSuperAdmin: profile?.isSuperAdmin ?? false,
   };
 }
