@@ -74,6 +74,11 @@
             "type": "string",
             "format": "uri",
             "description": "URL of the user's profile picture."
+          },
+          "role": {
+            "type": "string",
+            "description": "The user's role in the application.",
+            "enum": ["admin", "coach"]
           }
         }
       }

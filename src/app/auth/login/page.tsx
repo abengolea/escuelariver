@@ -5,14 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth, useUser } from "@/firebase";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
+import { useAuth, useUser, useFirestore } from "@/firebase";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, type User } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, loading } = useUser();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
@@ -24,11 +26,32 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
+  const createUserProfile = async (user: User) => {
+    const userDocRef = doc(firestore, 'users', user.uid);
+    const docSnap = await getDoc(userDocRef);
+    if (!docSnap.exists()) {
+      // New user, create profile with default role
+      await setDoc(userDocRef, {
+        displayName: user.displayName || user.email?.split('@')[0],
+        email: user.email,
+        photoURL: user.photoURL,
+        role: 'coach',
+      });
+    } else {
+      // Existing user, just update some fields, but crucially, not the role
+      await setDoc(userDocRef, {
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        email: user.email,
+      }, { merge: true });
+    }
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await createUserProfile(userCredential.user);
       router.push("/dashboard");
     } catch (error: any) {
       toast({
@@ -42,7 +65,8 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      await createUserProfile(result.user);
       router.push("/dashboard");
     } catch (error: any) {
       toast({
