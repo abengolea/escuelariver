@@ -40,7 +40,7 @@ service cloud.firestore {
     }
 
     match /schools/{schoolId} {
-      allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
+      allow read: if isSuperAdmin() || isMemberOfSchool(schoolId) || request.auth.token.email == 'abengolea1@gmail.com';
       // Se permite la creación/actualización al super admin o al email designado.
       allow create, update: if isSuperAdmin() || request.auth.token.email == 'abengolea1@gmail.com';
       allow delete: if false; // Soft delete cambiando el status
@@ -49,7 +49,7 @@ service cloud.firestore {
     // --- School Sub-collections ---
     
     match /schools/{schoolId}/users/{userId} {
-        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId;
+        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId || request.auth.token.email == 'abengolea1@gmail.com';
         // Se permite la gestión al super admin, admin de escuela o email designado.
         allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.token.email == 'abengolea1@gmail.com';
     }
