@@ -7,10 +7,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, type User, sendPasswordResetEmail } from "firebase/auth";
-import { doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Timestamp } from "firebase/firestore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Shield } from "lucide-react";
 
@@ -32,28 +31,25 @@ export default function LoginPage() {
 
 
   const createInitialData = async (user: User) => {
-    // This function now only handles the bootstrap logic for the super admin.
-    // When the designated super admin email logs in for the first time,
-    // this creates the platformUser document that grants them super admin privileges.
+    // This function handles the bootstrap logic for the super admin.
+    // It's designed to be robust: on every login, it ensures the super_admin
+    // flag is correctly set, creating or updating the document as needed.
     if (user.email === 'abengolea1@gmail.com') {
       const platformUserRef = doc(firestore, 'platformUsers', user.uid);
-      
-      // We must get the doc first to avoid overwriting it if it already exists.
-      const platformUserSnap = await getDoc(platformUserRef);
-      if (!platformUserSnap.exists()) {
-        try {
-          await setDoc(platformUserRef, { super_admin: true });
-        } catch (error) {
-          // Re-throw the error to be caught by the handleLogin catch block.
-          // This will ensure the user is logged out if this critical step fails.
-          console.error("Failed to create super admin role:", error);
-          throw new Error("No se pudo crear el rol de super administrador.");
-        }
+      try {
+        // Use setDoc with merge to create or update the document.
+        // This ensures the super_admin flag is always set for this user on login,
+        // fixing any previous inconsistent state.
+        await setDoc(platformUserRef, { super_admin: true }, { merge: true });
+      } catch (error) {
+        console.error("Failed to create/update super admin role:", error);
+        // Re-throw the error to be caught by the handleLogin catch block.
+        // This will ensure the user is logged out if this critical step fails.
+        throw new Error("No se pudo configurar el rol de super administrador.");
       }
     }
-    // For all other users, they are either existing users with roles, or new
-    // users who must wait for an admin to assign them a role. No initial
-    // data is created for them on login. The signup flow handles new users.
+    // For all other users, no initial data is created for them on login.
+    // The signup flow and admin assignment handle their roles.
   };
 
   const handleLogin = async (loginFn: () => Promise<User>) => {

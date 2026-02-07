@@ -9,8 +9,13 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
+      // Check for the DB flag OR the specific bootstrap email.
+      // This makes the rule resilient if the DB flag is missing for the bootstrap user.
       return isSignedIn()
-          && get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data.super_admin == true;
+          && (
+            get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data.super_admin == true
+            || request.auth.token.email == 'abengolea1@gmail.com'
+          );
     }
 
     function getSchoolUserData(schoolId) {
@@ -18,17 +23,17 @@ service cloud.firestore {
     }
 
     function isSchoolAdmin(schoolId) {
-      // getSchoolUserData().role fallará si el documento no existe, por eso se comprueba que no sea nulo.
-      // Este helper es ineficiente (2 lecturas) pero sintácticamente correcto.
+      let userData = getSchoolUserData(schoolId);
       return isSignedIn()
-          && getSchoolUserData(schoolId) != null
-          && getSchoolUserData(schoolId).role == 'school_admin';
+          && userData != null
+          && userData.role == 'school_admin';
     }
 
     function isCoach(schoolId) {
+      let userData = getSchoolUserData(schoolId);
       return isSignedIn()
-          && getSchoolUserData(schoolId) != null
-          && getSchoolUserData(schoolId).role == 'coach';
+          && userData != null
+          && userData.role == 'coach';
     }
 
     function isMemberOfSchool(schoolId) {
@@ -36,9 +41,9 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid));
     }
     
-    // Función corregida: Sin 'if' o 'let'. Combinada en una única expresión booleana.
     function isAssignedToCategory(schoolId, categoryId) {
-      return isCoach(schoolId) && categoryId in getSchoolUserData(schoolId).assignedCategories;
+      let userData = getSchoolUserData(schoolId);
+      return isCoach(schoolId) && categoryId in userData.assignedCategories;
     }
 
     // --- Schema Validation Helpers ---
@@ -56,14 +61,15 @@ service cloud.firestore {
     match /platformUsers/{userId} {
       allow read: if isSignedIn() && (isSuperAdmin() || request.auth.uid == userId);
       
-      // Regla de bootstrap: permite al email específico auto-crearse como super admin la primera vez.
+      // Bootstrap rule: allows the specific email to self-create as super admin on first login.
       allow create: if isSignedIn() && request.auth.uid == userId 
         && (
           (request.auth.token.email == 'abengolea1@gmail.com' && request.resource.data.super_admin == true) ||
+          // Any other user can create their own doc, but CANNOT give themselves super_admin
           (request.auth.token.email != 'abengolea1@gmail.com' && !('super_admin' in request.resource.data))
         );
 
-      // Un usuario puede actualizar su propio doc, pero no darse super_admin. Solo un super_admin puede hacerlo.
+      // A user can update their own doc, but can't grant themselves super_admin. Only a super_admin can do that.
       allow update: if isSignedIn() && (
         isSuperAdmin() || 
         (request.auth.uid == userId && !('super_admin' in request.resource.data))
@@ -78,7 +84,7 @@ service cloud.firestore {
     
     match /schools/{schoolId}/users/{userId} {
         allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId;
-        // Admins pueden escribir, pero solo roles válidos.
+        // Admins can write, but only valid roles.
         allow create, update: if (isSuperAdmin() || isSchoolAdmin(schoolId)) && isValidSchoolUserRole(request.resource.data.role);
         allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
@@ -90,21 +96,21 @@ service cloud.firestore {
 
     match /schools/{schoolId}/players/{playerId} {
       allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
-      // Coaches pueden crear/actualizar, pero solo admins pueden borrar.
+      // Coaches can create/update, but only admins can delete.
       allow create, update: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
       allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
 
     match /schools/{schoolId}/evaluations/{evalId} {
       allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
-      // Un coach puede crear una evaluación solo para una categoría asignada.
+      // A coach can create an evaluation only for an assigned category.
       allow create: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isAssignedToCategory(schoolId, request.resource.data.categoryId));
-      // En update, un coach no puede cambiar el categoryId y debe estar asignado a la categoría original.
+      // On update, a coach cannot change the categoryId and must be assigned to the original category.
       allow update: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isCategoryIdUnchanged() && isAssignedToCategory(schoolId, resource.data.categoryId));
       allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
 
-    // --- Otras colecciones (con reglas mejoradas) ---
+    // --- Other collections ---
 
     match /schools/{schoolId}/trainings/{trainingId} {
       allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
@@ -114,7 +120,7 @@ service cloud.firestore {
     }
 
     match /schools/{schoolId}/trainings/{trainingId}/attendance/{playerId} {
-      // El coach debe estar asignado a la categoría del entrenamiento.
+      // The coach must be assigned to the training's category.
       allow read, write: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isAssignedToCategory(schoolId, get(/databases/$(database)/documents/schools/$(schoolId)/trainings/$(trainingId)).data.categoryId));
     }
     
