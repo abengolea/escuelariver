@@ -2,10 +2,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MailCheck } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export default function PendingApprovalPage() {
+  const router = useRouter();
+
   return (
     <Card className="w-full max-w-md shadow-2xl border-2">
       <CardHeader className="items-center text-center">
@@ -19,10 +21,8 @@ export default function PendingApprovalPage() {
         <p className="text-muted-foreground">
           Un administrador necesita asignarte a una escuela y darte un rol. Una vez que lo hagan, podrás iniciar sesión y acceder al panel.
         </p>
-        <Button asChild className="mt-6 w-full">
-          <Link href="/auth/login">
-            Entendido, volver a inicio de sesión
-          </Link>
+        <Button onClick={() => router.push('/auth/login')} className="mt-6 w-full">
+          Entendido, volver a inicio de sesión
         </Button>
       </CardContent>
     </Card>
