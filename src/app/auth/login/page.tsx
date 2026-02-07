@@ -26,8 +26,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // This useEffect redirects a user if they are already authenticated.
-  // The `!isLoggingIn` check prevents a race condition during a login attempt.
   useEffect(() => {
     if (!authLoading && user && !isLoggingIn) {
       router.push("/dashboard");
@@ -35,14 +33,11 @@ export default function LoginPage() {
   }, [user, authLoading, router, isLoggingIn]);
 
 
-  // NOTE: In a real app, user profile and school creation would be handled
-  // by secure Cloud Functions. This is a temporary setup for the MVP.
   const createInitialData = async (user: User) => {
     const batch = writeBatch(firestore);
-
-    // 1. Create a default School if it doesn't exist
     const schoolRef = doc(firestore, 'schools', DEFAULT_SCHOOL_ID);
     const schoolSnap = await getDoc(schoolRef);
+
     if (!schoolSnap.exists()) {
       batch.set(schoolRef, {
         name: 'Escuela de River - San Nicolás',
@@ -54,7 +49,6 @@ export default function LoginPage() {
       });
     }
 
-    // 2. Create the user's profile within that school
     const schoolUserRef = doc(firestore, `schools/${DEFAULT_SCHOOL_ID}/users`, user.uid);
     const schoolUserSnap = await getDoc(schoolUserRef);
 
@@ -62,52 +56,71 @@ export default function LoginPage() {
       batch.set(schoolUserRef, {
         displayName: user.displayName || user.email?.split('@')[0],
         email: user.email,
-        role: 'school_admin', // Default new users to school_admin for MVP
+        role: 'school_admin',
         assignedCategories: [],
       });
     }
-
-    // 3. Make specific users super_admin
+    
     if (user.email === 'abengolea1@gmail.com') {
       const platformUserRef = doc(firestore, 'platformUsers', user.uid);
-      batch.set(platformUserRef, { super_admin: true });
+      const platformUserSnap = await getDoc(platformUserRef);
+      if (!platformUserSnap.exists()) {
+        batch.set(platformUserRef, { super_admin: true });
+      }
     }
 
     await batch.commit();
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (loginFn: () => Promise<User>) => {
     setIsLoggingIn(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await createInitialData(userCredential.user);
+      const loggedInUser = await loginFn();
+      
+      try {
+        await createInitialData(loggedInUser);
+      } catch (dataError: any) {
+        console.error("Error creating initial data:", dataError);
+        toast({
+          variant: "destructive",
+          title: "Error de Configuración",
+          description: "No se pudo guardar tu perfil. Inténtalo de nuevo o contacta a soporte.",
+          duration: 9000,
+        });
+        await auth.signOut(); // Log out user to prevent inconsistent state
+        setIsLoggingIn(false);
+        return;
+      }
+      
       router.push("/dashboard");
-    } catch (error: any) {
+
+    } catch (authError: any) {
+      const description = authError.code === 'auth/invalid-credential' 
+          ? "El correo electrónico o la contraseña son incorrectos." 
+          : "Ocurrió un error inesperado al iniciar sesión.";
       toast({
         variant: "destructive",
         title: "Error al iniciar sesión",
-        description: "El correo electrónico o la contraseña son incorrectos.",
+        description,
       });
       setIsLoggingIn(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setIsLoggingIn(true);
-    const provider = new GoogleAuthProvider();
-    try {
+  const handleEmailLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleLogin(async () => {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return userCredential.user;
+    });
+  };
+
+  const handleGoogleLogin = () => {
+    handleLogin(async () => {
+      const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      await createInitialData(result.user);
-      router.push("/dashboard");
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error al iniciar sesión con Google",
-        description: error.message,
-      });
-      setIsLoggingIn(false);
-    }
+      return result.user;
+    });
   };
 
   const prefillSuperAdmin = () => {
@@ -115,11 +128,11 @@ export default function LoginPage() {
     setPassword('');
     toast({
         title: "Credenciales de Super Admin cargadas",
-        description: "Ingresa la contraseña que creaste para 'abengolea1@gmail.com' y pulsa 'Iniciar Sesión'.",
+        description: "Ingresa la contraseña y pulsa 'Iniciar Sesión'.",
     });
   }
   
-  if (authLoading || user) {
+  if (authLoading || (user && !isLoggingIn)) {
       return <div className="flex items-center justify-center min-h-screen">Cargando...</div>
   }
 
