@@ -1,79 +1,129 @@
 'use client';
 
 import { useUser } from './use-user';
-import { useDoc } from '../firestore/use-doc';
+import { useFirestore } from '../provider';
 import type { PlatformUser, SchoolUser, UserProfile, SchoolMembership } from '@/lib/types';
-import { useMemo } from 'react';
+import { useDoc } from '../firestore/use-doc';
+import { useEffect, useMemo, useState } from 'react';
+import { collectionGroup, query, where, getDocs } from 'firebase/firestore';
 
-// This hardcoded ID is problematic for a multi-school app, especially for super admins.
-// A better approach would be to manage the "active" or "selected" school in the UI state.
-const ACTIVE_SCHOOL_ID = 'escuela-123-sn';
+
+// This type extends SchoolMembership to include the full user data found in the subcollection,
+// as the collection group query returns the whole document.
+type FullSchoolMembership = SchoolMembership & Omit<SchoolUser, 'id'>;
 
 /**
  * A hook to get the complete profile for the current user, including global
- * and school-specific roles.
+ * and school-specific roles by searching across all schools.
  */
 export function useUserProfile() {
   const { user, loading: authLoading } = useUser();
+  const firestore = useFirestore();
+
+  // State for school memberships
+  const [memberships, setMemberships] = useState<FullSchoolMembership[] | null>(null);
+  const [membershipsLoading, setMembershipsLoading] = useState(true);
   
   // Fetch global platform roles (e.g., isSuperAdmin)
   const { data: platformUser, loading: platformUserLoading } = useDoc<PlatformUser>(
     user ? `platformUsers/${user.uid}` : ''
   );
   
-  // Determine if we have enough info to identify a super admin
-  const isPotentiallySuperAdmin = !platformUserLoading && (platformUser?.super_admin ?? false);
-  
-  // Fetch school-specific role, but ONLY if we know the user is NOT a super admin.
-  // A super admin's primary role is global, and they don't need a school document to be considered "ready".
-  const { data: schoolUser, loading: schoolUserLoading } = useDoc<SchoolUser>(
-    user && !isPotentiallySuperAdmin ? `schools/${ACTIVE_SCHOOL_ID}/users/${user.uid}` : ''
-  );
+  const isSuperAdmin = useMemo(() => platformUser?.super_admin ?? false, [platformUser]);
 
-  // The overall loading state depends on the user type.
-  // For a super admin, we only need to wait for auth and platform user data.
-  // For others, we also wait for the school user data.
-  const loading = authLoading || platformUserLoading || (!isPotentiallySuperAdmin && schoolUserLoading);
+  // Fetch all school memberships for the user using a collection group query
+  useEffect(() => {
+    // Don't run query if we don't have a user, firestore, or if the user is a super admin
+    if (!user || !firestore || isSuperAdmin) {
+      setMemberships([]); // Super admin has no specific school memberships in this context
+      setMembershipsLoading(false);
+      return;
+    }
+
+    setMembershipsLoading(true);
+    // This query finds all documents in any 'users' subcollection where the user's ID matches.
+    const userRolesQuery = query(
+      collectionGroup(firestore, 'users'),
+      where('__name__', '==', `schools/${user.uid}`) // This is a placeholder, as we need to query by document ID.
+                                                    // A real query would be on a field like `email` or `uid`.
+                                                    // Let's query by UID, assuming the doc ID is the UID.
+    );
+
+    // Because we can't directly query by document ID in a collection group query this way,
+    // we'll query by a field that should be unique, like email.
+    const finalUserRolesQuery = query(
+        collectionGroup(firestore, 'users'),
+        where('email', '==', user.email)
+    );
+
+
+    getDocs(finalUserRolesQuery).then(snapshot => {
+      if (snapshot.empty) {
+        setMemberships([]);
+      } else {
+        const userMemberships: FullSchoolMembership[] = snapshot.docs.map(doc => {
+          // The path is schools/{schoolId}/users/{userId}
+          const schoolId = doc.ref.parent.parent!.id;
+          const schoolUserData = doc.data() as SchoolUser;
+          return {
+            schoolId: schoolId,
+            role: schoolUserData.role,
+            displayName: schoolUserData.displayName,
+            email: schoolUserData.email,
+            assignedCategories: schoolUserData.assignedCategories,
+          };
+        });
+        setMemberships(userMemberships);
+      }
+      setMembershipsLoading(false);
+    }).catch(error => {
+        console.error("Error fetching user memberships:", error);
+        setMemberships([]);
+        setMembershipsLoading(false);
+    });
+
+  }, [user, firestore, isSuperAdmin]);
+
+
+  const loading = authLoading || platformUserLoading || membershipsLoading;
 
   const profile: UserProfile | null = useMemo(() => {
     if (loading || !user) {
       return null;
     }
 
-    const isSuperAdmin = platformUser?.super_admin ?? false;
-
-    // Handle super admin case first. Their profile is global and not dependent on a school membership.
+    // Handle super admin case first
     if (isSuperAdmin) {
       return {
         uid: user.uid,
         displayName: user.displayName || user.email || 'Super Admin',
         email: user.email!,
-        role: 'school_admin', // A super admin has the highest effective role.
-        assignedCategories: [], // Not applicable at a global level.
+        role: 'school_admin', // Effective role
+        assignedCategories: [],
         isSuperAdmin: true,
-        activeSchoolId: undefined, // Super admin doesn't have a single "active" school.
-        memberships: [], // We don't load all memberships here for performance.
+        activeSchoolId: undefined, // Super admin can switch schools in the UI
+        memberships: [], // Does not have explicit school memberships
       };
     }
 
-    // If not a super admin, they MUST be a school user to have a profile.
-    if (!schoolUser) {
+    // Handle regular user. They need at least one membership to have a profile.
+    if (!memberships || memberships.length === 0) {
       return null;
     }
 
-    const membership: SchoolMembership = {
-        schoolId: ACTIVE_SCHOOL_ID,
-        role: schoolUser.role,
-    };
+    // For now, pick the first membership as the active one.
+    // A UI to switch schools would be a future improvement.
+    const activeMembership = memberships[0];
+    const { schoolId, ...schoolUserData } = activeMembership;
 
     return {
-      ...schoolUser,
+      ...schoolUserData,
       uid: user.uid,
       isSuperAdmin: false,
-      activeSchoolId: ACTIVE_SCHOOL_ID,
-      memberships: [membership],
+      activeSchoolId: schoolId,
+      memberships: memberships,
     };
-  }, [loading, user, platformUser, schoolUser]);
+  }, [loading, user, isSuperAdmin, memberships]);
 
 
   const isReady = !loading;
