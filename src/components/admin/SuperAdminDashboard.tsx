@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -15,17 +16,52 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Building } from "lucide-react";
-import { useCollection } from "@/firebase";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "../ui/button";
+import { Building, MoreHorizontal, Power, PowerOff, Loader2 } from "lucide-react";
+import { useCollection, useFirestore } from "@/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 import type { School } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 import { Badge } from "../ui/badge";
 import { CreateSchoolDialog } from "./CreateSchoolDialog";
+import { useToast } from "@/hooks/use-toast";
 
 export function SuperAdminDashboard() {
     const { data: schools, loading: schoolsLoading } = useCollection<School>('schools', { orderBy: ['createdAt', 'desc']});
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [updatingSchoolId, setUpdatingSchoolId] = useState<string | null>(null);
+
+    const handleStatusChange = async (schoolId: string, currentStatus: 'active' | 'suspended') => {
+        setUpdatingSchoolId(schoolId);
+        const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+        const schoolRef = doc(firestore, 'schools', schoolId);
+
+        try {
+            await updateDoc(schoolRef, { status: newStatus });
+            toast({
+                title: "Estado actualizado",
+                description: `La escuela ha sido ${newStatus === 'active' ? 'activada' : 'suspendida'}.`,
+            });
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "Error al actualizar",
+                description: "No se pudo cambiar el estado de la escuela.",
+            });
+        } finally {
+            setUpdatingSchoolId(null);
+        }
+    };
 
     return (
         <div className="flex flex-col gap-4">
@@ -67,7 +103,7 @@ export function SuperAdminDashboard() {
                                     <TableCell><Skeleton className="h-6 w-32" /></TableCell>
                                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                                     <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
+                                    <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                                 </TableRow>
                             ))}
                             {schools?.map((school) => (
@@ -84,7 +120,30 @@ export function SuperAdminDashboard() {
                                     </TableCell>
                                     <TableCell>{format(school.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
                                     <TableCell className="text-right">
-                                        {/* Acciones futuras como "Gestionar" irán aquí */}
+                                       <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={updatingSchoolId === school.id}>
+                                                    <span className="sr-only">Abrir menú</span>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleStatusChange(school.id, school.status)}
+                                                    disabled={updatingSchoolId === school.id}
+                                                >
+                                                    {updatingSchoolId === school.id ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : school.status === 'active' ? (
+                                                        <PowerOff className="mr-2 h-4 w-4" />
+                                                    ) : (
+                                                        <Power className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    <span>{updatingSchoolId === school.id ? 'Actualizando...' : school.status === 'active' ? 'Suspender' : 'Activar'}</span>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))}
