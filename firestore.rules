@@ -3,55 +3,81 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Helper Functions ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isSuperAdmin() {
-      // Se usa exists() para evitar errores si el documento aún no existe.
-      return exists(/databases/$(database)/documents/platformUsers/$(request.auth.uid)) 
+      return isSignedIn()
           && get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data.super_admin == true;
     }
 
-    function getSchoolUserData(schoolId, userId) {
-      return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(userId)).data;
+    function getSchoolUserData(schoolId) {
+      // No se necesita isSignedIn() aquí porque los helpers que lo usan ya lo validan.
+      return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data;
     }
 
     function isSchoolAdmin(schoolId) {
-      return exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
-          && getSchoolUserData(schoolId, request.auth.uid).role == 'school_admin';
+      return isSignedIn()
+          && getSchoolUserData(schoolId) != null
+          && getSchoolUserData(schoolId).role == 'school_admin';
     }
 
     function isCoach(schoolId) {
-      return exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
-          && getSchoolUserData(schoolId, request.auth.uid).role == 'coach';
+      return isSignedIn()
+          && getSchoolUserData(schoolId) != null
+          && getSchoolUserData(schoolId).role == 'coach';
     }
 
     function isMemberOfSchool(schoolId) {
-      return exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid));
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid));
     }
     
     function isAssignedToCategory(schoolId, categoryId) {
-      let userData = getSchoolUserData(schoolId, request.auth.uid);
-      return userData.role == 'coach' && categoryId in userData.assignedCategories;
+      if (!isCoach(schoolId)) return false;
+      let userData = getSchoolUserData(schoolId);
+      return categoryId in userData.assignedCategories;
     }
 
-    // --- Global Collections ---
+    // --- Schema Validation Helpers ---
+
+    function isValidSchoolUserRole(role) {
+      return role in ['school_admin', 'coach'];
+    }
+
+    function isCategoryIdUnchanged() {
+      return request.resource.data.categoryId == resource.data.categoryId;
+    }
+
+    // --- Rules ---
+
     match /platformUsers/{userId} {
-      allow read: if isSuperAdmin() || request.auth.uid == userId;
-      // Se permite la escritura al super admin o al email designado para la creación inicial.
-      allow write: if isSuperAdmin() || (request.auth.uid == userId && request.auth.token.email == 'abengolea1@gmail.com');
+      allow read: if isSignedIn() && (isSuperAdmin() || request.auth.uid == userId);
+      
+      // Regla de bootstrap: permite al email específico auto-crearse como super admin la primera vez.
+      allow create: if isSignedIn() && request.auth.uid == userId 
+        && (request.auth.token.email == 'abengolea1@gmail.com' || !request.resource.data.keys().hasAny(['super_admin']));
+
+      // Un usuario puede actualizar su propio doc, pero no darse super_admin. Solo un super_admin puede hacerlo.
+      allow update: if isSignedIn() && (
+        isSuperAdmin() || 
+        (request.auth.uid == userId && !("super_admin" in request.resource.data))
+      );
     }
 
     match /schools/{schoolId} {
-      allow read: if isSuperAdmin() || isMemberOfSchool(schoolId) || request.auth.token.email == 'abengolea1@gmail.com';
-      // Se permite la creación/actualización al super admin o al email designado.
-      allow create, update: if isSuperAdmin() || request.auth.token.email == 'abengolea1@gmail.com';
-      allow delete: if false; // Soft delete cambiando el status
+      allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
+      allow create, update: if isSuperAdmin();
+      allow delete: if false; // Soft delete
     }
     
-    // --- School Sub-collections ---
-    
     match /schools/{schoolId}/users/{userId} {
-        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId || request.auth.token.email == 'abengolea1@gmail.com';
-        // Se permite la gestión al super admin, admin de escuela o email designado.
-        allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.token.email == 'abengolea1@gmail.com';
+        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId;
+        // Solo admins pueden escribir, y solo pueden asignar roles válidos.
+        allow create, update: if (isSuperAdmin() || isSchoolAdmin(schoolId)) && isValidSchoolUserRole(request.resource.data.role);
+        allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
     
     match /schools/{schoolId}/categories/{categoryId} {
@@ -61,24 +87,32 @@ service cloud.firestore {
 
     match /schools/{schoolId}/players/{playerId} {
       allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
-      allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
+      allow create, update: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
+      // Solo admins pueden borrar jugadores.
+      allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
+
+    match /schools/{schoolId}/evaluations/{evalId} {
+      allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
+      allow create: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isAssignedToCategory(schoolId, request.resource.data.categoryId));
+      // En update, un coach no puede cambiar el categoryId.
+      allow update: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isCategoryIdUnchanged() && isAssignedToCategory(schoolId, resource.data.categoryId));
+      allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
+    }
+
+    // --- Otras colecciones ---
 
     match /schools/{schoolId}/trainings/{trainingId} {
       allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
-      allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isAssignedToCategory(schoolId, request.resource.data.categoryId));
+      allow create: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isAssignedToCategory(schoolId, request.resource.data.categoryId));
+      allow update: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isCategoryIdUnchanged() && isAssignedToCategory(schoolId, resource.data.categoryId));
+      allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
 
     match /schools/{schoolId}/trainings/{trainingId}/attendance/{playerId} {
       allow read, write: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isAssignedToCategory(schoolId, get(/databases/$(database)/documents/schools/$(schoolId)/trainings/$(trainingId)).data.categoryId));
     }
     
-    match /schools/{schoolId}/evaluations/{evalId} {
-      allow read: if isSuperAdmin() || isMemberOfSchool(schoolId);
-      allow create, update: if isSuperAdmin() || isSchoolAdmin(schoolId) || (isCoach(schoolId) && isAssignedToCategory(schoolId, request.resource.data.categoryId));
-      allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
-    }
-
     match /schools/{schoolId}/invites/{inviteId} {
        allow read, write: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
