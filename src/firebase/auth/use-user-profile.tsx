@@ -41,23 +41,15 @@ export function useUserProfile() {
     }
 
     setMembershipsLoading(true);
-    // This query finds all documents in any 'users' subcollection where the user's ID matches.
+    // This query finds all documents in any 'users' subcollection where the user's email matches.
+    // This is necessary because a user might be assigned a role by an admin before they even log in.
     const userRolesQuery = query(
-      collectionGroup(firestore, 'users'),
-      where('__name__', '==', `schools/${user.uid}`) // This is a placeholder, as we need to query by document ID.
-                                                    // A real query would be on a field like `email` or `uid`.
-                                                    // Let's query by UID, assuming the doc ID is the UID.
-    );
-
-    // Because we can't directly query by document ID in a collection group query this way,
-    // we'll query by a field that should be unique, like email.
-    const finalUserRolesQuery = query(
         collectionGroup(firestore, 'users'),
         where('email', '==', user.email)
     );
 
 
-    getDocs(finalUserRolesQuery).then(snapshot => {
+    getDocs(userRolesQuery).then(snapshot => {
       if (snapshot.empty) {
         setMemberships([]);
       } else {
