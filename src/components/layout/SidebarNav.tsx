@@ -34,10 +34,10 @@ export function SidebarNav() {
   return (
     <>
       <SidebarHeader>
-        <div className="flex items-center gap-2 p-2">
+        <Link href="/dashboard" className="flex items-center gap-2 p-2">
           <RiverPlateLogo className="h-8 w-8" />
           <span className="text-xl font-bold font-headline text-primary">Escuela de River</span>
-        </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
