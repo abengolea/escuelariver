@@ -24,9 +24,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Loader2, PlusCircle, UserPlus } from "lucide-react";
-import { useFirestore, useAuth } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { collection, doc, writeBatch, Timestamp } from "firebase/firestore";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { initializeApp, deleteApp } from "firebase/app";
+import { firebaseConfig } from "@/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
 
@@ -42,7 +44,6 @@ const schoolSchema = z.object({
 
 export function CreateSchoolDialog() {
   const [open, setOpen] = useState(false);
-  const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -62,67 +63,71 @@ export function CreateSchoolDialog() {
   const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof schoolSchema>) {
-     // 1. Create the user in Firebase Auth
-    let newUser;
+    const tempAppName = `temp-user-creation-${Date.now()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
+    
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, values.adminEmail, values.adminPassword);
-        newUser = userCredential.user;
-        await updateProfile(newUser, { displayName: values.adminDisplayName });
-    } catch (authError: any) {
-        let description = "Ocurrió un error al crear el usuario administrador.";
-        if (authError.code === 'auth/email-already-in-use') {
-            description = "El correo electrónico para el administrador ya está en uso.";
-        } else if (authError.code === 'auth/weak-password') {
-            description = "La contraseña proporcionada es demasiado débil (mínimo 6 caracteres).";
+      // 1. Create the user in the temporary, isolated auth instance
+      const userCredential = await createUserWithEmailAndPassword(tempAuth, values.adminEmail, values.adminPassword);
+      const newUser = userCredential.user;
+      await updateProfile(newUser, { displayName: values.adminDisplayName });
+
+      // 2. Now that user is created, commit school and role docs to Firestore.
+      // This part runs under the original admin's authentication context.
+      const newSchoolRef = doc(collection(firestore, 'schools'));
+      const schoolUserRef = doc(firestore, 'schools', newSchoolRef.id, 'users', newUser.uid);
+      const batch = writeBatch(firestore);
+
+      const schoolData = {
+          name: values.name,
+          city: values.city,
+          province: values.province,
+          address: values.address,
+          status: 'active' as const,
+          createdAt: Timestamp.now(),
+      };
+
+      const schoolUserData = {
+          displayName: values.adminDisplayName,
+          email: values.adminEmail,
+          role: 'school_admin' as const,
+          assignedCategories: [],
+      };
+
+      batch.set(newSchoolRef, schoolData);
+      batch.set(schoolUserRef, schoolUserData);
+      await batch.commit();
+
+      toast({
+          title: "¡Escuela y Administrador Creados!",
+          description: `Se creó la escuela "${values.name}" y se asignó a ${values.adminEmail} como administrador.`,
+      });
+      form.reset();
+      setOpen(false);
+
+    } catch (error: any) {
+        let title = "Error";
+        let description = "Ocurrió un error inesperado.";
+        if (error.code) { // Likely an Auth error
+            title = "Error de Autenticación";
+            if (error.code === 'auth/email-already-in-use') {
+                description = "El correo electrónico para el administrador ya está en uso.";
+            } else if (error.code === 'auth/weak-password') {
+                description = "La contraseña proporcionada es demasiado débil (mínimo 6 caracteres).";
+            }
+        } else {
+            title = "Error de Base de Datos";
+            description = "No se pudo crear la escuela o asignar el rol. Por favor, revisa tus permisos e inténtalo de nuevo."
         }
         toast({
             variant: "destructive",
-            title: "Error de Autenticación",
+            title: title,
             description: description,
         });
-        return; 
-    }
-
-    // 2. If user creation is successful, create the school and the role doc in a batch
-    const newSchoolRef = doc(collection(firestore, 'schools'));
-    const schoolUserRef = doc(firestore, 'schools', newSchoolRef.id, 'users', newUser.uid);
-    const batch = writeBatch(firestore);
-
-    const schoolData = {
-        name: values.name,
-        city: values.city,
-        province: values.province,
-        address: values.address,
-        status: 'active' as const,
-        createdAt: Timestamp.now(),
-    };
-
-    const schoolUserData = {
-        displayName: values.adminDisplayName,
-        email: values.adminEmail,
-        role: 'school_admin' as const,
-        assignedCategories: [],
-    };
-
-    batch.set(newSchoolRef, schoolData);
-    batch.set(schoolUserRef, schoolUserData);
-
-    try {
-        await batch.commit();
-        toast({
-            title: "¡Escuela y Administrador Creados!",
-            description: `Se creó la escuela "${values.name}" y se asignó a ${values.adminEmail} como administrador.`,
-        });
-        form.reset();
-        setOpen(false);
-    } catch (firestoreError: any) {
-        console.error("Firestore batch commit failed:", firestoreError);
-        toast({
-            variant: "destructive",
-            title: "Error Crítico de Base de Datos",
-            description: `Se creó el usuario ${values.adminEmail}, pero no se pudo crear la escuela ni asignar el rol. Por favor, elimina el usuario manualmente desde la consola de Firebase y vuelve a intentarlo.`,
-            duration: 15000, 
-        });
+    } finally {
+        // 3. Clean up the temporary app regardless of success or failure
+        await deleteApp(tempApp);
     }
   }
 

@@ -17,6 +17,8 @@ export * from './auth/use-user';
 export * from './auth/use-user-profile';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
+export * from './error-emitter';
+export * from './errors';
 
 
 let app: FirebaseApp;

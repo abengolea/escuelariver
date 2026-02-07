@@ -31,8 +31,10 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Loader2, UserPlus } from "lucide-react";
-import { useAuth, useFirestore } from "@/firebase";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { initializeApp, deleteApp } from "firebase/app";
+import { firebaseConfig } from "@/firebase/config";
 import { doc, setDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
@@ -45,7 +47,6 @@ const addUserSchema = z.object({
 
 export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
   const [open, setOpen] = useState(false);
-  const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -61,51 +62,61 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
   const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof addUserSchema>) {
-    let newUser;
+    const tempAppName = `temp-user-creation-${Date.now()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
+
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-        newUser = userCredential.user;
+        // 1. Create the user in the temporary, isolated auth instance
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
+        const newUser = userCredential.user;
         await updateProfile(newUser, { displayName: values.displayName });
-    } catch (authError: any) {
-        let description = "Ocurrió un error al crear el usuario.";
-        if (authError.code === 'auth/email-already-in-use') {
-            description = "El correo electrónico proporcionado ya está en uso por otro usuario.";
-        } else if (authError.code === 'auth/weak-password') {
-            description = "La contraseña proporcionada es demasiado débil (mínimo 6 caracteres).";
-        }
-        toast({
-            variant: "destructive",
-            title: "Error de Autenticación",
-            description: description,
-        });
-        return; 
-    }
 
-    const schoolUserRef = doc(firestore, 'schools', schoolId, 'users', newUser.uid);
+        // 2. Create the Firestore document using the main (admin) auth context
+        const schoolUserRef = doc(firestore, 'schools', schoolId, 'users', newUser.uid);
+        const schoolUserData = {
+            displayName: values.displayName,
+            email: values.email,
+            role: values.role,
+            assignedCategories: [],
+        };
+        await setDoc(schoolUserRef, schoolUserData); // This will be called by the logged-in super-admin
 
-    const schoolUserData = {
-        displayName: values.displayName,
-        email: values.email,
-        role: values.role,
-        assignedCategories: [],
-    };
-
-    try {
-        await setDoc(schoolUserRef, schoolUserData);
         toast({
             title: "¡Usuario añadido!",
             description: `${values.displayName} ha sido añadido a la escuela como ${values.role}.`,
         });
         form.reset();
         setOpen(false);
-    } catch (firestoreError: any) {
-        console.error("Firestore setDoc failed:", firestoreError);
+
+    } catch (error: any) {
+        let title = "Error";
+        let description = "Ocurrió un error inesperado.";
+        if (error.code) { // Firebase auth errors have a 'code' property
+            title = "Error de Autenticación";
+            if (error.code === 'auth/email-already-in-use') {
+                description = "El correo electrónico proporcionado ya está en uso por otro usuario.";
+            } else if (error.code === 'auth/weak-password') {
+                description = "La contraseña proporcionada es demasiado débil (mínimo 6 caracteres).";
+            }
+        } else { // Assume it's a Firestore error
+            title = "Error de Base de Datos";
+            description = "No se pudo asignar el rol al usuario en la escuela. Verifica los permisos.";
+            const permissionError = new FirestorePermissionError({
+                path: `schools/${schoolId}/users/NEW_USER_ID`,
+                operation: 'create',
+                requestResourceData: { displayName: values.displayName, email: values.email, role: values.role },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
         toast({
             variant: "destructive",
-            title: "Error Crítico de Base de Datos",
-            description: `Se creó el usuario de autenticación para ${values.email}, pero no se pudo asignar el rol en la escuela. Por favor, contacta a soporte para solucionar este problema o elimina el usuario y vuelve a intentarlo.`,
-            duration: 15000, 
+            title: title,
+            description: description,
         });
+    } finally {
+        // 3. Clean up the temporary app
+        await deleteApp(tempApp);
     }
   }
 
