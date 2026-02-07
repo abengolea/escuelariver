@@ -11,9 +11,10 @@ service cloud.firestore {
     function isSuperAdmin() {
       // Check for the DB flag OR the specific bootstrap email.
       // This makes the rule resilient if the DB flag is missing for the bootstrap user.
+      let platformUserData = get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data;
       return isSignedIn()
           && (
-            get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data.super_admin == true
+            (platformUserData != null && platformUserData.super_admin == true)
             || request.auth.token.email == 'abengolea1@gmail.com'
           );
     }
@@ -70,9 +71,11 @@ service cloud.firestore {
         );
 
       // A user can update their own doc, but can't grant themselves super_admin. Only a super_admin can do that.
+      // EXCEPTION: The bootstrap user can grant themselves super_admin status.
       allow update: if isSignedIn() && (
         isSuperAdmin() || 
-        (request.auth.uid == userId && !('super_admin' in request.resource.data))
+        (request.auth.uid == userId && !('super_admin' in request.resource.data)) ||
+        (request.auth.uid == userId && request.auth.token.email == 'abengolea1@gmail.com' && request.resource.data.super_admin == true)
       );
     }
 
