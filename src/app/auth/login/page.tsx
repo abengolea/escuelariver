@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Timestamp } from "firebase/firestore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Shield } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
 
 const DEFAULT_SCHOOL_ID = 'escuela-123-sn';
 
@@ -20,16 +20,20 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, loading } = useUser();
+  const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // This useEffect redirects a user if they are already authenticated.
+  // The `!isLoggingIn` check prevents a race condition during a login attempt.
   useEffect(() => {
-    if (!loading && user) {
+    if (!authLoading && user && !isLoggingIn) {
       router.push("/dashboard");
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router, isLoggingIn]);
+
 
   // NOTE: In a real app, user profile and school creation would be handled
   // by secure Cloud Functions. This is a temporary setup for the MVP.
@@ -74,6 +78,7 @@ export default function LoginPage() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoggingIn(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       await createInitialData(userCredential.user);
@@ -84,10 +89,12 @@ export default function LoginPage() {
         title: "Error al iniciar sesión",
         description: "El correo electrónico o la contraseña son incorrectos.",
       });
+      setIsLoggingIn(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -99,6 +106,7 @@ export default function LoginPage() {
         title: "Error al iniciar sesión con Google",
         description: error.message,
       });
+      setIsLoggingIn(false);
     }
   };
 
@@ -111,7 +119,7 @@ export default function LoginPage() {
     });
   }
   
-  if (loading || user) {
+  if (authLoading || user) {
       return <div className="flex items-center justify-center min-h-screen">Cargando...</div>
   }
 
@@ -123,7 +131,7 @@ export default function LoginPage() {
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prefillSuperAdmin}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prefillSuperAdmin} disabled={isLoggingIn}>
                             <Shield className="h-5 w-5 text-muted-foreground" />
                         </Button>
                     </TooltipTrigger>
@@ -148,6 +156,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoggingIn}
             />
           </div>
           <div className="grid gap-2">
@@ -163,12 +172,15 @@ export default function LoginPage() {
               required 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoggingIn}
             />
           </div>
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full" disabled={isLoggingIn}>
+            {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Iniciar Sesión
           </Button>
-          <Button variant="outline" className="w-full" type="button" onClick={handleGoogleLogin}>
+          <Button variant="outline" className="w-full" type="button" onClick={handleGoogleLogin} disabled={isLoggingIn}>
+            {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Iniciar Sesión con Google
           </Button>
         </form>
