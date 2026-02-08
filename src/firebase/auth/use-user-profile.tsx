@@ -75,6 +75,8 @@ export function useUserProfile() {
       }
       setMembershipsLoading(false);
     }).catch((error: FirestoreError) => {
+        // This error is expected if the index is not created yet.
+        // The console will show a link to create it.
         console.error("Error fetching user memberships:", error);
         setMemberships([]);
         setMembershipsLoading(false);
