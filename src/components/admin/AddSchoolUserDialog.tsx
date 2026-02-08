@@ -109,7 +109,7 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
         if (error.code) { // Firebase auth errors have a 'code' property
             title = "Error de Autenticación";
             if (error.code === 'auth/email-already-in-use') {
-                description = "El correo electrónico proporcionado ya está en uso por otro usuario.";
+                description = "Este email ya está registrado. Si un intento anterior falló, elimina el usuario desde la consola de Firebase (Autenticación) y vuelve a intentarlo.";
             } else if (error.code === 'auth/weak-password') {
                 description = "La contraseña proporcionada es demasiado débil (mínimo 6 caracteres).";
             }
@@ -127,6 +127,7 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
             variant: "destructive",
             title: title,
             description: description,
+            duration: 9000,
         });
     } finally {
         // 3. Clean up the temporary app
