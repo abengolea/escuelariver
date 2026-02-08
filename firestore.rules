@@ -8,15 +8,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Simplificado para evitar dependencias circulares.
+    // El super admin se define únicamente por el email de bootstrap.
     function isSuperAdmin() {
-      // Check for the DB flag OR the specific bootstrap email.
-      // This makes the rule resilient if the DB flag is missing for the bootstrap user.
-      let platformUserData = get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data;
-      return isSignedIn()
-          && (
-            (platformUserData != null && platformUserData.super_admin == true)
-            || request.auth.token.email == 'abengolea1@gmail.com'
-          );
+      return isSignedIn() && request.auth.token.email == 'abengolea1@gmail.com';
     }
 
     function getSchoolUserData(schoolId) {
@@ -58,8 +53,15 @@ service cloud.firestore {
     }
 
     // --- Rules ---
+    
+    // CRÍTICO: Permite que un usuario busque sus propios roles en CUALQUIER escuela.
+    // Necesario para la collectionGroup query que se ejecuta al iniciar sesión.
+    match /{path=**}/users/{userId} {
+      allow read: if isSignedIn() && resource.data.email == request.auth.token.email;
+    }
 
     match /platformUsers/{userId} {
+      // Un usuario puede leer su propio documento. Un super admin puede leer cualquiera.
       allow read: if isSignedIn() && (isSuperAdmin() || request.auth.uid == userId);
       
       // Bootstrap rule: allows the specific email to self-create as super admin on first login.
@@ -70,12 +72,11 @@ service cloud.firestore {
           (request.auth.token.email != 'abengolea1@gmail.com' && request.resource.data.super_admin == false)
         );
 
-      // A user can update their own doc, but can't grant themselves super_admin. Only a super_admin can do that.
-      // EXCEPTION: The bootstrap user can grant themselves super_admin status.
+      // Un super admin puede actualizar cualquier perfil.
+      // Un usuario puede actualizar su propio documento, pero no darse permisos de super admin.
       allow update: if isSignedIn() && (
         isSuperAdmin() || 
-        (request.auth.uid == userId && !('super_admin' in request.resource.data)) ||
-        (request.auth.uid == userId && request.auth.token.email == 'abengolea1@gmail.com' && request.resource.data.super_admin == true)
+        (request.auth.uid == userId && !('super_admin' in request.resource.data))
       );
     }
 
@@ -87,9 +88,7 @@ service cloud.firestore {
     
     match /schools/{schoolId}/users/{userId} {
         // A user can read their own user document, an admin of that school can read any, and a super admin can read any.
-        // Added a condition to allow a user to read any document in this collection if their email matches.
-        // This is necessary for the collectionGroup query to find their roles on login.
-        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId || (resource.data.email == request.auth.token.email);
+        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId;
         // Admins can write, but only valid roles.
         allow create, update: if (isSuperAdmin() || isSchoolAdmin(schoolId)) && isValidSchoolUserRole(request.resource.data.role);
         allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
