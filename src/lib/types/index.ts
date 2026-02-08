@@ -1,6 +1,8 @@
 export interface PlatformUser {
   id: string; // auth uid
+  email: string;
   super_admin: boolean;
+  createdAt: Date;
 }
 
 export interface School {
