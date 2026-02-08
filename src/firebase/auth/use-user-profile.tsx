@@ -20,47 +20,53 @@ export function useUserProfile() {
   const { user, loading: authLoading } = useUser();
   const firestore = useFirestore();
 
-  // State for school memberships
+  // State for school memberships and derived super admin status
   const [memberships, setMemberships] = useState<FullSchoolMembership[] | null>(null);
-  const [membershipsLoading, setMembershipsLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
   
-  // Fetch global platform roles (e.g., isSuperAdmin)
-  const { data: platformUser, loading: platformUserLoading, error: platformUserError } = useDoc<PlatformUser>(
-    user ? `platformUsers/${user.uid}` : ''
-  );
-  
-  const isSuperAdmin = useMemo(() => platformUser?.super_admin ?? false, [platformUser]);
+  // Use a separate `useDoc` hook for the platform user data, but don't let it block the main logic.
+  const { data: platformUser } = useDoc<PlatformUser>(user ? `platformUsers/${user.uid}` : '');
 
-  // Fetch all school memberships for the user using a collection group query
   useEffect(() => {
-    // Wait until the platform user check is complete before proceeding.
-    // This prevents running the collectionGroup query unnecessarily for super admins.
-    if (platformUserLoading) {
+    // 1. Wait for authentication to complete
+    if (authLoading) {
       return;
     }
-
-    // Don't run query if we don't have a user, firestore, or if the user is a super admin
-    if (!user || !firestore || isSuperAdmin) {
-      setMemberships([]); // Super admin has no specific school memberships in this context
-      setMembershipsLoading(false);
-      return;
+    
+    // 2. If there's no user, we're done.
+    if (!user) {
+        setIsSuperAdmin(false);
+        setMemberships([]);
+        setProfileLoading(false);
+        return;
     }
 
-    setMembershipsLoading(true);
-    // This query finds all documents in any 'users' subcollection where the user's email matches.
-    // This is necessary because a user might be assigned a role by an admin before they even log in.
+    // 3. Check for Super Admin status FIRST. This is the critical change.
+    // The super admin is identified by email OR a flag in the database.
+    const superAdminByEmail = user.email === 'abengolea1@gmail.com';
+    const superAdminByDB = platformUser?.super_admin === true;
+
+    if (superAdminByEmail || superAdminByDB) {
+        setIsSuperAdmin(true);
+        setMemberships([]); // Super admin doesn't need school-specific memberships
+        setProfileLoading(false);
+        return; // Exit early, no need to fetch memberships
+    }
+    
+    // 4. If not super admin, it must be a regular user. Fetch their school roles.
+    setIsSuperAdmin(false);
+    
     const userRolesQuery = query(
         collectionGroup(firestore, 'users'),
         where('email', '==', user.email)
     );
-
 
     getDocs(userRolesQuery).then(snapshot => {
       if (snapshot.empty) {
         setMemberships([]);
       } else {
         const userMemberships: FullSchoolMembership[] = snapshot.docs.map(doc => {
-          // The path is schools/{schoolId}/users/{userId}
           const schoolId = doc.ref.parent.parent!.id;
           const schoolUserData = doc.data() as SchoolUser;
           return {
@@ -73,44 +79,42 @@ export function useUserProfile() {
         });
         setMemberships(userMemberships);
       }
-      setMembershipsLoading(false);
+      setProfileLoading(false);
     }).catch((error: FirestoreError) => {
         console.error("Error fetching user memberships:", error);
-        setMemberships([]);
-        setMembershipsLoading(false);
+        setMemberships([]); // Set empty on error
+        setProfileLoading(false);
     });
 
-  }, [user, firestore, isSuperAdmin, platformUserLoading]);
+  }, [user, authLoading, firestore, platformUser]); // Rerun when auth state or the DB user profile changes
 
-
-  const loading = authLoading || platformUserLoading || membershipsLoading;
+  const loading = authLoading || profileLoading;
 
   const profile: UserProfile | null = useMemo(() => {
     if (loading || !user) {
       return null;
     }
 
-    // Handle super admin case first
+    // Handle super admin case
     if (isSuperAdmin) {
       return {
         uid: user.uid,
         displayName: user.displayName || user.email || 'Super Admin',
         email: user.email!,
-        role: 'school_admin', // Effective role
+        role: 'school_admin', // Super admin has effectively the highest school role
         assignedCategories: [],
         isSuperAdmin: true,
-        activeSchoolId: undefined, // Super admin can switch schools in the UI
-        memberships: [], // Does not have explicit school memberships
+        activeSchoolId: undefined, // Super admin is not tied to one school
+        memberships: [],
       };
     }
 
     // Handle regular user. They need at least one membership to have a profile.
     if (!memberships || memberships.length === 0) {
-      return null;
+      return null; // This is what triggers the "pending approval" page
     }
 
-    // For now, pick the first membership as the active one.
-    // A UI to switch schools would be a future improvement.
+    // If they have memberships, build their profile from the first one.
     const activeMembership = memberships[0];
     const { schoolId, ...schoolUserData } = activeMembership;
 
