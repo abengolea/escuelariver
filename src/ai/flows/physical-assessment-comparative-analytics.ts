@@ -29,7 +29,7 @@ const PlayerEvalDataSchema = z.object({
 });
 
 
-export const GenerateComparativeAnalysisInputSchema = z.object({
+const GenerateComparativeAnalysisInputSchema = z.object({
   playerName: z.string().describe('Nombre del jugador a analizar.'),
   playerData: PlayerEvalDataSchema.describe('Datos de la evaluación más reciente del jugador.'),
   comparisonData: PlayerEvalDataSchema.describe('Datos de la evaluación con la que se debe comparar (ej. promedio de la categoría).'),
@@ -38,7 +38,7 @@ export const GenerateComparativeAnalysisInputSchema = z.object({
 export type GenerateComparativeAnalysisInput = z.infer<typeof GenerateComparativeAnalysisInputSchema>;
 
 
-export const GenerateComparativeAnalysisOutputSchema = z.object({
+const GenerateComparativeAnalysisOutputSchema = z.object({
   analysis: z.string().describe('Análisis de texto detallado, constructivo y en español, con formato Markdown. Debe incluir fortalezas, áreas de mejora y un resumen general.'),
 });
 export type GenerateComparativeAnalysisOutput = z.infer<typeof GenerateComparativeAnalysisOutputSchema>;
