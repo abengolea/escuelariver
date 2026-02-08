@@ -151,7 +151,7 @@ export function SuperAdminDashboard() {
                                 </TableRow>
                             ))}
                             {schools?.map((school) => (
-                                <TableRow key={school.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/schools/${school.id}`)}>
+                                <TableRow key={school.id} className="cursor-pointer hover:bg-muted" onClick={() => router.push(`/dashboard/schools/${school.id}`)}>
                                     <TableCell className="font-medium">
                                         {school.name}
                                     </TableCell>

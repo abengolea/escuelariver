@@ -3,9 +3,6 @@
 import {
   Home,
   Users,
-  Calendar,
-  HeartPulse,
-  FileText,
   Settings,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,9 +20,6 @@ import { RiverPlateLogo } from "../icons/RiverPlateLogo";
 const menuItems = [
   { href: "/dashboard", label: "Panel Principal", icon: Home },
   { href: "/dashboard/players", label: "Jugadores", icon: Users },
-  { href: "/dashboard/sessions", label: "Sesiones", icon: Calendar },
-  { href: "/dashboard/medical", label: "Médico", icon: HeartPulse },
-  { href: "/dashboard/reports", label: "Informes", icon: FileText },
 ];
 
 export function SidebarNav() {
