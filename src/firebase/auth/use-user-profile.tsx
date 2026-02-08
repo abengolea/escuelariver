@@ -25,24 +25,12 @@ export function useUserProfile() {
   const [membershipsLoading, setMembershipsLoading] = useState(true);
   
   // Fetch global platform roles (e.g., isSuperAdmin)
-  const { data: platformUser, loading: platformUserLoading, error: platformUserError } = useDoc<PlatformUser>(
+  const { data: platformUser, loading: platformUserLoading } = useDoc<PlatformUser>(
     user ? `platformUsers/${user.uid}` : ''
   );
   
   const isSuperAdmin = useMemo(() => platformUser?.super_admin ?? false, [platformUser]);
 
-  useEffect(() => {
-    console.log("🔍 Debug:", {
-      user: user?.email,
-      authLoading,
-      platformUserLoading,
-      membershipsLoading,
-      platformUser,
-      platformUserError, 
-      isSuperAdmin
-    });
-  }, [user, authLoading, platformUserLoading, membershipsLoading, platformUser, isSuperAdmin, platformUserError]);
-  
   // Fetch all school memberships for the user using a collection group query
   useEffect(() => {
     // Wait until the platform user check is complete before proceeding.

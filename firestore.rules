@@ -86,7 +86,10 @@ service cloud.firestore {
     }
     
     match /schools/{schoolId}/users/{userId} {
-        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId;
+        // A user can read their own user document, an admin of that school can read any, and a super admin can read any.
+        // Added a condition to allow a user to read any document in this collection if their email matches.
+        // This is necessary for the collectionGroup query to find their roles on login.
+        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId || (resource.data.email == request.auth.token.email);
         // Admins can write, but only valid roles.
         allow create, update: if (isSuperAdmin() || isSchoolAdmin(schoolId)) && isValidSchoolUserRole(request.resource.data.role);
         allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
