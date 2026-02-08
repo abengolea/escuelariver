@@ -35,7 +35,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { initializeApp, deleteApp } from "firebase/app";
 import { firebaseConfig } from "@/firebase/config";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, writeBatch, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 const addUserSchema = z.object({
@@ -72,7 +72,10 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
         const newUser = userCredential.user;
         await updateProfile(newUser, { displayName: values.displayName });
 
-        // 2. Create the Firestore document using the main (admin) auth context
+        // 2. Create the Firestore documents using a batch write for atomicity
+        const batch = writeBatch(firestore);
+
+        // Doc 1: The user's role within the school
         const schoolUserRef = doc(firestore, 'schools', schoolId, 'users', newUser.uid);
         const schoolUserData = {
             displayName: values.displayName,
@@ -80,7 +83,18 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
             role: values.role,
             assignedCategories: [],
         };
-        await setDoc(schoolUserRef, schoolUserData); // This will be called by the logged-in super-admin
+        batch.set(schoolUserRef, schoolUserData);
+        
+        // Doc 2: The user's global profile document
+        const platformUserRef = doc(firestore, 'platformUsers', newUser.uid);
+        const platformUserData = {
+            email: values.email,
+            super_admin: false,
+            createdAt: Timestamp.now()
+        };
+        batch.set(platformUserRef, platformUserData);
+
+        await batch.commit();
 
         toast({
             title: "¡Usuario añadido!",
@@ -99,7 +113,7 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
             } else if (error.code === 'auth/weak-password') {
                 description = "La contraseña proporcionada es demasiado débil (mínimo 6 caracteres).";
             }
-        } else { // Assume it's a Firestore error
+        } else {
             title = "Error de Base de Datos";
             description = "No se pudo asignar el rol al usuario en la escuela. Verifica los permisos.";
             const permissionError = new FirestorePermissionError({

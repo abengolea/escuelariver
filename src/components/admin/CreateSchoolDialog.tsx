@@ -73,12 +73,11 @@ export function CreateSchoolDialog() {
       const newUser = userCredential.user;
       await updateProfile(newUser, { displayName: values.adminDisplayName });
 
-      // 2. Now that user is created, commit school and role docs to Firestore.
-      // This part runs under the original admin's authentication context.
-      const newSchoolRef = doc(collection(firestore, 'schools'));
-      const schoolUserRef = doc(firestore, 'schools', newSchoolRef.id, 'users', newUser.uid);
+      // 2. Now that user is created, commit all related docs to Firestore in a single batch.
       const batch = writeBatch(firestore);
 
+      // Doc 1: The new school
+      const newSchoolRef = doc(collection(firestore, 'schools'));
       const schoolData = {
           name: values.name,
           city: values.city,
@@ -87,20 +86,31 @@ export function CreateSchoolDialog() {
           status: 'active' as const,
           createdAt: Timestamp.now(),
       };
-
+      batch.set(newSchoolRef, schoolData);
+      
+      // Doc 2: The user's role within that school
+      const schoolUserRef = doc(firestore, 'schools', newSchoolRef.id, 'users', newUser.uid);
       const schoolUserData = {
           displayName: values.adminDisplayName,
           email: values.adminEmail,
           role: 'school_admin' as const,
           assignedCategories: [],
       };
-
-      batch.set(newSchoolRef, schoolData);
       batch.set(schoolUserRef, schoolUserData);
+
+      // Doc 3: The user's global profile document
+      const platformUserRef = doc(firestore, 'platformUsers', newUser.uid);
+       const platformUserData = {
+          email: values.adminEmail,
+          super_admin: false,
+          createdAt: Timestamp.now()
+       };
+      batch.set(platformUserRef, platformUserData);
+
       await batch.commit();
 
       toast({
-          title: "¡Escuela y Administrador Creados!",
+          title: "¡Éxito!",
           description: `Se creó la escuela "${values.name}" y se asignó a ${values.adminEmail} como administrador.`,
       });
       form.reset();
