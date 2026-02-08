@@ -33,6 +33,12 @@ export function useUserProfile() {
 
   // Fetch all school memberships for the user using a collection group query
   useEffect(() => {
+    // Wait until the platform user check is complete before proceeding.
+    // This prevents running the collectionGroup query unnecessarily for super admins.
+    if (platformUserLoading) {
+      return;
+    }
+
     // Don't run query if we don't have a user, firestore, or if the user is a super admin
     if (!user || !firestore || isSuperAdmin) {
       setMemberships([]); // Super admin has no specific school memberships in this context
@@ -74,7 +80,7 @@ export function useUserProfile() {
         setMembershipsLoading(false);
     });
 
-  }, [user, firestore, isSuperAdmin]);
+  }, [user, firestore, isSuperAdmin, platformUserLoading]);
 
 
   const loading = authLoading || platformUserLoading || membershipsLoading;
