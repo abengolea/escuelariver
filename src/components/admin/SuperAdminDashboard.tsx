@@ -36,6 +36,8 @@ import { Badge } from "../ui/badge";
 import { CreateSchoolDialog } from "./CreateSchoolDialog";
 import { useToast } from "@/hooks/use-toast";
 import { EditSchoolDialog } from "./EditSchoolDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PlatformUsersList } from "./PlatformUsersList";
 
 export function SuperAdminDashboard() {
     const { data: schools, loading: schoolsLoading } = useCollection<School>('schools', { orderBy: ['createdAt', 'desc']});
@@ -120,95 +122,125 @@ export function SuperAdminDashboard() {
                 </Card>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Building className="h-5 w-5" />
-                        Listado de Escuelas
-                    </CardTitle>
-                    <CardDescription>
-                        {schoolsLoading ? 'Cargando listado de escuelas...' : `Haz click en una para gestionarla.`}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre de la Escuela</TableHead>
-                                <TableHead>Ubicación</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Fecha de Creación</TableHead>
-                                <TableHead className="text-right w-[80px]">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {schoolsLoading && [...Array(3)].map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-6 w-48" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-32" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
-                                </TableRow>
-                            ))}
-                            {schools?.map((school) => (
-                                <TableRow key={school.id} className="cursor-pointer hover:bg-muted" onClick={() => router.push(`/dashboard/schools/${school.id}`)}>
-                                    <TableCell className="font-medium">
-                                        {school.name}
-                                    </TableCell>
-                                    <TableCell>{school.city}, {school.province}</TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={school.status === 'active' ? 'secondary' : 'destructive'}
-                                            className={`capitalize ${school.status === "active" ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400" : ""}`}
-                                        >
-                                            {school.status === 'active' ? 'Activa' : 'Suspendida'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{format(school.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                                    <TableCell className="text-right">
-                                       <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()} disabled={updatingSchoolId === school.id}>
-                                                    <span className="sr-only">Abrir menú</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                <EditSchoolDialog school={school}>
-                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                                        <Edit className="mr-2 h-4 w-4" />
-                                                        <span>Editar Datos</span>
-                                                    </DropdownMenuItem>
-                                                </EditSchoolDialog>
-                                                <DropdownMenuItem
-                                                    onClick={(e) => {
-                                                        handleStatusChange(school.id, school.status);
-                                                    }}
-                                                    disabled={updatingSchoolId === school.id}
+             <Tabs defaultValue="schools" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="schools">
+                        <Building className="mr-2 h-4 w-4" />
+                        Escuelas
+                    </TabsTrigger>
+                    <TabsTrigger value="users">
+                        <Users className="mr-2 h-4 w-4" />
+                        Usuarios
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="schools">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Building className="h-5 w-5" />
+                                Listado de Escuelas
+                            </CardTitle>
+                            <CardDescription>
+                                {schoolsLoading ? 'Cargando listado de escuelas...' : `Haz click en una para gestionarla.`}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nombre de la Escuela</TableHead>
+                                        <TableHead>Ubicación</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                        <TableHead>Fecha de Creación</TableHead>
+                                        <TableHead className="text-right w-[80px]">Acciones</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {schoolsLoading && [...Array(3)].map((_, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell><Skeleton className="h-6 w-48" /></TableCell>
+                                            <TableCell><Skeleton className="h-6 w-32" /></TableCell>
+                                            <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                            <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {schools?.map((school) => (
+                                        <TableRow key={school.id} className="cursor-pointer hover:bg-muted" onClick={() => router.push(`/dashboard/schools/${school.id}`)}>
+                                            <TableCell className="font-medium">
+                                                {school.name}
+                                            </TableCell>
+                                            <TableCell>{school.city}, {school.province}</TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant={school.status === 'active' ? 'secondary' : 'destructive'}
+                                                    className={`capitalize ${school.status === "active" ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400" : ""}`}
                                                 >
-                                                    {updatingSchoolId === school.id ? (
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    ) : school.status === 'active' ? (
-                                                        <PowerOff className="mr-2 h-4 w-4" />
-                                                    ) : (
-                                                        <Power className="mr-2 h-4 w-4" />
-                                                    )}
-                                                    <span>{updatingSchoolId === school.id ? 'Actualizando...' : school.status === 'active' ? 'Suspender' : 'Activar'}</span>
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                     {(!schoolsLoading && !schools?.length) && (
-                        <p className="text-center text-muted-foreground py-8">No hay escuelas para mostrar.</p>
-                    )}
-                </CardContent>
-            </Card>
+                                                    {school.status === 'active' ? 'Activa' : 'Suspendida'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{format(school.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
+                                            <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()} disabled={updatingSchoolId === school.id}>
+                                                            <span className="sr-only">Abrir menú</span>
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                        <EditSchoolDialog school={school}>
+                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                                <Edit className="mr-2 h-4 w-4" />
+                                                                <span>Editar Datos</span>
+                                                            </DropdownMenuItem>
+                                                        </EditSchoolDialog>
+                                                        <DropdownMenuItem
+                                                            onClick={(e) => {
+                                                                handleStatusChange(school.id, school.status);
+                                                            }}
+                                                            disabled={updatingSchoolId === school.id}
+                                                        >
+                                                            {updatingSchoolId === school.id ? (
+                                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            ) : school.status === 'active' ? (
+                                                                <PowerOff className="mr-2 h-4 w-4" />
+                                                            ) : (
+                                                                <Power className="mr-2 h-4 w-4" />
+                                                            )}
+                                                            <span>{updatingSchoolId === school.id ? 'Actualizando...' : school.status === 'active' ? 'Suspender' : 'Activar'}</span>
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            {(!schoolsLoading && !schools?.length) && (
+                                <p className="text-center text-muted-foreground py-8">No hay escuelas para mostrar.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="users">
+                   <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Users className="h-5 w-5" />
+                                Gestión de Usuarios Globales
+                            </CardTitle>
+                            <CardDescription>
+                                {usersLoading ? 'Cargando usuarios...' : 'Gestiona los roles de todos los usuarios de la plataforma.'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <PlatformUsersList />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
