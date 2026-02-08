@@ -5,8 +5,11 @@
       "description": "Representa un usuario con roles globales en la plataforma, como super_admin.",
       "type": "object",
       "properties": {
-        "super_admin": { "type": "boolean", "description": "Si es verdadero, el usuario es un super administrador con acceso total." }
-      }
+        "email": { "type": "string", "format": "email" },
+        "super_admin": { "type": "boolean", "description": "Si es verdadero, el usuario es un super administrador con acceso total." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
     },
     "School": {
       "title": "Escuela",

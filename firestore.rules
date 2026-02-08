@@ -67,7 +67,7 @@ service cloud.firestore {
         && (
           (request.auth.token.email == 'abengolea1@gmail.com' && request.resource.data.super_admin == true) ||
           // Any other user can create their own doc, but CANNOT give themselves super_admin
-          (request.auth.token.email != 'abengolea1@gmail.com' && !('super_admin' in request.resource.data))
+          (request.auth.token.email != 'abengolea1@gmail.com' && request.resource.data.super_admin == false)
         );
 
       // A user can update their own doc, but can't grant themselves super_admin. Only a super_admin can do that.

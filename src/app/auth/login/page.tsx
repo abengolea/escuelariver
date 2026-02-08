@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, type User, sendPasswordResetEmail } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -31,25 +31,40 @@ export default function LoginPage() {
 
 
   const createInitialData = async (user: User) => {
-    // This function handles the bootstrap logic for the super admin.
-    // It's designed to be robust: on every login, it ensures the super_admin
+    const platformUserRef = doc(firestore, 'platformUsers', user.uid);
+
+    // Bootstrap logic for the super admin. On every login, it ensures the super_admin
     // flag is correctly set, creating or updating the document as needed.
     if (user.email === 'abengolea1@gmail.com') {
-      const platformUserRef = doc(firestore, 'platformUsers', user.uid);
       try {
-        // Use setDoc with merge to create or update the document.
-        // This ensures the super_admin flag is always set for this user on login,
-        // fixing any previous inconsistent state.
-        await setDoc(platformUserRef, { super_admin: true }, { merge: true });
+        await setDoc(platformUserRef, { 
+          super_admin: true,
+          email: user.email,
+          createdAt: Timestamp.now() 
+        }, { merge: true });
+        return; // Exit after handling super admin
       } catch (error) {
         console.error("Failed to create/update super admin role:", error);
-        // Re-throw the error to be caught by the handleLogin catch block.
-        // This will ensure the user is logged out if this critical step fails.
         throw new Error("No se pudo configurar el rol de super administrador.");
       }
     }
-    // For all other users, no initial data is created for them on login.
-    // The signup flow and admin assignment handle their roles.
+
+    // For all other users, check if their platformUser document exists.
+    // If not, create a basic one. This ensures every user has a record.
+    try {
+      const docSnap = await getDoc(platformUserRef);
+      if (!docSnap.exists()) {
+        await setDoc(platformUserRef, {
+          email: user.email,
+          super_admin: false,
+          createdAt: Timestamp.now()
+        });
+      }
+    } catch (error) {
+        console.error("Failed to create/check platform user document:", error);
+        // This is not a critical error for non-admins, so we can just log it
+        // and let the login proceed. The user just won't have a platformUser doc yet.
+    }
   };
 
   const handleLogin = async (loginFn: () => Promise<User>) => {
