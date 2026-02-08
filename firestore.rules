@@ -64,16 +64,19 @@ service cloud.firestore {
       // Un usuario puede leer su propio documento. Un super admin puede leer cualquiera.
       allow read: if isSignedIn() && (isSuperAdmin() || request.auth.uid == userId);
       
-      // Allow creation by a super admin OR by the user themselves under specific conditions.
-      allow create: if isSuperAdmin() || (
-        isSignedIn() && request.auth.uid == userId 
-        && (
-          // Bootstrap rule for super admin self-creation
-          (request.auth.token.email == 'abengolea1@gmail.com' && request.resource.data.super_admin == true) ||
-          // Rule for any other user creating their own doc (must not grant super_admin)
-          (request.auth.token.email != 'abengolea1@gmail.com' && request.resource.data.super_admin == false)
-        )
-      );
+      // Allow creation if:
+      // 1. The caller is a super admin.
+      // 2. The caller is any signed-in user, as long as they are not granting super_admin rights.
+      //    This allows school_admins to create the necessary platform user doc for new school users.
+      // 3. The bootstrap user is creating their own super_admin profile for the first time.
+      allow create: if isSuperAdmin() ||
+                     (isSignedIn() && request.resource.data.super_admin == false) ||
+                     (
+                       isSignedIn() &&
+                       request.auth.uid == userId &&
+                       request.auth.token.email == 'abengolea1@gmail.com' && 
+                       request.resource.data.super_admin == true
+                     );
 
       // Un super admin puede actualizar cualquier perfil.
       // Un usuario puede actualizar su propio documento, pero no darse permisos de super admin.
