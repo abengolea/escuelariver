@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { Building, MoreHorizontal, Power, PowerOff, Loader2, Users, ShieldCheck } from "lucide-react";
+import { Building, MoreHorizontal, Power, PowerOff, Loader2, Users, ShieldCheck, Edit } from "lucide-react";
 import { useCollection, useFirestore } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import type { School, PlatformUser } from "@/lib/types";
@@ -35,6 +35,7 @@ import { es } from 'date-fns/locale';
 import { Badge } from "../ui/badge";
 import { CreateSchoolDialog } from "./CreateSchoolDialog";
 import { useToast } from "@/hooks/use-toast";
+import { EditSchoolDialog } from "./EditSchoolDialog";
 
 export function SuperAdminDashboard() {
     const { data: schools, loading: schoolsLoading } = useCollection<School>('schools', { orderBy: ['createdAt', 'desc']});
@@ -173,11 +174,16 @@ export function SuperAdminDashboard() {
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
+                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                <EditSchoolDialog school={school}>
+                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                        <Edit className="mr-2 h-4 w-4" />
+                                                        <span>Editar Datos</span>
+                                                    </DropdownMenuItem>
+                                                </EditSchoolDialog>
                                                 <DropdownMenuItem
                                                     onClick={(e) => {
-                                                        e.stopPropagation();
                                                         handleStatusChange(school.id, school.status);
                                                     }}
                                                     disabled={updatingSchoolId === school.id}
