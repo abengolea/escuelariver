@@ -7,6 +7,8 @@ import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Player, Evaluation } from '@/lib/types';
 import { generateComparativeAnalysis, type GenerateComparativeAnalysisInput } from '@/ai/flows/physical-assessment-comparative-analytics';
+import ReactMarkdown from 'react-markdown';
+
 
 interface AnalyticsTabProps {
   player: Player;
@@ -20,12 +22,13 @@ const comparisonDataExample = {
     resistanceBeepTest: { value: 8, unit: 'level' },
   },
   technical: {
-    ballControl: 4,
-    passing: 3,
+    control: 4,
+    pase: 3,
+    definicion: 3,
   },
   tactical: {
-    positioning: 4,
-    decisionMaking: 3,
+    posicionamiento: 4,
+    tomaDeDecision: 3,
   }
 };
 
@@ -90,7 +93,7 @@ export function AnalyticsTab({ player, evaluations }: AnalyticsTabProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-start">
-          <Button onClick={handleGenerateAnalysis} disabled={loading}>
+          <Button onClick={handleGenerateAnalysis} disabled={loading || evaluations.length === 0}>
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -100,20 +103,26 @@ export function AnalyticsTab({ player, evaluations }: AnalyticsTabProps) {
           </Button>
         </div>
         
-          <div>
-            <Textarea
-              readOnly
-              value={loading ? "La IA está analizando los datos..." : analysisResult}
-              placeholder="El análisis generado por la IA aparecerá aquí..."
-              className="min-h-[250px] bg-muted/50 text-sm"
-            />
-             {analysisResult && (
-                <div className='mt-4 flex gap-2'>
-                    <Button>Aprobar y Guardar Informe</Button>
-                    <Button variant="outline">Editar</Button>
-                </div>
+          <div className="prose prose-sm dark:prose-invert max-w-none p-4 border rounded-md min-h-[250px] bg-muted/50">
+            {loading ? (
+              <div className='flex items-center justify-center h-full text-muted-foreground'>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                La IA está analizando los datos...
+              </div>
+            ) : analysisResult ? (
+              <ReactMarkdown>{analysisResult}</ReactMarkdown>
+            ) : (
+               <div className='flex items-center justify-center h-full text-muted-foreground'>
+                <p>El análisis generado por la IA aparecerá aquí...</p>
+               </div>
             )}
           </div>
+          {analysisResult && (
+              <div className='mt-4 flex gap-2'>
+                  <Button>Aprobar y Guardar Informe</Button>
+                  <Button variant="outline">Editar</Button>
+              </div>
+          )}
        
       </CardContent>
     </Card>

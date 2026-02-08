@@ -16,12 +16,20 @@ export interface School {
   createdAt: Date;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  schoolId: string;
+  createdAt: Date;
+}
+
 // Representa la membresía y el rol de un usuario en una escuela específica.
 export interface SchoolUser {
   id: string; // auth uid
   displayName: string;
   email: string;
   role: 'school_admin' | 'coach';
+  assignedCategories?: string[]; // IDs de las categorías asignadas
 }
 
 export interface Player {
@@ -70,16 +78,15 @@ export interface Evaluation {
     resistanceBeepTest?: { value: number, unit: 'level' };
     agilityTest?: { value: number, unit: 's' };
   };
-  technical?: Record<string, 1 | 2 | 3 | 4 | 5>;
-  tactical?: Record<string, 1 | 2 | 3 | 4 | 5>;
+  technical?: Record<string, number>; // Cambiado a number para los sliders
+  tactical?: Record<string, number>;
   socioEmotional?: {
-    respect: 1 | 2 | 3 | 4;
-    responsibility: 1 | 2 | 3 | 4;
-    teamwork: 1 | 2 | 3 | 4;
-    empathy: 1 | 2 | 3 | 4;
-    resilience: 1 | 2 | 3 | 4;
-    learningAttitude: 1 | 2 | 3 | 4;
-    evidence?: string[]; // Chips o comentarios cortos
+    respect?: number;
+    responsibility?: number;
+    teamwork?: number;
+    empathy?: number;
+    resilience?: number;
+    learningAttitude?: number;
   };
   criticalIncident?: {
     type: 'verbal_aggression' | 'physical_aggression';

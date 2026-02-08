@@ -5,18 +5,26 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Cake, User, Contact, Bot } from "lucide-react";
+import { Cake, User, Contact, Bot, FilePlus } from "lucide-react";
 import { calculateAge } from "@/lib/utils";
 import { useDoc, useUserProfile, useCollection } from "@/firebase";
 import type { Player, Evaluation } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryTab } from "@/components/players/PlayerProfile/SummaryTab";
 import { AnalyticsTab } from "@/components/players/PlayerProfile/AnalyticsTab";
+import { useState } from "react";
+import { AddEvaluationSheet } from "@/components/evaluations/AddEvaluationSheet";
+import { Card, CardContent } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { EvaluationDetailDisplay } from "@/components/evaluations/EvaluationDetailDisplay";
 
 export default function PlayerProfilePage() {
   const params = useParams();
   const id = params.id as string;
   const { activeSchoolId, isReady: profileReady } = useUserProfile();
+  const [isEvalSheetOpen, setEvalSheetOpen] = useState(false);
   
   const { data: player, loading: playerLoading } = useDoc<Player>(
       profileReady && activeSchoolId ? `schools/${activeSchoolId}/players/${id}` : ''
@@ -24,7 +32,7 @@ export default function PlayerProfilePage() {
 
   const { data: evaluations, loading: evalsLoading } = useCollection<Evaluation>(
     profileReady && activeSchoolId ? `schools/${activeSchoolId}/evaluations` : '',
-    { where: ['playerId', '==', id], orderBy: ['date', 'desc'], limit: 10 }
+    { where: ['playerId', '==', id], orderBy: ['date', 'desc'], limit: 20 }
   );
 
   const isLoading = playerLoading || !profileReady || evalsLoading;
@@ -58,6 +66,13 @@ export default function PlayerProfilePage() {
   const playerWithSchool = { ...player, escuelaId: activeSchoolId! };
 
   return (
+    <>
+    <AddEvaluationSheet
+      playerId={id}
+      schoolId={activeSchoolId!}
+      isOpen={isEvalSheetOpen}
+      onOpenChange={setEvalSheetOpen}
+    />
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row gap-6">
         <Avatar className="h-32 w-32 border-4 border-card">
@@ -83,8 +98,11 @@ export default function PlayerProfilePage() {
           </div>
         </div>
         <div className="flex items-start gap-2">
-            <Button>Editar Perfil</Button>
-            <Button variant="outline">Generar Informe</Button>
+            <Button variant="outline">Editar Perfil</Button>
+            <Button onClick={() => setEvalSheetOpen(true)}>
+              <FilePlus className="mr-2 h-4 w-4" />
+              Nueva Evaluación
+            </Button>
         </div>
       </header>
 
@@ -100,12 +118,43 @@ export default function PlayerProfilePage() {
           <SummaryTab player={playerWithSchool} />
         </TabsContent>
         <TabsContent value="evaluations">
-            <p className="p-4 text-center text-muted-foreground">La sección de historial de evaluaciones está en construcción.</p>
+            {evalsLoading && <Skeleton className="h-40 w-full" />}
+            {!evalsLoading && (!evaluations || evaluations.length === 0) ? (
+              <Card>
+                <CardContent className="p-10 text-center">
+                  <h3 className="font-semibold">Sin Evaluaciones</h3>
+                  <p className="text-muted-foreground mt-2">
+                    Aún no se han registrado evaluaciones para este jugador.
+                  </p>
+                  <Button className="mt-4" onClick={() => setEvalSheetOpen(true)}>
+                    <FilePlus className="mr-2 h-4 w-4" />
+                    Crear primera evaluación
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Accordion type="single" collapsible className="w-full">
+                {evaluations?.map((evaluation) => (
+                  <AccordionItem value={evaluation.id} key={evaluation.id}>
+                    <AccordionTrigger>
+                      <div className="flex justify-between w-full pr-4">
+                        <span className="font-semibold">Evaluación del {format(evaluation.date, "PPP", { locale: es })}</span>
+                        <span className="text-sm text-muted-foreground">Ver detalles</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <EvaluationDetailDisplay evaluation={evaluation} />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
         </TabsContent>
         <TabsContent value="analytics">
           <AnalyticsTab player={playerWithSchool} evaluations={evaluations || []} />
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }

@@ -26,6 +26,17 @@
       },
       "required": ["name", "city", "province", "status", "createdAt"]
     },
+     "Category": {
+      "title": "Categoría",
+      "description": "Representa una categoría de edad dentro de una escuela (ej. Sub-12).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "schoolId", "createdAt"]
+    },
     "SchoolUser": {
       "title": "Usuario de Escuela",
       "description": "Rol y permisos de un usuario dentro de una escuela.",
@@ -33,7 +44,8 @@
       "properties": {
         "displayName": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["school_admin", "coach"] }
+        "role": { "type": "string", "enum": ["school_admin", "coach"] },
+        "assignedCategories": { "type": "array", "items": { "type": "string" }, "description": "Lista de IDs de categorías asignadas a un entrenador."}
       },
       "required": ["displayName", "email", "role"]
     },
@@ -63,9 +75,51 @@
       "properties": {
         "playerId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
-        "coachComments": { "type": "string" }
+        "coachComments": { "type": "string" },
+        "physical": {
+          "type": "object",
+          "properties": {
+            "height": { "type": "object", "properties": { "value": { "type": "number" }, "unit": { "type": "string", "enum": ["cm"] } } },
+            "weight": { "type": "object", "properties": { "value": { "type": "number" }, "unit": { "type": "string", "enum": ["kg"] } } },
+            "speed20m": { "type": "object", "properties": { "value": { "type": "number" }, "unit": { "type": "string", "enum": ["s"] } } },
+            "resistanceBeepTest": { "type": "object", "properties": { "value": { "type": "number" }, "unit": { "type": "string", "enum": ["level"] } } },
+            "agilityTest": { "type": "object", "properties": { "value": { "type": "number" }, "unit": { "type": "string", "enum": ["s"] } } }
+          }
+        },
+        "technical": { 
+          "type": "object", 
+          "description": "Habilidades técnicas, con claves dinámicas y valores de 1 a 5.",
+          "additionalProperties": { "type": "number", "minimum": 1, "maximum": 5 }
+        },
+        "tactical": { 
+          "type": "object", 
+          "description": "Habilidades tácticas, con claves dinámicas y valores de 1 a 5.",
+          "additionalProperties": { "type": "number", "minimum": 1, "maximum": 5 }
+        },
+        "socioEmotional": {
+          "type": "object",
+          "properties": {
+            "respect": { "type": "number", "minimum": 1, "maximum": 4 },
+            "responsibility": { "type": "number", "minimum": 1, "maximum": 4 },
+            "teamwork": { "type": "number", "minimum": 1, "maximum": 4 },
+            "empathy": { "type": "number", "minimum": 1, "maximum": 4 },
+            "resilience": { "type": "number", "minimum": 1, "maximum": 4 },
+            "learningAttitude": { "type": "number", "minimum": 1, "maximum": 4 }
+          }
+        },
+        "criticalIncident": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["verbal_aggression", "physical_aggression"] },
+            "comment": { "type": "string" },
+            "reportedBy": { "type": "string" },
+            "reportedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string", "description": "UID del usuario que creó la evaluación." }
       },
-      "required": ["playerId", "date"]
+      "required": ["playerId", "date", "createdAt", "createdBy"]
     }
   },
   "auth": {
@@ -79,6 +133,10 @@
     "/schools/{schoolId}": {
       "schema": { "$ref": "#/entities/School" },
       "description": "Colección de todas las escuelas."
+    },
+     "/schools/{schoolId}/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Categorías de edad para una escuela."
     },
     "/schools/{schoolId}/users/{userId}": {
       "schema": { "$ref": "#/entities/SchoolUser" },
