@@ -53,7 +53,7 @@ export function RiverPlateLogo({ className }: { className?: string }) {
       // Using a key helps React re-render the image when the src changes
       key={logoSrc}
       src={logoSrc}
-      alt="Escuela de River Plate Logo"
+      alt="Escuela River San Nicolás Logo"
       width={40}
       height={40}
       className={cn("h-10 w-10", className)}

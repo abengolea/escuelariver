@@ -11,7 +11,7 @@ export default function AuthLayout({
        <div className="absolute inset-0 -z-10 h-full w-full bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]"></div>
        <Link href="/" className="mb-8 flex items-center gap-3 text-2xl font-bold text-primary">
           <RiverPlateLogo className="h-10 w-10" />
-          <h1 className="font-headline text-3xl">Escuela de River Plate</h1>
+          <h1 className="font-headline text-3xl">Escuela River San Nicolás</h1>
         </Link>
       {children}
     </div>

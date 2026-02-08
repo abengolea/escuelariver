@@ -57,7 +57,7 @@ export function SidebarNav() {
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2 p-2">
           <RiverPlateLogo className="h-8 w-8" />
-          <span className="text-xl font-bold font-headline text-primary">Escuela de River</span>
+          <span className="text-xl font-bold font-headline text-primary">Escuela River SN</span>
         </Link>
       </SidebarHeader>
       <SidebarContent className="p-2">

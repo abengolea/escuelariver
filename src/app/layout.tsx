@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'Escuela de River Plate',
+  title: 'Escuela River San Nicolás',
   description: 'Sistema Integral de Seguimiento de Jugadores',
 };
 
