@@ -88,9 +88,9 @@ export function SuperAdminDashboard() {
                     </CardHeader>
                     <CardContent>
                         {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{schools?.length || 0}</div>}
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                             {isLoading ? <Skeleton className="h-4 w-1/2 mt-1" /> : `${schools?.filter(s => s.status === 'active').length || 0} activas`}
-                        </p>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -100,9 +100,9 @@ export function SuperAdminDashboard() {
                     </CardHeader>
                     <CardContent>
                         {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{platformUsers?.length || 0}</div>}
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                              {isLoading ? <Skeleton className="h-4 w-1/2 mt-1" /> : `En toda la plataforma`}
-                        </p>
+                        </div>
                     </CardContent>
                 </Card>
                  <Card>
@@ -112,9 +112,9 @@ export function SuperAdminDashboard() {
                     </CardHeader>
                     <CardContent>
                         {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{platformUsers?.filter(u => u.super_admin).length || 0}</div>}
-                         <p className="text-xs text-muted-foreground">
+                         <div className="text-xs text-muted-foreground">
                             {isLoading ? <Skeleton className="h-4 w-1/2 mt-1" /> : `Con acceso total al sistema`}
-                        </p>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
