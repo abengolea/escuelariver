@@ -63,6 +63,8 @@ export function AddPlayerForm() {
         defaultValues: {
             firstName: "",
             lastName: "",
+            tutorName: "",
+            tutorPhone: "",
             status: "active",
             photoUrl: "",
             observations: "",
