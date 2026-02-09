@@ -74,6 +74,7 @@ export function RecordOrUploadVideoDialog({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: players } = useCollection<Player>(
@@ -107,6 +108,9 @@ export function RecordOrUploadVideoDialog({
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
@@ -114,12 +118,30 @@ export function RecordOrUploadVideoDialog({
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+      // En móvil: preferir cámara trasera (environment) para grabar la escena, no la selfie
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      }
       streamRef.current = stream;
       chunksRef.current = [];
+
+      // Mostrar vista previa en vivo para no ver pantalla negra
+      const videoEl = videoPreviewRef.current;
+      if (videoEl) {
+        videoEl.srcObject = stream;
+        videoEl.muted = true; // necesario para autoplay en móvil
+        await videoEl.play().catch(() => {});
+      }
+
       const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
         ? "video/webm;codecs=vp9"
         : "video/webm";
@@ -150,6 +172,9 @@ export function RecordOrUploadVideoDialog({
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+    }
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = null;
     }
     setRecording(false);
   };
@@ -306,26 +331,42 @@ export function RecordOrUploadVideoDialog({
         {mode === "record" && (
           <div className="space-y-2">
             <Label>Grabación</Label>
-            <div className="aspect-video bg-black rounded-lg flex items-center justify-center overflow-hidden">
+            <div className="aspect-video bg-black rounded-lg flex items-center justify-center overflow-hidden relative">
               {recordedBlob ? (
                 <video
                   src={URL.createObjectURL(recordedBlob)}
                   controls
-                  className="max-h-full max-w-full"
+                  className="max-h-full max-w-full w-full h-full object-cover"
                   playsInline
                 />
-              ) : recording ? (
-                <div className="text-white flex flex-col items-center gap-2">
-                  <span className="flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-red-500 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-                  </span>
-                  <span className="text-sm">Grabando...</span>
-                </div>
               ) : (
-                <span className="text-muted-foreground text-sm">
-                  Inicia la grabación para previsualizar
-                </span>
+                <>
+                  {/* Siempre montado para que el ref exista al iniciar grabación y se vea la vista previa */}
+                  <video
+                    ref={videoPreviewRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={
+                      recording
+                        ? "absolute inset-0 w-full h-full object-cover"
+                        : "absolute inset-0 w-full h-full object-cover pointer-events-none opacity-0"
+                    }
+                  />
+                  {recording ? (
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 text-white text-sm px-3 py-1.5 rounded-full">
+                      <span className="flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-red-500 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                      </span>
+                      Grabando...
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm relative z-10">
+                      Inicia la grabación para previsualizar
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <div className="flex gap-2">
