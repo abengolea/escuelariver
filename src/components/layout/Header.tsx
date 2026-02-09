@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Bell, LogOut, Cake } from "lucide-react";
+import { Search, Bell, LogOut, Cake, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,14 +24,25 @@ export function Header() {
   const { user } = useUser();
   const auth = useAuth();
   const router = useRouter();
-  const { isReady, activeSchoolId } = useUserProfile();
+  const { isReady, activeSchoolId, isPlayer } = useUserProfile();
+  // Solo staff (admin/coach) puede listar jugadores y pendingPlayers; un jugador no tiene permiso.
+  const canListSchoolCollections = isReady && activeSchoolId && !isPlayer;
   const { data: players } = useCollection<Player>(
-    isReady && activeSchoolId ? `schools/${activeSchoolId}/players` : "",
+    canListSchoolCollections ? `schools/${activeSchoolId}/players` : "",
     { orderBy: ["lastName", "asc"] }
+  );
+  const { data: pendingPlayers } = useCollection(
+    canListSchoolCollections ? `schools/${activeSchoolId}/pendingPlayers` : "",
+    {}
+  );
+  const { data: accessRequests } = useCollection(
+    isReady ? "accessRequests" : "",
+    { where: ["status", "==", "pending"] }
   );
   const playersList = players ?? [];
   const birthdaysToday = playersList.filter((p) => isBirthdayToday(p.birthDate));
   const birthdayCount = birthdaysToday.length;
+  const solicitudesCount = (pendingPlayers?.length ?? 0) + (accessRequests?.length ?? 0);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -59,12 +70,12 @@ export function Header() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="rounded-full relative">
             <Bell className="h-5 w-5" />
-            {birthdayCount > 0 && (
+            {(birthdayCount > 0 || solicitudesCount > 0) && (
               <Badge
                 variant="destructive"
                 className="absolute -top-0.5 -right-0.5 h-5 min-w-5 rounded-full px-1 text-xs"
               >
-                {birthdayCount}
+                {birthdayCount + solicitudesCount > 99 ? "99+" : birthdayCount + solicitudesCount}
               </Badge>
             )}
             <span className="sr-only">Notificaciones y novedades</span>
@@ -80,24 +91,39 @@ export function Header() {
             <p className="px-2 py-3 text-sm text-muted-foreground">
               Selecciona una escuela para ver novedades.
             </p>
-          ) : birthdayCount === 0 ? (
+          ) : birthdayCount === 0 && solicitudesCount === 0 ? (
             <p className="px-2 py-3 text-sm text-muted-foreground">
-              No hay novedades hoy.
+              No hay novedades.
             </p>
           ) : (
-            birthdaysToday.map((player) => (
-              <DropdownMenuItem key={player.id} asChild>
-                <Link
-                  href={`/dashboard/players/${player.id}?schoolId=${activeSchoolId}`}
-                  className="flex items-center gap-2 py-2"
-                >
-                  <Cake className="h-4 w-4 shrink-0 text-amber-500" />
-                  <span>
-                    ¡Hoy cumple años: <strong>{player.firstName} {player.lastName}</strong>!
-                  </span>
-                </Link>
-              </DropdownMenuItem>
-            ))
+            <>
+              {solicitudesCount > 0 && (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/dashboard/registrations"
+                    className="flex items-center gap-2 py-2"
+                  >
+                    <UserCheck className="h-4 w-4 shrink-0 text-primary" />
+                    <span>
+                      <strong>{solicitudesCount}</strong> solicitud{solicitudesCount !== 1 ? "es" : ""} pendiente{solicitudesCount !== 1 ? "s" : ""}
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {birthdaysToday.map((player) => (
+                <DropdownMenuItem key={player.id} asChild>
+                  <Link
+                    href={`/dashboard/players/${player.id}?schoolId=${activeSchoolId}`}
+                    className="flex items-center gap-2 py-2"
+                  >
+                    <Cake className="h-4 w-4 shrink-0 text-amber-500" />
+                    <span>
+                      ¡Hoy cumple años: <strong>{player.firstName} {player.lastName}</strong>!
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

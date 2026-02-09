@@ -31,6 +31,7 @@ import {
   doc,
   writeBatch,
   collection,
+  setDoc,
   Timestamp,
   deleteDoc,
 } from "firebase/firestore";
@@ -62,6 +63,7 @@ export function PendingRegistrations() {
   );
 
   const [actionState, setActionState] = useState<ActionState>(null);
+  const [approveAllState, setApproveAllState] = useState(false);
   const [playerToConfirm, setPlayerToConfirm] = useState<{
     player: PendingPlayer;
     action: "approve" | "reject";
@@ -80,12 +82,19 @@ export function PendingRegistrations() {
 
     const batch = writeBatch(firestore);
 
+    const emailNorm = (pendingPlayer as { email?: string }).email?.trim().toLowerCase();
+    if (emailNorm) {
+      const pendingByEmailRef = doc(firestore, "pendingPlayerByEmail", emailNorm);
+      batch.delete(pendingByEmailRef);
+    }
+
     // 1. Define el nuevo documento del jugador
     const newPlayerRef = doc(collection(firestore, `schools/${activeSchoolId}/players`));
     const newPlayerData = {
       firstName: pendingPlayer.firstName,
       lastName: pendingPlayer.lastName,
       birthDate: pendingPlayer.birthDate,
+      ...(emailNorm && { email: emailNorm }),
       dni: pendingPlayer.dni || "",
       healthInsurance: "",
       tutorContact: pendingPlayer.tutorContact,
@@ -100,6 +109,13 @@ export function PendingRegistrations() {
       createdBy: profile.uid,
     };
     batch.set(newPlayerRef, newPlayerData);
+
+    if (emailNorm) {
+      batch.set(doc(firestore, "playerLogins", emailNorm), {
+        schoolId: activeSchoolId,
+        playerId: newPlayerRef.id,
+      });
+    }
 
     // 2. Define la eliminación del jugador pendiente
     const pendingPlayerRef = doc(
@@ -146,6 +162,11 @@ export function PendingRegistrations() {
     );
 
     try {
+      const emailNorm = (pendingPlayer as { email?: string }).email?.trim().toLowerCase();
+      if (emailNorm) {
+        const pendingByEmailRef = doc(firestore, "pendingPlayerByEmail", emailNorm);
+        await deleteDoc(pendingByEmailRef);
+      }
       await deleteDoc(pendingPlayerRef);
       toast({
         title: "Solicitud Rechazada",
@@ -168,6 +189,68 @@ export function PendingRegistrations() {
       setActionState(null);
       setPlayerToConfirm(null);
     }
+  };
+
+  const handleApproveAll = async () => {
+    if (!profile || !activeSchoolId || !pendingPlayers?.length) return;
+    setApproveAllState(true);
+    let approved = 0;
+    for (const player of pendingPlayers) {
+      try {
+        const batch = writeBatch(firestore);
+        const emailNorm = (player as { email?: string }).email?.trim().toLowerCase();
+        if (emailNorm) {
+          batch.delete(doc(firestore, "pendingPlayerByEmail", emailNorm));
+        }
+        const newPlayerRef = doc(collection(firestore, `schools/${activeSchoolId}/players`));
+        batch.set(newPlayerRef, {
+          firstName: player.firstName,
+          lastName: player.lastName,
+          birthDate: player.birthDate,
+          ...(emailNorm && { email: emailNorm }),
+          dni: player.dni || "",
+          healthInsurance: "",
+          tutorContact: player.tutorContact,
+          status: "active",
+          observations: `Aprobado desde solicitud de registro el ${format(new Date(), "PPP", { locale: es })}.`,
+          photoUrl: "",
+          createdAt: Timestamp.now(),
+          createdBy: profile.uid,
+        });
+        if (emailNorm) {
+          batch.set(doc(firestore, "playerLogins", emailNorm), {
+            schoolId: activeSchoolId,
+            playerId: newPlayerRef.id,
+          });
+        }
+        batch.delete(doc(firestore, `schools/${activeSchoolId}/pendingPlayers`, player.id));
+        await batch.commit();
+        approved++;
+      } catch (err) {
+        errorEmitter.emit(
+          "permission-error",
+          new FirestorePermissionError({
+            path: `schools/${activeSchoolId}/players`,
+            operation: "create",
+          })
+        );
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Se aprobaron ${approved} de ${pendingPlayers.length}. No se pudo aprobar a ${player.firstName}.`,
+        });
+        break;
+      }
+    }
+    if (approved > 0) {
+      toast({
+        title: "¡Listo!",
+        description: approved === pendingPlayers.length
+          ? `Se aprobaron las ${approved} solicitudes.`
+          : `Se aprobaron ${approved} de ${pendingPlayers.length} solicitudes.`,
+      });
+    }
+    setApproveAllState(false);
   };
   
   if (loading) {
@@ -224,6 +307,19 @@ export function PendingRegistrations() {
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <Button
+          onClick={handleApproveAll}
+          disabled={approveAllState}
+        >
+          {approveAllState ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Check className="h-4 w-4 mr-2" />
+          )}
+          Aprobar todas
+        </Button>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {pendingPlayers.map((player) => (
           <Card key={player.id} className="flex flex-col">
@@ -238,6 +334,9 @@ export function PendingRegistrations() {
             </CardHeader>
             <CardContent className="flex-grow space-y-2 text-sm">
                 <p><strong>Edad:</strong> {calculateAge(player.birthDate)} años</p>
+                {(player as { email?: string }).email && (
+                  <p><strong>Email:</strong> {(player as { email?: string }).email}</p>
+                )}
                 {player.dni && <p><strong>DNI:</strong> {player.dni}</p>}
                 <p><strong>Tutor:</strong> {player.tutorContact.name}</p>
                 <p><strong>Tel. Tutor:</strong> {player.tutorContact.phone}</p>
@@ -246,7 +345,7 @@ export function PendingRegistrations() {
               <Button
                 className="w-full"
                 onClick={() => setPlayerToConfirm({ player, action: "approve" })}
-                disabled={!!actionState}
+                disabled={!!actionState || approveAllState}
               >
                 {actionState?.type === 'approving' && actionState?.playerId === player.id ? (
                   <Loader2 className="animate-spin" />
@@ -259,7 +358,7 @@ export function PendingRegistrations() {
                 variant="destructive"
                 className="w-full"
                 onClick={() => setPlayerToConfirm({ player, action: "reject" })}
-                disabled={!!actionState}
+                disabled={!!actionState || approveAllState}
               >
                 {actionState?.type === 'rejecting' && actionState?.playerId === player.id ? (
                   <Loader2 className="animate-spin" />

@@ -22,8 +22,11 @@ import {
   SidebarFooter,
   SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 import { RiverPlateLogo } from "../icons/RiverPlateLogo";
-import { useUserProfile } from "@/firebase";
+import { useUserProfile, useCollection } from "@/firebase";
+import type { PendingPlayer } from "@/lib/types";
+import type { AccessRequest } from "@/lib/types";
 
 const schoolUserMenuItems = [
   { href: "/dashboard", label: "Panel Principal", icon: Home },
@@ -41,7 +44,19 @@ const superAdminMenuItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { isSuperAdmin, isReady, profile } = useUserProfile();
+  const { isSuperAdmin, isReady, profile, activeSchoolId, isPlayer } = useUserProfile();
+  // Solo staff (admin/coach) puede listar pendingPlayers; un jugador no tiene permiso.
+  const canListSchoolCollections = isReady && activeSchoolId && !isPlayer;
+
+  const { data: pendingPlayers } = useCollection<PendingPlayer>(
+    canListSchoolCollections ? `schools/${activeSchoolId}/pendingPlayers` : "",
+    {}
+  );
+  const { data: accessRequests } = useCollection<AccessRequest>(
+    isReady ? "accessRequests" : "",
+    { where: ["status", "==", "pending"] }
+  );
+  const solicitudesCount = (pendingPlayers?.length ?? 0) + (accessRequests?.length ?? 0);
 
   let menuItems;
 
@@ -88,14 +103,19 @@ export function SidebarNav() {
             <SidebarMenu>
             {menuItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
+                <Link href={item.href} className="relative flex items-center">
                     <SidebarMenuButton
                     isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                     tooltip={item.label}
-                    className="font-headline"
+                    className="font-headline w-full"
                     >
                     <item.icon />
                     <span>{item.label}</span>
+                    {item.href === "/dashboard/registrations" && solicitudesCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-xs">
+                        {solicitudesCount > 99 ? "99+" : solicitudesCount}
+                      </Badge>
+                    )}
                     </SidebarMenuButton>
                 </Link>
                 </SidebarMenuItem>
