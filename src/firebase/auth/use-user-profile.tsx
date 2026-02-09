@@ -99,7 +99,7 @@ export function useUserProfile() {
             setMemberships([]);
           } else {
             const playerData = playerSnap.data() as { firstName?: string; lastName?: string };
-            const displayName = [playerData.firstName, playerData.lastName].filter(Boolean).join(' ') || user.email ?? 'Jugador';
+            const displayName = ([playerData.firstName, playerData.lastName].filter(Boolean).join(' ') || user.email) ?? 'Jugador';
             setMemberships([{
               schoolId,
               role: 'player',
