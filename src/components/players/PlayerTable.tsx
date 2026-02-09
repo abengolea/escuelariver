@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Player } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { calculateAge } from "@/lib/utils";
+import { calculateAge, getCategoryLabel } from "@/lib/utils";
 import { useCollection, useUserProfile } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
 import React from "react";
@@ -23,6 +23,13 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
 
   const schoolId = propSchoolId || userActiveSchoolId;
   const canListPlayers = profile?.role !== "player";
+
+  const posicionLabel: Record<string, string> = {
+    arquero: "Arquero",
+    delantero: "Delantero",
+    mediocampo: "Mediocampo",
+    defensor: "Defensor",
+  };
 
   const { data: players, loading, error } = useCollection<Player>(
     isReady && schoolId && canListPlayers ? `schools/${schoolId}/players` : '',
@@ -38,6 +45,8 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                     <TableRow>
                         <TableHead>Nombre</TableHead>
                         <TableHead>Edad</TableHead>
+                        <TableHead>Posición</TableHead>
+                        <TableHead>Categoría</TableHead>
                         <TableHead>Estado</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -45,6 +54,8 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                     {[...Array(5)].map((_, i) => (
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-8 w-48" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-8 w-16" /></TableCell>
                             <TableCell><Skeleton className="h-8 w-20" /></TableCell>
                         </TableRow>
@@ -70,6 +81,8 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
           <TableRow>
             <TableHead>Nombre</TableHead>
             <TableHead>Edad</TableHead>
+            <TableHead>Posición</TableHead>
+            <TableHead>Categoría</TableHead>
             <TableHead>Estado</TableHead>
           </TableRow>
         </TableHeader>
@@ -90,6 +103,8 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                 </div>
               </TableCell>
               <TableCell>{player.birthDate ? calculateAge(player.birthDate) : '-'}</TableCell>
+              <TableCell>{player.posicion_preferida ? posicionLabel[player.posicion_preferida] ?? player.posicion_preferida : '-'}</TableCell>
+              <TableCell>{player.birthDate ? getCategoryLabel(player.birthDate instanceof Date ? player.birthDate : new Date(player.birthDate)) : '-'}</TableCell>
               <TableCell>
                 <Badge
                   variant={
