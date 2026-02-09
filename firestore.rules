@@ -9,15 +9,11 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      // Check for the DB flag OR the specific bootstrap email.
-      // Si no existe platformUsers/{uid}, no acceder a .data para evitar fallo.
-      let path = /databases/$(database)/documents/platformUsers/$(request.auth.uid);
-      let platformUserData = exists(path) ? get(path).data : null;
-      return isSignedIn()
-          && (
-            (platformUserData != null && platformUserData.get('super_admin', false) == true)
-            || request.auth.token.email == 'abengolea1@gmail.com'
-          );
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/platformUsers/$(request.auth.uid))
+          && get(/databases/$(database)/documents/platformUsers/$(request.auth.uid)).data.get('super_admin', false) == true)
+        || request.auth.token.email == 'abengolea1@gmail.com'
+      );
     }
 
     function userExistsInSchool(schoolId) {
@@ -71,6 +67,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.email == request.auth.token.email;
     }
 
+    // Colección para Trigger Email (extensión firestore-send-email). Solo crear; la extensión actualiza estado.
+    match /mail/{mailId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if false;
+    }
+
     // Solicitudes de acceso: usuario logueado sin perfil pide ser dado de alta como jugador.
     match /accessRequests/{requestId} {
       allow create: if isSignedIn();
@@ -114,11 +116,22 @@ service cloud.firestore {
       );
     }
 
+    // Intentos de verificación de email para registro web. Acceso sin auth para create/get/update.
+    match /emailVerificationAttempts/{attemptId} {
+      allow read, write: if true;
+    }
+
+    // Mapa email -> schoolId para saber si un usuario tiene pendingPlayer (registro web).
+    match /pendingPlayerByEmail/{emailKey} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && request.auth.token.email != null
+          && emailKey == request.auth.token.email.lower();
+      allow delete: if isSuperAdmin() || (resource != null && resource.data.schoolId != null
+          && (isSchoolAdmin(resource.data.schoolId) || isCoach(resource.data.schoolId)));
+    }
+
     match /schools/{schoolId} {
-      allow read: if isSuperAdmin()
-          || isMemberOfSchool(schoolId)
-          || isSchoolAdmin(schoolId)
-          || isCoach(schoolId);
+      allow read: if true;
       allow create, update: if isSuperAdmin();
       allow delete: if false; // Soft delete
     }
@@ -234,6 +247,84 @@ service cloud.firestore {
           || isCoach(schoolId)
           || isOwnPlayer(schoolId, resource.data.playerId);
       allow create, update, delete: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
+    }
+
+    // --- Pagos y Morosidad ---
+
+    // Pagos: admin de escuela puede leer pagos de su schoolId; padre solo de su jugador. Escritura solo desde servidor (Admin SDK).
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin()
+        || (resource.data.schoolId != null && isSchoolAdmin(resource.data.schoolId))
+        || (resource.data.schoolId != null && resource.data.playerId != null && isOwnPlayer(resource.data.schoolId, resource.data.playerId))
+      );
+      allow write: if false;
+    }
+
+    // Intenciones de pago: mismo criterio que payments.
+    match /paymentIntents/{intentId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin()
+        || (resource.data.schoolId != null && isSchoolAdmin(resource.data.schoolId))
+        || (resource.data.schoolId != null && resource.data.playerId != null && isOwnPlayer(resource.data.schoolId, resource.data.playerId))
+      );
+      allow write: if false;
+    }
+
+    // Eventos de email (idempotencia): solo servidor escribe; cliente no accede.
+    match /emailEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    // Configuración de cuotas por escuela
+    match /schools/{schoolId}/paymentConfig/{configId} {
+      allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
+      allow create, update: if isSuperAdmin() || isSchoolAdmin(schoolId);
+      allow delete: if false;
+    }
+
+    // --- Centro de Soporte (Support Center) ---
+
+    // Flujos guiados: lectura para cualquier autenticado; escritura solo superadmin.
+    match /supportFlows/{flowId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // Conversaciones de soporte por escuela: el usuario crea/actualiza la suya; admins pueden leer.
+    match /schools/{schoolId}/supportConversations/{conversationId} {
+      allow read: if isMemberOfSchool(schoolId)
+          && (resource.data.userId == request.auth.uid || isSchoolAdmin(schoolId) || isSuperAdmin());
+      allow create: if isMemberOfSchool(schoolId) && request.resource.data.userId == request.auth.uid;
+      allow update: if isMemberOfSchool(schoolId)
+          && (resource.data.userId == request.auth.uid || isSchoolAdmin(schoolId) || isSuperAdmin());
+      allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
+    }
+
+    // Contador de tickets por escuela (para número secuencial en transacción).
+    match /schools/{schoolId}/supportTicketCounter/counter {
+      allow read, update: if isMemberOfSchool(schoolId);
+      allow create: if isMemberOfSchool(schoolId);
+      allow delete: if false;
+    }
+
+    // Tickets de soporte por escuela: usuario crea y lee los suyos; solo operador (school_admin/superadmin) actualiza.
+    // Tickets de soporte técnico: solo superadmin puede actualizar (resolver, asignar, notas).
+    match /schools/{schoolId}/supportTickets/{ticketId} {
+      allow read: if isMemberOfSchool(schoolId)
+          && (resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow create: if isMemberOfSchool(schoolId) && request.resource.data.userId == request.auth.uid;
+      allow update: if isSuperAdmin();
+      allow delete: if false;
+    }
+
+    // Eventos de auditoría del ticket: solo superadmin crea al actualizar ticket.
+    match /schools/{schoolId}/supportTickets/{ticketId}/supportTicketEvents/{eventId} {
+      allow read: if isMemberOfSchool(schoolId)
+          && (get(/databases/$(database)/documents/schools/$(schoolId)/supportTickets/$(ticketId)).data.userId == request.auth.uid
+              || isSuperAdmin());
+      allow create: if isSuperAdmin();
+      allow update, delete: if false;
     }
   }
 }

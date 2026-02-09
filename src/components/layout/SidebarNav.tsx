@@ -94,8 +94,7 @@ export function SidebarNav() {
           href: `/dashboard/schools/${profile.activeSchoolId}`,
           label: "Gestionar Escuela",
           icon: Shield
-        },
-        { href: "/dashboard/support/operator", label: "Tickets de Soporte", icon: Headphones }
+        }
       );
     }
   }

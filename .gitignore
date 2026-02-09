@@ -44,3 +44,6 @@ env.local
 # firebase
 firebase-debug.log
 firestore-debug.log
+# clave de cuenta de servicio (no subir a Git)
+service-account.json
+*firebase*adminsdk*.json

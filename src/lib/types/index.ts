@@ -45,7 +45,7 @@ export interface Player {
     name: string;
     phone: string;
   };
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'suspended';
   photoUrl?: string;
   observations?: string;
   /** Altura en cm (datos físicos de referencia). */
@@ -73,12 +73,33 @@ export interface PendingPlayer {
   firstName: string;
   lastName: string;
   birthDate: Date;
+  /** Email verificado (obligatorio en registro web). */
+  email: string;
   dni?: string;
   tutorContact: {
     name: string;
     phone: string;
   };
   submittedAt: Date;
+  /** UID del usuario Auth que completó el registro. */
+  submittedBy?: string;
+}
+
+/** Intentos temporales de verificación de email en registro web. Se eliminan tras verificar o expirar. */
+export interface EmailVerificationAttempt {
+  id: string;
+  email: string;
+  playerData: {
+    firstName: string;
+    lastName: string;
+    birthDate: Date;
+    schoolId: string;
+    tutorPhone: string;
+    category?: string;
+  };
+  status: 'pending' | 'verified' | 'expired';
+  expiresAt: Date;
+  createdAt: Date;
 }
 
 /** Solicitud de acceso al panel de un usuario ya logueado (ej. jugador que pide ser dado de alta). */
@@ -281,3 +302,8 @@ export interface PlayerVideo {
   createdAt: Date;
   createdBy: string;
 }
+
+// Re-export support types
+export * from './support';
+// Re-export payments types
+export * from './payments';
