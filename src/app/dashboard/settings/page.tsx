@@ -15,19 +15,68 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
 import { useUserProfile } from "@/firebase/auth/use-user-profile";
-import { Upload, Moon, Sun } from "lucide-react";
+import { useAuth, useFirestore } from "@/firebase/provider";
+import { collection, addDoc } from "firebase/firestore";
+import { Upload, Moon, Sun, Mail } from "lucide-react";
 
 const LOGO_STORAGE_KEY = "app-logo-data-url";
+
+/** Colección que usa la extensión Trigger Email (firestore-send-email). Si usaste otro nombre al instalar, cámbialo aquí. */
+const MAIL_COLLECTION = "mail";
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const { setTheme, resolvedTheme } = useTheme();
-  const { isSuperAdmin } = useUserProfile();
+  const { user } = useAuth();
+  const firestore = useFirestore();
+  const { isSuperAdmin, isPlayer } = useUserProfile();
   const [mounted, setMounted] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [testEmailTo, setTestEmailTo] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (user?.email && !testEmailTo) setTestEmailTo(user.email);
+  }, [user?.email, testEmailTo]);
   const isDark = mounted && resolvedTheme === "dark";
+
+  const sendTestEmail = async () => {
+    const to = testEmailTo.trim();
+    if (!to) {
+      toast({
+        variant: "destructive",
+        title: "Email requerido",
+        description: "Ingresá un email de destino para la prueba.",
+      });
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const mailRef = collection(firestore, MAIL_COLLECTION);
+      await addDoc(mailRef, {
+        to,
+        message: {
+          subject: "Prueba Trigger Email - Escuela River",
+          html: "<p>Este es un <strong>email de prueba</strong> desde la extensión Trigger Email.</p><p>Si lo recibiste, la configuración está correcta.</p>",
+          text: "Este es un email de prueba desde la extensión Trigger Email. Si lo recibiste, la configuración está correcta.",
+        },
+      });
+      toast({
+        title: "Email de prueba enviado",
+        description: `Se encoló el envío a ${to}. Revisá la bandeja (y spam) en unos segundos.`,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al crear el documento en Firestore.";
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: message,
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -141,6 +190,35 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+      {!isPlayer && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Prueba Trigger Email
+            </CardTitle>
+            <CardDescription>
+              Enviá un email de prueba usando la extensión Trigger Email. Se crea un documento en la colección &quot;mail&quot; y la extensión lo envía.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="test-email">Enviar a</Label>
+              <Input
+                id="test-email"
+                type="email"
+                placeholder="ejemplo@email.com"
+                value={testEmailTo}
+                onChange={(e) => setTestEmailTo(e.target.value)}
+              />
+            </div>
+            <Button onClick={sendTestEmail} disabled={sendingTest}>
+              <Mail className="mr-2 h-4 w-4" />
+              {sendingTest ? "Enviando…" : "Enviar email de prueba"}
+            </Button>
           </CardContent>
         </Card>
       )}
