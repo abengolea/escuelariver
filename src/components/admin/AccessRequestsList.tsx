@@ -55,6 +55,7 @@ export function AccessRequestsList() {
   const { toast } = useToast();
   const firestore = useFirestore();
 
+  // Solo se muestran solicitudes pendientes; todas las registraciones son de tipo "player"
   const { data: requests, loading, error } = useCollection<AccessRequest>(
     isReady ? "accessRequests" : "",
     { where: ["status", "==", "pending"], limit: 50 }

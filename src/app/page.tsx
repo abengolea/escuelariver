@@ -24,7 +24,7 @@ export default function LandingPage() {
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/auth/signup">Regístrate</Link>
+            <Link href="/auth/registro">Registrarme como jugador</Link>
           </Button>
         </nav>
       </header>
@@ -76,7 +76,7 @@ export default function LandingPage() {
                   <div className="inline-block rounded-lg bg-primary/10 text-primary px-3 py-1 text-sm font-medium">Para Jugadores y Familias</div>
                   <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">¿Sos parte de la Escuela?</h2>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                    Crea tu cuenta para unirte a la plataforma. Un administrador te asignará a tu escuela y rol correspondiente para que puedas comenzar.
+                    Creá tu cuenta como jugador. Un administrador de la escuela te aprobará para acceder al panel.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
