@@ -233,7 +233,7 @@ export function RecordOrUploadVideoDialog({
         const playerSnap = await getDoc(playerRef);
         const playerData = playerSnap.data();
         const playerEmail = playerData?.email?.trim?.();
-        const firstName = playerData?.firstName ?? playerName?.trim() || "jugador";
+        const firstName = playerData?.firstName ?? (playerName?.trim() || "jugador");
         if (playerEmail) {
           const subject = "Nuevo video en tu videoteca - Escuelas River SN";
           const contentHtml = `<p>Hola <strong>${escapeHtml(firstName)}</strong>,</p><p>Tu entrenador subió un nuevo video a tu videoteca. Entrá al panel para verlo.</p><p><a href="${typeof window !== "undefined" ? window.location.origin : ""}/dashboard" style="color: #d4002a; font-weight: bold;">Ver mi videoteca</a></p>`;
