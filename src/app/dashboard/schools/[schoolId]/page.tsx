@@ -57,14 +57,14 @@ export default function SchoolAdminPage() {
   // User is authorized and data is loaded, so render the page.
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        <Button variant="outline" size="icon" asChild className="shrink-0">
           <Link href="/dashboard">
             <ChevronLeft className="h-4 w-4" />
             <span className="sr-only">Volver al panel</span>
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight font-headline">
+        <h1 className="text-xl font-bold tracking-tight font-headline truncate sm:text-3xl">
             Gestión de: {school?.name}
         </h1>
       </div>
@@ -78,14 +78,14 @@ export default function SchoolAdminPage() {
         </Card>
       ) : (
         <Tabs defaultValue="users" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="users">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Responsables
+            <TabsList className="grid w-full grid-cols-2 gap-1 p-1 h-auto md:h-10 bg-card">
+                <TabsTrigger value="users" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+                    <Shield className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                    <span className="truncate">Responsables</span>
                 </TabsTrigger>
-                <TabsTrigger value="players">
-                    <Users className="mr-2 h-4 w-4" />
-                    Jugadores
+                <TabsTrigger value="players" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+                    <Users className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                    <span className="truncate">Jugadores</span>
                 </TabsTrigger>
             </TabsList>
             <TabsContent value="users">
@@ -93,12 +93,14 @@ export default function SchoolAdminPage() {
             </TabsContent>
             <TabsContent value="players">
                  <Card>
-                    <CardHeader>
-                        <CardTitle>Plantel de Jugadores</CardTitle>
-                        <CardDescription>Gestiona los jugadores de esta escuela.</CardDescription>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg sm:text-xl">Plantel de Jugadores</CardTitle>
+                        <CardDescription className="text-sm">Gestiona los jugadores de esta escuela.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <PlayerTable schoolId={schoolId} />
+                    <CardContent className="p-0 sm:p-6">
+                        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+                            <PlayerTable schoolId={schoolId} />
+                        </div>
                     </CardContent>
                 </Card>
             </TabsContent>

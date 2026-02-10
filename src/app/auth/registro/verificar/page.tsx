@@ -110,13 +110,6 @@ function VerificarContent() {
           },
         });
 
-        const needsPassword = !result.user.hasOwnProperty("password");
-        if (result.user.providerData.every((p) => p?.providerId === "password")) {
-          const needs = !(result.user as { providerData?: unknown[] }).providerData?.some(
-            (p: { providerId?: string }) => p?.providerId === "password"
-          );
-        }
-
         setStep("password");
       } catch (err: unknown) {
         const e = err as { code?: string; message?: string };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { CreditCard, CheckCircle2 } from "lucide-react";
 
 interface PaymentConfigTabProps {
   schoolId: string;
@@ -33,18 +35,43 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
   const [delinquencyDaysSuspension, setDelinquencyDaysSuspension] = useState("30");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [mpConnected, setMpConnected] = useState<boolean | null>(null);
+  const [mpConnecting, setMpConnecting] = useState(false);
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const mp = searchParams.get("mercadopago");
+    const message = searchParams.get("message");
+    if (mp === "connected") {
+      toast({ title: "Mercado Pago conectado", description: "Tu cuenta quedó vinculada. Los cobros se acreditarán en tu cuenta." });
+      setMpConnected(true);
+      window.history.replaceState({}, "", "/dashboard/payments?tab=config");
+    } else if (mp === "error") {
+      toast({
+        title: "Error al conectar Mercado Pago",
+        description: message || "No se pudo completar la autorización.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", "/dashboard/payments?tab=config");
+    }
+  }, [searchParams, toast]);
 
   useEffect(() => {
     (async () => {
       const token = await getToken();
       if (!token) return;
       try {
-        const res = await fetch(`/api/payments/config?schoolId=${schoolId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const [configRes, statusRes] = await Promise.all([
+          fetch(`/api/payments/config?schoolId=${schoolId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`/api/payments/mercadopago/status?schoolId=${schoolId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+        if (configRes.ok) {
+          const data = await configRes.json();
           setAmount(String(data.amount ?? ""));
           setDueDayOfMonth(String(data.dueDayOfMonth ?? 10));
           setRegistrationAmount(String(data.registrationAmount ?? ""));
@@ -54,6 +81,10 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
           setProratePercent(String(data.proratePercent ?? 50));
           setDelinquencyDaysEmail(String(data.delinquencyDaysEmail ?? 10));
           setDelinquencyDaysSuspension(String(data.delinquencyDaysSuspension ?? 30));
+        }
+        if (statusRes.ok) {
+          const status = await statusRes.json();
+          setMpConnected(!!status.connected);
         }
       } catch (e) {
         console.error(e);
@@ -134,10 +165,66 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
     }
   };
 
+  const handleConnectMercadoPago = async () => {
+    const token = await getToken();
+    if (!token) {
+      toast({ title: "Error", description: "Tenés que iniciar sesión", variant: "destructive" });
+      return;
+    }
+    setMpConnecting(true);
+    try {
+      const res = await fetch(`/api/payments/mercadopago/connect?schoolId=${encodeURIComponent(schoolId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "No se pudo iniciar la conexión");
+      }
+      const redirectUrl = (data as { redirectUrl?: string }).redirectUrl;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      throw new Error("No se recibió la URL de Mercado Pago");
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: e instanceof Error ? e.message : "No se pudo conectar con Mercado Pago",
+        variant: "destructive",
+      });
+    } finally {
+      setMpConnecting(false);
+    }
+  };
+
   if (loading) return <Skeleton className="h-64 w-full" />;
 
   return (
     <div className="max-w-2xl space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Mercado Pago
+          </CardTitle>
+          <CardDescription>
+            Para que tu escuela cobre directamente en su cuenta de Mercado Pago, conectá tu cuenta (autorización oficial). No tenés que enviar claves ni contraseñas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {mpConnected ? (
+            <div className="flex items-center gap-2 text-emerald-600">
+              <CheckCircle2 className="h-5 w-5 shrink-0" />
+              <span className="font-medium">Cuenta conectada</span>
+            </div>
+          ) : (
+            <Button onClick={handleConnectMercadoPago} disabled={mpConnecting}>
+              {mpConnecting ? "Redirigiendo a Mercado Pago…" : "Conectar Mercado Pago"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Cuota mensual</CardTitle>

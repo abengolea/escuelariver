@@ -77,3 +77,65 @@ const improveFlow = ai.defineFlow(
     return { improvedText: output.improvedText };
   }
 );
+
+// --- Comentario por rubro (una frase corta) ---
+
+const ImproveRubricCommentInputSchema = z.object({
+  playerName: z.string().describe('Nombre del jugador.'),
+  rubricLabel: z.string().describe('Nombre del rubro, ej. Control de Balón, Pase.'),
+  currentDraft: z.string().describe('Borrador del comentario para este rubro (puede ser voz o texto).'),
+});
+
+const ImproveRubricCommentOutputSchema = z.object({
+  improvedText: z.string().describe('Una frase o comentario corto mejorado para el rubro.'),
+});
+
+export type ImproveRubricCommentInput = z.infer<typeof ImproveRubricCommentInputSchema>;
+export type ImproveRubricCommentOutput = z.infer<typeof ImproveRubricCommentOutputSchema>;
+
+export async function improveRubricCommentWithAI(
+  input: ImproveRubricCommentInput
+): Promise<ImproveRubricCommentOutput> {
+  return improveRubricFlow(input);
+}
+
+const improveRubricPrompt = ai.definePrompt({
+  name: 'improveRubricCommentPrompt',
+  input: { schema: ImproveRubricCommentInputSchema },
+  output: { schema: ImproveRubricCommentOutputSchema },
+  prompt: `
+Eres un entrenador experto de la Escuela de River Plate. Tu tarea es redactar UNA FRASE CORTA para el comentario opcional del rubro "{{rubricLabel}}" en la evaluación del jugador {{playerName}}.
+
+**Borrador del entrenador (puede ser transcripción de voz o texto suelto):**
+{{currentDraft}}
+
+**Instrucciones:**
+- Genera una sola frase (o dos muy breves), en español, que describa el rendimiento en ese rubro.
+- Corrige errores de transcripción y mejora la redacción sin inventar datos.
+- Tono: profesional y constructivo. Si el borrador está vacío, devuelve una frase genérica breve tipo "En progreso" o "Trabajar en este aspecto".
+- Sin títulos ni prefijos; solo el texto listo para pegar en el campo del rubro.
+  `,
+});
+
+const improveRubricFlow = ai.defineFlow(
+  {
+    name: 'improveRubricCommentFlow',
+    inputSchema: ImproveRubricCommentInputSchema,
+    outputSchema: ImproveRubricCommentOutputSchema,
+  },
+  async (input) => {
+    const modelName = await getAvailableGeminiModel();
+    if (!modelName) {
+      throw new Error(
+        'No se encontró ningún modelo Gemini disponible. Verificá GEMINI_API_KEY en .env.local.'
+      );
+    }
+    const { output } = await improveRubricPrompt(input, {
+      model: googleAI.model(modelName),
+    });
+    if (!output?.improvedText) {
+      throw new Error('La IA no generó un texto válido.');
+    }
+    return { improvedText: output.improvedText };
+  }
+);

@@ -148,6 +148,8 @@ export interface Evaluation {
   /** Posición que el entrenador califica como la más adecuada para el jugador. */
   position?: PlayerPosition;
   coachComments: string;
+  /** Comentarios opcionales por rubro (ej. control, pase, respect). */
+  rubricComments?: Record<string, string>;
   physical?: {
     height?: { value: number, unit: 'cm' };
     weight?: { value: number, unit: 'kg' };

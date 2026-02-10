@@ -86,10 +86,15 @@ export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEdi
         }
     };
 
-    const renderSkill = (skillName: string, value?: number) => (
-        <div key={skillName} className="flex justify-between items-center text-sm py-1">
-            <span className="text-muted-foreground">{skillLabels[skillName] || skillName}</span>
-            <span className="font-mono font-semibold">{value ?? "N/A"}</span>
+    const renderSkill = (skillName: string, value?: number, comment?: string) => (
+        <div key={skillName} className="text-sm py-1.5 space-y-0.5">
+            <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">{skillLabels[skillName] || skillName}</span>
+                <span className="font-mono font-semibold">{value ?? "N/A"}</span>
+            </div>
+            {comment?.trim() && (
+                <p className="text-muted-foreground text-xs italic pl-1 border-l-2 border-muted">{comment.trim()}</p>
+            )}
         </div>
     );
 
@@ -164,7 +169,9 @@ export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEdi
                             <CardTitle className="text-base">Técnica</CardTitle>
                         </CardHeader>
                         <CardContent>
-                           {Object.entries(evaluation.technical).map(([key, value]) => renderSkill(key, value))}
+                           {Object.entries(evaluation.technical).map(([key, value]) =>
+                                renderSkill(key, value, evaluation.rubricComments?.[key])
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -174,7 +181,9 @@ export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEdi
                             <CardTitle className="text-base">Táctica</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {Object.entries(evaluation.tactical).map(([key, value]) => renderSkill(key, value))}
+                            {Object.entries(evaluation.tactical).map(([key, value]) =>
+                                renderSkill(key, value, evaluation.rubricComments?.[key])
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -184,7 +193,9 @@ export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEdi
                             <CardTitle className="text-base">Socio-emocional</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {Object.entries(evaluation.socioEmotional).map(([key, value]) => renderSkill(key, value))}
+                            {Object.entries(evaluation.socioEmotional).map(([key, value]) =>
+                                renderSkill(key, value, evaluation.rubricComments?.[key])
+                            )}
                         </CardContent>
                     </Card>
                 )}

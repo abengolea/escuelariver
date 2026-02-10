@@ -6,6 +6,9 @@ export const COLLECTIONS = {
   emailEvents: 'emailEvents',
 } as const;
 
+/** Documento de conexión MP por escuela: schools/{schoolId}/mercadopagoConnection/default */
+export const MERCADOPAGO_CONNECTION_DOC = 'default';
+
 export const DEFAULT_CURRENCY = 'ARS';
 
 /** Período usado para el pago único de derecho de inscripción. */

@@ -22,39 +22,57 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { es } from 'date-fns/locale';
-import { useFirestore, useUserProfile } from "@/firebase";
-import { collection, addDoc, doc, setDoc, Timestamp } from "firebase/firestore";
+import { es } from "date-fns/locale";
+import { useAuth, useFirestore, useUserProfile } from "@/firebase";
+import { collection, doc, writeBatch, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { initializeApp, deleteApp } from "firebase/app";
+import { getFirebaseConfig } from "@/firebase/config";
 
+function generateRandomPassword(length = 16): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 
 const playerSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido."),
   lastName: z.string().min(1, "El apellido es requerido."),
-  birthDate: z.date({ required_error: "La fecha de nacimiento es requerida."}),
+  birthDate: z.date({ required_error: "La fecha de nacimiento es requerida." }),
   dni: z.string().optional(),
   healthInsurance: z.string().optional(),
-  email: z.string().email("Debe ser un email válido.").optional().or(z.literal('')),
+  email: z.string().email("Debe ser un email válido.").optional().or(z.literal("")),
+  initialPassword: z
+    .string()
+    .optional()
+    .transform((v) => v ?? "")
+    .refine((v) => v.length === 0 || v.length >= 6, "Mínimo 6 caracteres."),
   tutorName: z.string().min(1, "El nombre del tutor es requerido."),
   tutorPhone: z.string().min(1, "El teléfono del tutor es requerido."),
   status: z.enum(["active", "inactive"]),
   observations: z.string().optional(),
-  photoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
+  photoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal("")),
 });
 
 export function AddPlayerForm() {
     const firestore = useFirestore();
+    const mainAuth = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const { profile, activeSchoolId } = useUserProfile();
@@ -65,6 +83,7 @@ export function AddPlayerForm() {
             firstName: "",
             lastName: "",
             email: "",
+            initialPassword: "",
             tutorName: "",
             tutorPhone: "",
             status: "active",
@@ -75,7 +94,9 @@ export function AddPlayerForm() {
         },
     });
 
-    function onSubmit(values: z.infer<typeof playerSchema>) {
+    const hasEmail = !!form.watch("email")?.trim();
+
+    async function onSubmit(values: z.infer<typeof playerSchema>) {
         if (!profile || !activeSchoolId) {
             toast({
                 variant: "destructive",
@@ -85,53 +106,124 @@ export function AddPlayerForm() {
             return;
         }
 
-        const playerData = {
-            firstName: values.firstName,
-            lastName: values.lastName,
-            birthDate: Timestamp.fromDate(values.birthDate),
-            dni: values.dni,
-            healthInsurance: values.healthInsurance,
-            ...(values.email?.trim() && { email: values.email.trim().toLowerCase() }),
-            tutorContact: {
-                name: values.tutorName,
-                phone: values.tutorPhone,
-            },
-            status: values.status,
-            photoUrl: values.photoUrl,
-            observations: values.observations,
-            createdAt: Timestamp.now(),
-            createdBy: profile.uid,
-        };
+        const emailNorm = values.email?.trim().toLowerCase();
+        const wantsLogin = !!emailNorm;
+        const adminSetsPassword = wantsLogin && !!values.initialPassword?.trim();
+        const sendSetPasswordEmail = wantsLogin && !adminSetsPassword;
 
-        const playersCollectionRef = collection(firestore, `schools/${activeSchoolId}/players`);
+        let authUserCreated = false;
+        const tempAppName = `temp-player-creation-${Date.now()}`;
+        const tempApp = initializeApp(getFirebaseConfig(), tempAppName);
+        const tempAuth = getAuth(tempApp);
 
-        addDoc(playersCollectionRef, playerData)
-            .then(async (newPlayerRef) => {
-                const emailNorm = values.email?.trim().toLowerCase();
-                if (emailNorm) {
-                    const loginRef = doc(firestore, "playerLogins", emailNorm);
-                    await setDoc(loginRef, { schoolId: activeSchoolId, playerId: newPlayerRef.id });
+        try {
+            if (wantsLogin) {
+                const password = adminSetsPassword
+                    ? values.initialPassword!.trim()
+                    : generateRandomPassword();
+                await createUserWithEmailAndPassword(tempAuth, emailNorm, password);
+                authUserCreated = true;
+            }
+
+            const playerData = {
+                firstName: values.firstName,
+                lastName: values.lastName,
+                birthDate: Timestamp.fromDate(values.birthDate),
+                dni: values.dni,
+                healthInsurance: values.healthInsurance,
+                ...(emailNorm && { email: emailNorm }),
+                tutorContact: {
+                    name: values.tutorName,
+                    phone: values.tutorPhone,
+                },
+                status: values.status,
+                photoUrl: values.photoUrl,
+                observations: values.observations,
+                createdAt: Timestamp.now(),
+                createdBy: profile.uid,
+            };
+
+            const playersCollectionRef = collection(firestore, `schools/${activeSchoolId}/players`);
+            const newPlayerRef = doc(playersCollectionRef);
+            const batch = writeBatch(firestore);
+            batch.set(newPlayerRef, playerData);
+
+            if (emailNorm) {
+                batch.set(doc(firestore, "playerLogins", emailNorm), {
+                    schoolId: activeSchoolId,
+                    playerId: newPlayerRef.id,
+                });
+            }
+
+            await batch.commit();
+
+            if (sendSetPasswordEmail) {
+                try {
+                    await sendPasswordResetEmail(mainAuth, emailNorm);
+                    toast({
+                        title: "Jugador añadido",
+                        description: `Se creó la cuenta y se envió un correo a ${emailNorm} para que el jugador cree su contraseña.`,
+                        duration: 8000,
+                    });
+                } catch (emailErr) {
+                    toast({
+                        title: "Jugador añadido",
+                        variant: "destructive",
+                        description: `Cuenta creada, pero no se pudo enviar el correo para crear contraseña. El jugador puede usar "¿Olvidaste tu contraseña?" en el login.`,
+                        duration: 10000,
+                    });
                 }
+            } else if (adminSetsPassword) {
+                const loginUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/login` : "";
+                toast({
+                    title: "Jugador añadido",
+                    description: `Comunicale la contraseña al jugador por un canal seguro. Puede iniciar sesión en ${loginUrl}`,
+                    duration: 10000,
+                });
+            } else {
                 toast({
                     title: "Jugador añadido",
                     description: `${values.firstName} ${values.lastName} ha sido añadido a la base de datos.`,
                 });
-                router.push("/dashboard/players");
-            })
-            .catch((serverError) => {
-                const permissionError = new FirestorePermissionError({
-                    path: `schools/${activeSchoolId}/players`,
-                    operation: 'create',
-                    requestResourceData: playerData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
+            }
 
+            router.push("/dashboard/players");
+        } catch (err: unknown) {
+            const code = (err as { code?: string })?.code;
+            if (code === "auth/email-already-in-use") {
                 toast({
                     variant: "destructive",
-                    title: "Error de permisos",
-                    description: "No tienes permiso para añadir jugadores. Contacta a un administrador.",
+                    title: "Email en uso",
+                    description: "Ese correo ya tiene una cuenta. Si debe acceder como jugador, usá otro email o que use «¿Olvidaste tu contraseña?» en el login.",
+                    duration: 8000,
                 });
+                return;
+            }
+            if (code === "auth/weak-password") {
+                toast({
+                    variant: "destructive",
+                    title: "Contraseña débil",
+                    description: "La contraseña debe tener al menos 6 caracteres.",
+                });
+                return;
+            }
+            errorEmitter.emit(
+                "permission-error",
+                new FirestorePermissionError({
+                    path: `schools/${activeSchoolId}/players`,
+                    operation: "create",
+                })
+            );
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: authUserCreated
+                    ? "No se pudo guardar el jugador. Revisá en Firebase Auth si se creó un usuario con ese email y eliminarlo si hace falta."
+                    : "No se pudo añadir al jugador. Revisá permisos o intentá de nuevo.",
             });
+        } finally {
+            await deleteApp(tempApp);
+        }
     }
 
     return (
@@ -173,11 +265,29 @@ export function AddPlayerForm() {
                         <FormControl>
                         <Input type="email" placeholder="jugador@ejemplo.com" {...field} />
                         </FormControl>
-                        <FormDescription>Opcional. Si lo completas, el jugador podrá iniciar sesión y ver su perfil.</FormDescription>
+                        <FormDescription>Opcional. Si lo completas, podés crearle la cuenta para que entre al panel (con contraseña que vos definís o por correo para que la cree).</FormDescription>
                         <FormMessage />
                     </FormItem>
                     )}
                 />
+                {hasEmail && (
+                  <FormField
+                    control={form.control}
+                    name="initialPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contraseña inicial (opcional)</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Mín. 6 caracteres" {...field} autoComplete="new-password" />
+                        </FormControl>
+                        <FormDescription>
+                          Si la dejás en blanco, le enviaremos un correo al jugador para que cree su propia contraseña.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                  <FormField
                     control={form.control}
                     name="birthDate"

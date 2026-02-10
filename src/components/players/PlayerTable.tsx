@@ -75,15 +75,15 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
+    <div className="rounded-md border overflow-x-auto min-w-0">
+      <Table className="min-w-[520px]">
         <TableHeader>
           <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Edad</TableHead>
-            <TableHead>Posición</TableHead>
-            <TableHead>Categoría</TableHead>
-            <TableHead>Estado</TableHead>
+            <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
+            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Edad</TableHead>
+            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Posición</TableHead>
+            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Categoría</TableHead>
+            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -93,19 +93,19 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
               className="cursor-pointer"
               onClick={() => router.push(`/dashboard/players/${player.id}?schoolId=${schoolId}`)}
             >
-              <TableCell className="font-medium">
-                <div className="flex items-center gap-3">
-                  <Avatar>
+              <TableCell className="font-medium py-2 sm:py-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <Avatar className="h-8 w-8 sm:h-9 sm:w-9 shrink-0">
                     <AvatarImage src={player.photoUrl} alt={player.firstName} data-ai-hint="person portrait" />
-                    <AvatarFallback>{(player.firstName?.[0] || '')}{(player.lastName?.[0] || '')}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{(player.firstName?.[0] || '')}{(player.lastName?.[0] || '')}</AvatarFallback>
                   </Avatar>
-                  <span>{player.firstName} {player.lastName}</span>
+                  <span className="truncate text-sm sm:text-base">{player.firstName} {player.lastName}</span>
                 </div>
               </TableCell>
-              <TableCell>{player.birthDate ? calculateAge(player.birthDate) : '-'}</TableCell>
-              <TableCell>{player.posicion_preferida ? posicionLabel[player.posicion_preferida] ?? player.posicion_preferida : '-'}</TableCell>
-              <TableCell>{player.birthDate ? getCategoryLabel(player.birthDate instanceof Date ? player.birthDate : new Date(player.birthDate)) : '-'}</TableCell>
-              <TableCell>
+              <TableCell className="text-xs sm:text-sm py-2 sm:py-3">{player.birthDate ? calculateAge(player.birthDate) : '-'}</TableCell>
+              <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{player.posicion_preferida ? posicionLabel[player.posicion_preferida] ?? player.posicion_preferida : '-'}</TableCell>
+              <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{player.birthDate ? getCategoryLabel(player.birthDate instanceof Date ? player.birthDate : new Date(player.birthDate)) : '-'}</TableCell>
+              <TableCell className="py-2 sm:py-3">
                 <Badge
                   variant={
                     player.status === "suspended"
@@ -114,7 +114,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                       ? "secondary"
                       : "secondary"
                   }
-                  className={`capitalize ${
+                  className={`capitalize text-[10px] sm:text-xs whitespace-nowrap ${
                     player.status === "active"
                       ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400"
                       : player.status === "suspended"
@@ -125,7 +125,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                   {player.status === "active"
                     ? "Activo"
                     : player.status === "suspended"
-                    ? "Suspendido por mora"
+                    ? "Mora"
                     : "Inactivo"}
                 </Badge>
               </TableCell>

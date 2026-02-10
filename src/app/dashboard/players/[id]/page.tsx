@@ -194,22 +194,38 @@ export default function PlayerProfilePage() {
         }
         className="w-full"
       >
-        <TabsList className={`grid w-full bg-card ${isViewingAsPlayer ? "grid-cols-5" : "grid-cols-6"}`}>
-          <TabsTrigger value="summary">Resumen</TabsTrigger>
-          <TabsTrigger value="evaluations">Evaluaciones</TabsTrigger>
-          <TabsTrigger value="physical" className="gap-2">
-            Físicas <Activity className="h-4 w-4" />
+        {/* Móvil: grid 3 columnas (2 filas) para usar todo el ancho; md+: una fila */}
+        <TabsList
+          className={`
+            w-full bg-card grid grid-cols-3 gap-1 p-1 h-auto md:h-10
+            ${isViewingAsPlayer ? "md:grid-cols-5" : "md:grid-cols-6"}
+          `}
+        >
+          <TabsTrigger value="summary" className="text-xs px-2 py-2 md:text-sm md:px-3 md:py-1.5">
+            Resumen
           </TabsTrigger>
-          <TabsTrigger value="videoteca" className="gap-2">
-            Videoteca <Video className="h-4 w-4" />
+          <TabsTrigger value="evaluations" className="text-xs px-2 py-2 md:text-sm md:px-3 md:py-1.5">
+            <span className="hidden sm:inline">Evaluaciones</span>
+            <span className="sm:hidden">Eval.</span>
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="gap-2">
-            Asistencia <ClipboardCheck className="h-4 w-4" />
+          <TabsTrigger value="physical" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+            <span className="hidden sm:inline">Físicas</span>
+            <span className="sm:hidden">Fís.</span>
+            <Activity className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+          </TabsTrigger>
+          <TabsTrigger value="videoteca" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+            <Video className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="truncate">Videoteca</span>
+          </TabsTrigger>
+          <TabsTrigger value="attendance" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+            <ClipboardCheck className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="truncate">Asistencia</span>
           </TabsTrigger>
           {!isViewingAsPlayer && (
-          <TabsTrigger value="analytics" className="gap-2">
-            Análisis IA <Bot className="h-4 w-4" />
-            <Badge variant="secondary" className="text-[10px] font-normal">En desarrollo</Badge>
+          <TabsTrigger value="analytics" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+            <Bot className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="truncate">Análisis IA</span>
+            <Badge variant="secondary" className="text-[9px] font-normal shrink-0 hidden sm:inline-flex">En desarrollo</Badge>
           </TabsTrigger>
           )}
         </TabsList>

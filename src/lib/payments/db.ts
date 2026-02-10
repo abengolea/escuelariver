@@ -5,9 +5,9 @@
 
 import type admin from 'firebase-admin';
 import { getAdminFirestore, getAdminAuth } from '@/lib/firebase-admin';
-import { COLLECTIONS, REGISTRATION_PERIOD } from './constants';
+import { COLLECTIONS, REGISTRATION_PERIOD, MERCADOPAGO_CONNECTION_DOC } from './constants';
 import { getDueDate, isRegistrationPeriod } from './schemas';
-import type { Payment, PaymentIntent, PaymentConfig, DelinquentInfo } from '@/lib/types/payments';
+import type { Payment, PaymentIntent, PaymentConfig, DelinquentInfo, MercadoPagoConnection } from '@/lib/types/payments';
 import type { Player } from '@/lib/types';
 
 type Firestore = admin.firestore.Firestore;
@@ -84,6 +84,48 @@ export async function getOrCreatePaymentConfig(
     updatedAt: new Date(),
     updatedBy: '',
   };
+}
+
+/** Obtiene la conexión Mercado Pago de la escuela, si existe. */
+export async function getMercadoPagoConnection(
+  db: Firestore,
+  schoolId: string
+): Promise<MercadoPagoConnection | null> {
+  const ref = db.collection('schools').doc(schoolId).collection('mercadopagoConnection').doc(MERCADOPAGO_CONNECTION_DOC);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const d = snap.data()!;
+  return {
+    access_token: d.access_token,
+    refresh_token: d.refresh_token,
+    expires_at: d.expires_at,
+    mp_user_id: d.mp_user_id,
+    connected_at: toDate(d.connected_at),
+  };
+}
+
+/** Guarda la conexión OAuth de Mercado Pago para la escuela. */
+export async function setMercadoPagoConnection(
+  db: Firestore,
+  schoolId: string,
+  data: Omit<MercadoPagoConnection, 'connected_at'> & { connected_at: Date }
+): Promise<void> {
+  const admin = await import('firebase-admin');
+  const ref = db.collection('schools').doc(schoolId).collection('mercadopagoConnection').doc(MERCADOPAGO_CONNECTION_DOC);
+  const connectedAt = data.connected_at instanceof Date ? data.connected_at : new Date(data.connected_at);
+  await ref.set({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at: data.expires_at ?? null,
+    mp_user_id: data.mp_user_id ?? null,
+    connected_at: admin.firestore.Timestamp.fromDate(connectedAt),
+  });
+}
+
+/** Obtiene el access_token de Mercado Pago para la escuela (para cobrar a nombre de esa escuela). Retorna null si no está conectada. */
+export async function getMercadoPagoAccessToken(db: Firestore, schoolId: string): Promise<string | null> {
+  const conn = await getMercadoPagoConnection(db, schoolId);
+  return conn?.access_token ?? null;
 }
 
 /** Verifica que el jugador exista en esa escuela (schools/{schoolId}/players/{playerId}). Regla: solo crear pagos con jugadores que existan en la escuela. */

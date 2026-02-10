@@ -13,23 +13,29 @@ export interface CreateIntentResult {
   providerPreferenceId: string;
 }
 
+export interface CreateIntentParams {
+  playerId: string;
+  schoolId: string;
+  period: string;
+  amount: number;
+  currency: string;
+  /** Access token de Mercado Pago de la escuela (OAuth por escuela). Obligatorio si provider === 'mercadopago'. */
+  mercadopagoAccessToken?: string | null;
+}
+
 /**
  * Crea intención de pago con el proveedor.
- * STUB: retorna URL de ejemplo. Integrar con SDK real de MercadoPago/DLocal.
+ * Para Mercado Pago se usa el access_token de la escuela (OAuth). Stub: retorna URL de ejemplo hasta integrar SDK real.
  */
 export async function createPaymentIntentWithProvider(
   provider: PaymentProvider,
-  _params: {
-    playerId: string;
-    schoolId: string;
-    period: string;
-    amount: number;
-    currency: string;
-  }
+  params: CreateIntentParams
 ): Promise<CreateIntentResult> {
-  // TODO: MercadoPago SDK - crear preferencia y obtener init_point
+  if (provider === 'mercadopago' && !params.mercadopagoAccessToken) {
+    throw new Error('La escuela no tiene Mercado Pago conectado. Conectá tu cuenta en Administración → Pagos → Configuración.');
+  }
+  // TODO: MercadoPago SDK - usar params.mercadopagoAccessToken para crear preferencia y obtener init_point
   // TODO: DLocal - crear orden y obtener checkout_url
-  // Credenciales: process.env.MERCADOPAGO_ACCESS_TOKEN, process.env.DLOCAL_*
   const prefId = `stub_${provider}_${Date.now()}`;
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
   return {

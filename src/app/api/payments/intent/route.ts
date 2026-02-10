@@ -9,7 +9,7 @@ import { createPaymentIntentSchema } from '@/lib/payments/schemas';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { createPaymentIntent } from '@/lib/payments/db';
 import { createPaymentIntentWithProvider } from '@/lib/payments/provider-stub';
-import { getOrCreatePaymentConfig } from '@/lib/payments/db';
+import { getOrCreatePaymentConfig, getMercadoPagoAccessToken } from '@/lib/payments/db';
 import { verifyIdToken } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
@@ -40,9 +40,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const mercadopagoAccessToken = provider === 'mercadopago'
+      ? await getMercadoPagoAccessToken(db, schoolId)
+      : null;
+
+    if (provider === 'mercadopago' && !mercadopagoAccessToken) {
+      return NextResponse.json(
+        { error: 'Tu escuela no tiene Mercado Pago conectado. Andá a Administración → Pagos → Configuración y tocá "Conectar Mercado Pago".' },
+        { status: 400 }
+      );
+    }
+
     const { checkoutUrl, providerPreferenceId } = await createPaymentIntentWithProvider(
       provider,
-      { playerId, schoolId, period, amount, currency }
+      { playerId, schoolId, period, amount, currency, mercadopagoAccessToken }
     );
 
     const intent = await createPaymentIntent(db, {

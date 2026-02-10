@@ -311,6 +311,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Conexión OAuth Mercado Pago por escuela (tokens; solo servidor debería escribir en producción)
+    match /schools/{schoolId}/mercadopagoConnection/{docId} {
+      allow read: if isSuperAdmin() || isSchoolAdmin(schoolId);
+      allow create, update: if isSuperAdmin() || isSchoolAdmin(schoolId);
+      allow delete: if false;
+    }
+
     // --- Centro de Soporte (Support Center) ---
 
     // Flujos guiados: lectura para cualquier autenticado; escritura solo superadmin.
