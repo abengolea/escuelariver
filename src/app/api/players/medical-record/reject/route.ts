@@ -73,14 +73,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Objeto solo con los campos válidos (sin approvedAt/approvedBy para limpiar aprobación previa)
     const medicalRecord = {
-      ...current,
+      url: current.url,
+      ...(current.storagePath != null && { storagePath: current.storagePath }),
+      ...(current.uploadedAt != null && { uploadedAt: current.uploadedAt }),
+      ...(current.uploadedBy != null && { uploadedBy: current.uploadedBy }),
       rejectedAt: Timestamp.now(),
       rejectedBy: uid,
       rejectionReason: reason,
-      // Limpiamos aprobación si existía (por si se rechaza tras aprobar por error)
-      approvedAt: undefined,
-      approvedBy: undefined,
     };
 
     await playerRef.update({ medicalRecord });
