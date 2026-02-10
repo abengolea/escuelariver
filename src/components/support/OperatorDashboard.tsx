@@ -322,17 +322,18 @@ export function OperatorDashboard() {
           ) : filteredTickets.length === 0 ? (
             <p className="text-muted-foreground text-sm">No hay tickets con el filtro actual.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Resumen</TableHead>
-                  <TableHead>Severidad</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="overflow-x-auto rounded-md border min-w-0">
+              <Table className="min-w-[520px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs sm:text-sm">#</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Resumen</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Severidad</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha</TableHead>
+                    <TableHead className="text-right w-[100px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {filteredTickets.map((t) => (
                   <TableRow key={t.id}>
@@ -362,7 +363,8 @@ export function OperatorDashboard() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

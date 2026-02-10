@@ -88,16 +88,17 @@ export function SchoolUsersList({ schoolId }: { schoolId: string }) {
           </div>
           <AddSchoolUserDialog schoolId={schoolId} />
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead className="text-right w-[80px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
+        <CardContent className="p-0 sm:p-6">
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 rounded-b-lg sm:rounded-none border-t sm:border-t-0">
+            <Table className="min-w-[480px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Email</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Rol</TableHead>
+                  <TableHead className="text-right w-[80px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {loading && [...Array(2)].map((_, i) => (
                 <TableRow key={i}>
@@ -149,7 +150,8 @@ export function SchoolUsersList({ schoolId }: { schoolId: string }) {
                   </TableRow>
               )}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

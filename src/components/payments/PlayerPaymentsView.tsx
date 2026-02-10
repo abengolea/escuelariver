@@ -332,16 +332,17 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
               Aún no hay pagos registrados.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Período</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha de pago</TableHead>
-                  <TableHead>Medio</TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 rounded-md border">
+              <Table className="min-w-[480px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs sm:text-sm">Período</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Monto</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha de pago</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Medio</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {payments.map((p) => (
                   <TableRow key={p.id}>
@@ -372,7 +373,9 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
                 ))}
               </TableBody>
             </Table>
-          )}
+            </div>
+          )
+          }
         </CardContent>
       </Card>
     </div>

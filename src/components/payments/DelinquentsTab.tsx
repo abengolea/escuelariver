@@ -161,16 +161,16 @@ export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
           No hay morosos en esta escuela
         </div>
       ) : (
-        <div className="rounded-md border">
-          <Table>
+        <div className="overflow-x-auto rounded-md border min-w-0">
+          <Table className="min-w-[640px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Jugador</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Días mora</TableHead>
-                <TableHead>Monto</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead className="text-xs sm:text-sm">Jugador</TableHead>
+                <TableHead className="text-xs sm:text-sm whitespace-nowrap">Período</TableHead>
+                <TableHead className="text-xs sm:text-sm whitespace-nowrap">Días mora</TableHead>
+                <TableHead className="text-xs sm:text-sm">Monto</TableHead>
+                <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                <TableHead className="text-xs sm:text-sm text-right w-[120px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

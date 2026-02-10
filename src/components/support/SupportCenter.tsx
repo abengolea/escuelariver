@@ -117,14 +117,14 @@ export function SupportCenter() {
       </div>
 
       <Tabs defaultValue="chat" className="w-full">
-        <TabsList>
-          <TabsTrigger value="chat" className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" />
-            Consulta guiada
+        <TabsList className="w-full grid grid-cols-2 gap-1 p-1 h-auto md:h-10 bg-card">
+          <TabsTrigger value="chat" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+            <MessageCircle className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="truncate">Consulta guiada</span>
           </TabsTrigger>
-          <TabsTrigger value="tickets" className="flex items-center gap-2">
-            <Ticket className="h-4 w-4" />
-            Mis tickets
+          <TabsTrigger value="tickets" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+            <Ticket className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="truncate">Mis tickets</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="chat" className="mt-4">

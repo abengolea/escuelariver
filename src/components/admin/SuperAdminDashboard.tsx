@@ -123,20 +123,20 @@ export function SuperAdminDashboard() {
             </div>
 
              <Tabs defaultValue="schools" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="schools">
-                        <Building className="mr-2 h-4 w-4" />
-                        Escuelas
+                <TabsList className="w-full grid grid-cols-2 gap-1 p-1 h-auto md:h-10 bg-card">
+                    <TabsTrigger value="schools" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+                        <Building className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                        <span className="truncate">Escuelas</span>
                     </TabsTrigger>
-                    <TabsTrigger value="users">
-                        <Users className="mr-2 h-4 w-4" />
-                        Usuarios
+                    <TabsTrigger value="users" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+                        <Users className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                        <span className="truncate">Usuarios</span>
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value="schools">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                                 <Building className="h-5 w-5" />
                                 Listado de Escuelas
                             </CardTitle>
@@ -144,17 +144,18 @@ export function SuperAdminDashboard() {
                                 {schoolsLoading ? 'Cargando listado de escuelas...' : `Haz click en una para gestionarla.`}
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nombre de la Escuela</TableHead>
-                                        <TableHead>Ubicación</TableHead>
-                                        <TableHead>Estado</TableHead>
-                                        <TableHead>Fecha de Creación</TableHead>
-                                        <TableHead className="text-right w-[80px]">Acciones</TableHead>
-                                    </TableRow>
-                                </TableHeader>
+                        <CardContent className="p-0 sm:p-6">
+                            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 rounded-b-lg sm:rounded-none border-t sm:border-t-0">
+                                <Table className="min-w-[560px]">
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="text-xs sm:text-sm">Nombre de la Escuela</TableHead>
+                                            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Ubicación</TableHead>
+                                            <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                                            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha de Creación</TableHead>
+                                            <TableHead className="text-right w-[80px]">Acciones</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
                                 <TableBody>
                                     {schoolsLoading && [...Array(3)].map((_, i) => (
                                         <TableRow key={i}>
@@ -218,6 +219,7 @@ export function SuperAdminDashboard() {
                                     ))}
                                 </TableBody>
                             </Table>
+                            </div>
                             {(!schoolsLoading && !schools?.length) && (
                                 <p className="text-center text-muted-foreground py-8">No hay escuelas para mostrar.</p>
                             )}
@@ -235,8 +237,10 @@ export function SuperAdminDashboard() {
                                 {usersLoading ? 'Cargando usuarios...' : 'Gestiona los roles de todos los usuarios de la plataforma.'}
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <PlatformUsersList />
+                        <CardContent className="p-0 sm:p-6">
+                            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 rounded-b-lg sm:rounded-none border-t sm:border-t-0">
+                                <PlatformUsersList />
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

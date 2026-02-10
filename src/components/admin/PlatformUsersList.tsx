@@ -74,16 +74,15 @@ export function PlatformUsersList() {
     const isLoading = usersLoading;
 
     return (
-        <>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Rol</TableHead>
-                        <TableHead>Fecha de Registro</TableHead>
-                        <TableHead className="text-right w-[80px]">Acciones</TableHead>
-                    </TableRow>
-                </TableHeader>
+        <Table className="min-w-[480px]">
+            <TableHeader>
+                <TableRow>
+                    <TableHead className="text-xs sm:text-sm">Email</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Rol</TableHead>
+                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha de Registro</TableHead>
+                    <TableHead className="text-right w-[80px]">Acciones</TableHead>
+                </TableRow>
+            </TableHeader>
                 <TableBody>
                     {isLoading && [...Array(3)].map((_, i) => (
                         <TableRow key={i}>

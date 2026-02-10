@@ -352,16 +352,16 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
       {loading ? (
         <Skeleton className="h-64 w-full" />
       ) : (
-        <div className="rounded-md border">
-          <Table>
+        <div className="overflow-x-auto rounded-md border min-w-0">
+          <Table className="min-w-[640px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Período</TableHead>
-                <TableHead>Jugador</TableHead>
-                <TableHead>Monto</TableHead>
-                <TableHead>Proveedor</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Fecha</TableHead>
+                <TableHead className="text-xs sm:text-sm whitespace-nowrap">Período</TableHead>
+                <TableHead className="text-xs sm:text-sm">Jugador</TableHead>
+                <TableHead className="text-xs sm:text-sm">Monto</TableHead>
+                <TableHead className="text-xs sm:text-sm">Proveedor</TableHead>
+                <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
