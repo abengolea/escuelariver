@@ -1,12 +1,13 @@
 'use server';
 /**
  * Flujo de Genkit para mejorar los comentarios del entrenador.
- * Toma el borrador actual y el historial de evaluaciones del jugador
- * y devuelve un texto coherente y bien redactado para "Comentarios del Entrenador".
+ * Usa el primer modelo Gemini disponible con tu API key.
  */
 
 import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
+import { getAvailableGeminiModel } from '@/ai/get-available-gemini-model';
 
 const ImproveCoachCommentsInputSchema = z.object({
   playerName: z.string().describe('Nombre del jugador.'),
@@ -61,7 +62,15 @@ const improveFlow = ai.defineFlow(
     outputSchema: ImproveCoachCommentsOutputSchema,
   },
   async (input) => {
-    const { output } = await improvePrompt(input);
+    const modelName = await getAvailableGeminiModel();
+    if (!modelName) {
+      throw new Error(
+        'No se encontró ningún modelo Gemini disponible. Verificá GEMINI_API_KEY en .env.local (API key de https://aistudio.google.com/apikey).'
+      );
+    }
+    const { output } = await improvePrompt(input, {
+      model: googleAI.model(modelName),
+    });
     if (!output?.improvedText) {
       throw new Error('La IA no generó un texto válido.');
     }

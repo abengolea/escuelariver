@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Home,
   Users,
@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Headphones,
   Banknote,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,7 +31,10 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { RiverPlateLogo } from "../icons/RiverPlateLogo";
-import { useUserProfile, useCollection } from "@/firebase";
+import { useUserProfile, useCollection, useDoc, useFirebase } from "@/firebase";
+import { isPlayerProfileComplete } from "@/lib/utils";
+import type { Player } from "@/lib/types";
+import { getAuth } from "firebase/auth";
 import type { PendingPlayer } from "@/lib/types";
 import type { AccessRequest } from "@/lib/types";
 
@@ -38,7 +42,7 @@ const schoolUserMenuItems = [
   { href: "/dashboard", label: "Panel Principal", icon: Home },
   { href: "/dashboard/players", label: "Jugadores", icon: Users },
   { href: "/dashboard/attendance", label: "Asistencia", icon: ClipboardCheck },
-  { href: "/dashboard/record-video", label: "Grabar video", icon: Video },
+  { href: "/dashboard/record-video", label: "Videoteca", icon: Video },
   { href: "/dashboard/registrations", label: "Solicitudes", icon: UserCheck },
   { href: "/dashboard/physical-assessments-config", label: "Evaluaciones Físicas", icon: Activity },
   { href: "/dashboard/support", label: "Centro de Soporte", icon: MessageCircle },
@@ -53,13 +57,38 @@ const superAdminMenuItems = [
 export function SidebarNav() {
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
+  const { app } = useFirebase();
   const { isSuperAdmin, isReady, profile, activeSchoolId, isPlayer } = useUserProfile();
+  const [hasPaymentOverdue, setHasPaymentOverdue] = useState(false);
+  const playerPath = profile?.role === "player" && profile?.activeSchoolId && profile?.playerId
+    ? `schools/${profile.activeSchoolId}/players/${profile.playerId}`
+    : "";
+  const { data: player } = useDoc<Player>(playerPath);
+  const playerProfileComplete = !player || isPlayerProfileComplete(player);
+
+  const fetchPaymentOverdue = useCallback(async () => {
+    if (!isPlayer || !app) return;
+    const auth = getAuth(app);
+    const user = auth.currentUser;
+    if (!user) return;
+    const token = await user.getIdToken().catch(() => null);
+    if (!token) return;
+    const res = await fetch("/api/payments/me", { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return;
+    const data = await res.json();
+    setHasPaymentOverdue(Boolean(data.hasOverdue));
+  }, [isPlayer, app]);
+
+  useEffect(() => {
+    if (isReady && isPlayer) fetchPaymentOverdue();
+  }, [isReady, isPlayer, fetchPaymentOverdue]);
 
   const closeMobileSidebar = React.useCallback(() => {
     if (isMobile) setOpenMobile(false);
   }, [isMobile, setOpenMobile]);
-  // Solo staff (admin/coach) puede listar pendingPlayers; un jugador no tiene permiso.
-  const canListSchoolCollections = isReady && activeSchoolId && !isPlayer;
+  // Solo staff (school_admin o coach) puede listar pendingPlayers; nunca listar si es jugador.
+  const isStaff = profile?.role === "school_admin" || profile?.role === "coach";
+  const canListSchoolCollections = isReady && activeSchoolId && isStaff;
 
   const { data: pendingPlayers } = useCollection<PendingPlayer>(
     canListSchoolCollections ? `schools/${activeSchoolId}/pendingPlayers` : "",
@@ -76,12 +105,28 @@ export function SidebarNav() {
   if (isSuperAdmin) {
     menuItems = superAdminMenuItems;
   } else if (profile?.role === 'player' && profile.activeSchoolId && profile.playerId) {
-    // Jugador: panel, perfil y soporte
-    menuItems = [
-      { href: "/dashboard", label: "Panel Principal", icon: Home },
-      { href: `/dashboard/players/${profile.playerId}?schoolId=${profile.activeSchoolId}`, label: "Mi perfil", icon: Users },
-      { href: "/dashboard/support", label: "Centro de Soporte", icon: MessageCircle },
-    ];
+    // Jugador: si perfil incompleto "Mi perfil" + "Pagos"; si completo, panel, perfil, pagos y soporte
+    const profileHref = `/dashboard/players/${profile.playerId}?schoolId=${profile.activeSchoolId}`;
+    if (!playerProfileComplete) {
+      const tab = (t: string) => `${profileHref}&tab=${t}`;
+      menuItems = [
+        { href: profileHref, label: "Mi perfil", icon: Users },
+        { href: tab("attendance"), label: "Asistencia", icon: ClipboardCheck },
+        { href: tab("evaluations"), label: "Evaluaciones deportivas", icon: FileText },
+        { href: tab("physical"), label: "Evaluaciones físicas", icon: Activity },
+        { href: tab("videoteca"), label: "Videoteca", icon: Video },
+        { href: "/dashboard/payments", label: "Pago de cuotas", icon: Banknote, badgeOverdue: true },
+      ];
+    } else {
+      const tab = (t: string) => `${profileHref}&tab=${t}`;
+      menuItems = [
+        { href: "/dashboard", label: "Panel Principal", icon: Home },
+        { href: profileHref, label: "Mi perfil", icon: Users },
+        { href: tab("videoteca"), label: "Videoteca", icon: Video },
+        { href: "/dashboard/payments", label: "Pago de cuotas", icon: Banknote, badgeOverdue: true },
+        { href: "/dashboard/support", label: "Centro de Soporte", icon: MessageCircle },
+      ];
+    }
   } else {
     // Start with the base items for any school user (coach / school_admin)
     menuItems = [...schoolUserMenuItems]; 
@@ -120,7 +165,7 @@ export function SidebarNav() {
         ) : (
             <SidebarMenu>
             {menuItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
+                <SidebarMenuItem key={`${item.href}-${item.label}`}>
                 <Link href={item.href} className="relative flex items-center" onClick={closeMobileSidebar}>
                     <SidebarMenuButton
                     isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
@@ -132,6 +177,11 @@ export function SidebarNav() {
                     {item.href === "/dashboard/registrations" && solicitudesCount > 0 && (
                       <Badge variant="destructive" className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-xs">
                         {solicitudesCount > 99 ? "99+" : solicitudesCount}
+                      </Badge>
+                    )}
+                    {"badgeOverdue" in item && item.badgeOverdue && hasPaymentOverdue && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-xs" title="Cuota vencida">
+                        !
                       </Badge>
                     )}
                     </SidebarMenuButton>

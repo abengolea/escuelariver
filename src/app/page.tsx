@@ -80,14 +80,11 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button size="lg" disabled>
-                    Controla tu Seguimiento
-                  </Button>
-                  <Button size="lg" variant="secondary" asChild>
-                    <Link href="/auth/signup">Regístrate</Link>
+                  <Button size="lg" asChild>
+                    <Link href="/auth/registro">Registrarme como jugador</Link>
                   </Button>
                 </div>
-                 <p className="text-xs text-muted-foreground">El portal para control de seguimiento de padres y jugadores estará disponible próximamente.</p>
+                 <p className="text-xs text-muted-foreground">Completá el registro, verificá tu email y un administrador te aprobará para acceder al panel.</p>
               </div>
             </div>
           </div>

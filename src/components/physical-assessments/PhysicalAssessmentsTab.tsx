@@ -38,8 +38,9 @@ export function PhysicalAssessmentsTab({ player, schoolId, isViewingAsPlayer = f
     schoolId ? `schools/${schoolId}/physicalAssessments` : "",
     { where: ["playerId", "==", player.id], orderBy: ["date", "desc"], limit: 50 }
   );
+  // Solo staff puede leer la config; un jugador viendo su perfil no tiene permiso.
   const { data: physicalConfig } = useDoc<PhysicalAssessmentConfig>(
-    schoolId ? `schools/${schoolId}/physicalAssessmentConfig/default` : ""
+    schoolId && !isViewingAsPlayer ? `schools/${schoolId}/physicalAssessmentConfig/default` : ""
   );
 
   const birthDate = player.birthDate instanceof Date ? player.birthDate : new Date(player.birthDate);

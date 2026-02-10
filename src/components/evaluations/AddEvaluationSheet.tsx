@@ -33,7 +33,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Mic, MicOff, Sparkles } from "lucide-react";
 import { useFirestore, useUserProfile, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, addDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, getDoc, Timestamp } from "firebase/firestore";
+import { buildEmailHtml, escapeHtml, htmlToPlainText, sendMailDoc } from "@/lib/email";
 import type { Evaluation, PlayerPosition } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "../ui/scroll-area";
@@ -282,13 +283,33 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
 
         const evaluationsCollectionRef = collection(firestore, `schools/${schoolId}/evaluations`);
         addDoc(evaluationsCollectionRef, evaluationData)
-            .then(() => {
+            .then(async () => {
                 toast({
                     title: "Evaluación guardada",
                     description: "La nueva evaluación ha sido guardada exitosamente.",
                 });
                 form.reset();
                 onOpenChange(false);
+                // Notificar por mail al jugador si tiene email
+                try {
+                    const playerRef = doc(firestore, `schools/${schoolId}/players/${playerId}`);
+                    const playerSnap = await getDoc(playerRef);
+                    const playerData = playerSnap.data();
+                    const playerEmail = playerData?.email?.trim?.();
+                    const firstName = playerData?.firstName ?? playerName ?? "jugador";
+                    if (playerEmail) {
+                        const subject = "Nueva evaluación - Escuelas River SN";
+                        const contentHtml = `<p>Hola <strong>${escapeHtml(firstName)}</strong>,</p><p>Tu entrenador cargó una nueva evaluación. Entrá al panel para verla.</p><p><a href="${typeof window !== "undefined" ? window.location.origin : ""}/dashboard" style="color: #d4002a; font-weight: bold;">Ver mi perfil</a></p>`;
+                        const html = buildEmailHtml(contentHtml, {
+                          title: "Escuelas River SN",
+                          greeting: "Tenés una novedad en tu perfil.",
+                          baseUrl: typeof window !== "undefined" ? window.location.origin : "",
+                        });
+                        await sendMailDoc(firestore, { to: playerEmail, subject, html, text: htmlToPlainText(contentHtml) });
+                    }
+                } catch {
+                    // No bloquear si falla el envío del mail
+                }
             })
             .catch(() => {
                 errorEmitter.emit("permission-error", new FirestorePermissionError({

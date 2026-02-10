@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Cake, User, Contact, Bot, FilePlus, ArrowLeft, UserX, ClipboardCheck, Video } from "lucide-react";
-import { calculateAge } from "@/lib/utils";
+import { calculateAge, isPlayerProfileComplete } from "@/lib/utils";
 import { useDoc, useUserProfile, useCollection } from "@/firebase";
 import type { Player, Evaluation } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,14 +22,15 @@ import { PhysicalAssessmentsTab } from "@/components/physical-assessments/Physic
 import { Activity } from "lucide-react";
 import { EditPlayerDialog } from "@/components/players/EditPlayerDialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { AlertCircle, Lock } from "lucide-react";
 
 export default function PlayerProfilePage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const id = params.id as string;
   const { activeSchoolId, isReady: profileReady, profile } = useUserProfile();
-  const isViewingAsPlayer = profile?.role === "player" && profile?.playerId === id;
+  const isViewingAsPlayer = profile?.role === "player" && String(profile?.playerId ?? "") === String(id);
   const [isEvalSheetOpen, setEvalSheetOpen] = useState(false);
   const [editingEvaluation, setEditingEvaluation] = useState<Evaluation | null>(null);
   const [isEditPlayerOpen, setEditPlayerOpen] = useState(false);
@@ -95,6 +96,8 @@ export default function PlayerProfilePage() {
   }
 
   const playerWithSchool = { ...player, escuelaId: schoolId! };
+  const profileComplete = isPlayerProfileComplete(player);
+  const showLockedContent = isViewingAsPlayer && !profileComplete;
 
   return (
     <>
@@ -115,6 +118,7 @@ export default function PlayerProfilePage() {
       schoolId={schoolId!}
       isOpen={isEditPlayerOpen}
       onOpenChange={setEditPlayerOpen}
+      isPlayerEditing={isViewingAsPlayer}
     />
     <div className="flex flex-col gap-8">
       <header className="flex flex-col md:flex-row gap-6">
@@ -142,18 +146,32 @@ export default function PlayerProfilePage() {
              {player.tutorContact?.phone && <div className="flex items-center gap-1"><Contact className="h-4 w-4" /> {player.tutorContact.phone}</div>}
           </div>
         </div>
-        {!isViewingAsPlayer && (
         <div className="flex items-start gap-2">
-            <Button variant="outline" onClick={() => setEditPlayerOpen(true)}>
-              Editar Perfil
-            </Button>
+          <Button variant="outline" onClick={() => setEditPlayerOpen(true)}>
+            Editar Perfil
+          </Button>
+          {!isViewingAsPlayer && (
             <Button onClick={() => setEvalSheetOpen(true)}>
               <FilePlus className="mr-2 h-4 w-4" />
               Nueva Evaluación
             </Button>
+          )}
         </div>
-        )}
       </header>
+
+      {/* Cartel obligatorio para el jugador con perfil incompleto: no puede ver evaluaciones, videos, etc. */}
+      {showLockedContent && (
+        <Alert className="border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-500 shadow-md">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-lg">Completá tu perfil para desbloquear todo</AlertTitle>
+          <AlertDescription className="mt-1">
+            Para ver tus evaluaciones, videos y más, tenés que completar <strong>todos</strong> los datos de tu perfil: nombre, apellido, fecha de nacimiento, tutor (nombre y teléfono), email y <strong>foto</strong>. Podés sacar una foto con la cámara o subir una desde tu dispositivo en &quot;Editar Perfil&quot;.
+          </AlertDescription>
+          <Button className="mt-4" size="lg" onClick={() => setEditPlayerOpen(true)}>
+            Completar perfil
+          </Button>
+        </Alert>
+      )}
 
       {!isViewingAsPlayer && !player.email && (
         <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-600">
@@ -165,7 +183,17 @@ export default function PlayerProfilePage() {
         </Alert>
       )}
 
-      <Tabs defaultValue="summary" className="w-full">
+      <Tabs
+        defaultValue={
+          (() => {
+            const t = searchParams.get("tab");
+            return t && ["summary", "evaluations", "physical", "videoteca", "attendance", "analytics"].includes(t)
+              ? t
+              : "summary";
+          })()
+        }
+        className="w-full"
+      >
         <TabsList className={`grid w-full bg-card ${isViewingAsPlayer ? "grid-cols-5" : "grid-cols-6"}`}>
           <TabsTrigger value="summary">Resumen</TabsTrigger>
           <TabsTrigger value="evaluations">Evaluaciones</TabsTrigger>
@@ -189,31 +217,70 @@ export default function PlayerProfilePage() {
           <SummaryTab player={playerWithSchool} />
         </TabsContent>
         <TabsContent value="evaluations">
-          <EvaluationsTab
-            playerId={id}
-            schoolId={schoolId!}
-            evaluations={evaluations}
-            loading={evalsLoading}
-            error={evalsError}
-            onOpenCreate={() => setEvalSheetOpen(true)}
-            onEditClick={(evalData) => {
-              setEditingEvaluation(evalData);
-              setEvalSheetOpen(true);
-            }}
-            isViewingAsPlayer={isViewingAsPlayer}
-          />
+          {showLockedContent ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Lock className="h-12 w-12 text-muted-foreground mb-4 opacity-60" />
+                <h3 className="font-semibold text-lg mb-2">Completá tu perfil</h3>
+                <p className="text-muted-foreground max-w-sm mb-4">
+                  Para ver tus evaluaciones necesitás completar todos los datos de tu perfil, incluida la foto (podés sacarla con la cámara o subir una).
+                </p>
+                <Button onClick={() => setEditPlayerOpen(true)}>Completar perfil</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <EvaluationsTab
+              playerId={id}
+              schoolId={schoolId!}
+              evaluations={evaluations}
+              loading={evalsLoading}
+              error={evalsError}
+              onOpenCreate={() => setEvalSheetOpen(true)}
+              onEditClick={(evalData) => {
+                setEditingEvaluation(evalData);
+                setEvalSheetOpen(true);
+              }}
+              isViewingAsPlayer={isViewingAsPlayer}
+            />
+          )}
         </TabsContent>
         <TabsContent value="physical">
-          <PhysicalAssessmentsTab player={playerWithSchool} schoolId={schoolId!} isViewingAsPlayer={isViewingAsPlayer} />
+          {showLockedContent ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Lock className="h-12 w-12 text-muted-foreground mb-4 opacity-60" />
+                <h3 className="font-semibold text-lg mb-2">Completá tu perfil</h3>
+                <p className="text-muted-foreground max-w-sm mb-4">
+                  Para ver tus evaluaciones físicas completá todos los datos de tu perfil, incluida la foto.
+                </p>
+                <Button onClick={() => setEditPlayerOpen(true)}>Completar perfil</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <PhysicalAssessmentsTab player={playerWithSchool} schoolId={schoolId!} isViewingAsPlayer={isViewingAsPlayer} />
+          )}
         </TabsContent>
         <TabsContent value="videoteca">
-          <PlayerVideoteca
-            schoolId={schoolId!}
-            playerId={id}
-            playerName={`${player.firstName ?? ""} ${player.lastName ?? ""}`.trim()}
-            embedded
-            isViewingAsPlayer={isViewingAsPlayer}
-          />
+          {showLockedContent ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Lock className="h-12 w-12 text-muted-foreground mb-4 opacity-60" />
+                <h3 className="font-semibold text-lg mb-2">Completá tu perfil</h3>
+                <p className="text-muted-foreground max-w-sm mb-4">
+                  Para ver tu videoteca completá todos los datos de tu perfil, incluida la foto (sacala con la cámara o subila).
+                </p>
+                <Button onClick={() => setEditPlayerOpen(true)}>Completar perfil</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <PlayerVideoteca
+              schoolId={schoolId!}
+              playerId={id}
+              playerName={`${player.firstName ?? ""} ${player.lastName ?? ""}`.trim()}
+              embedded
+              isViewingAsPlayer={isViewingAsPlayer}
+            />
+          )}
         </TabsContent>
         <TabsContent value="attendance">
           <AttendanceHistory schoolId={schoolId!} playerId={id} />

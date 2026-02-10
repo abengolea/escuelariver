@@ -16,7 +16,7 @@ const PIE_LABELS: Record<string, string> = {
 };
 
 export function SummaryTab({ player }: { player: Player }) {
-    const hasDeportivo = player.posicion_preferida || player.pie_dominante || player.numero_camiseta || player.talle_camiseta || player.altura_cm || player.peso_kg || player.envergadura_cm;
+    const hasDeportivo = player.posicion_preferida || player.pie_dominante || player.altura_cm || player.peso_kg;
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -81,18 +81,6 @@ export function SummaryTab({ player }: { player: Player }) {
                                     <TableCell className="text-right">{PIE_LABELS[player.pie_dominante] || player.pie_dominante}</TableCell>
                                 </TableRow>
                             )}
-                            {player.numero_camiseta != null && (
-                                <TableRow>
-                                    <TableCell className="font-medium text-muted-foreground">Nº camiseta</TableCell>
-                                    <TableCell className="text-right">{player.numero_camiseta}</TableCell>
-                                </TableRow>
-                            )}
-                            {player.talle_camiseta && (
-                                <TableRow>
-                                    <TableCell className="font-medium text-muted-foreground">Talle camiseta</TableCell>
-                                    <TableCell className="text-right">{player.talle_camiseta}</TableCell>
-                                </TableRow>
-                            )}
                             {player.altura_cm != null && (
                                 <TableRow>
                                     <TableCell className="font-medium text-muted-foreground">Altura</TableCell>
@@ -103,12 +91,6 @@ export function SummaryTab({ player }: { player: Player }) {
                                 <TableRow>
                                     <TableCell className="font-medium text-muted-foreground">Peso</TableCell>
                                     <TableCell className="text-right">{player.peso_kg} kg</TableCell>
-                                </TableRow>
-                            )}
-                            {player.envergadura_cm != null && (
-                                <TableRow>
-                                    <TableCell className="font-medium text-muted-foreground">Envergadura</TableCell>
-                                    <TableCell className="text-right">{player.envergadura_cm} cm</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

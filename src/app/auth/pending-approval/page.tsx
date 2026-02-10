@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserX, LogOut, Send } from "lucide-react";
+import { UserX, LogOut, Send, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth, useFirestore } from "@/firebase";
 import { signOut } from "firebase/auth";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, doc, getDoc, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PendingApprovalPage() {
@@ -17,6 +17,7 @@ export default function PendingApprovalPage() {
   const { toast } = useToast();
   const [sending, setSending] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const [hasWebRegistrationPending, setHasWebRegistrationPending] = useState<boolean | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -34,6 +35,18 @@ export default function PendingApprovalPage() {
       });
     }
   };
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user?.email) {
+      setHasWebRegistrationPending(false);
+      return;
+    }
+    const emailNorm = user.email.trim().toLowerCase();
+    getDoc(doc(firestore, "pendingPlayerByEmail", emailNorm))
+      .then((snap) => setHasWebRegistrationPending(snap.exists()))
+      .catch(() => setHasWebRegistrationPending(false));
+  }, [auth.currentUser, firestore]);
 
   const handleRetry = () => {
     window.location.reload();
@@ -81,18 +94,31 @@ export default function PendingApprovalPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center space-y-4">
-        <p className="text-muted-foreground">
-          Si eres <strong>jugador</strong>, podés enviar una solicitud. Un entrenador la verá en Solicitudes y te dará acceso al aprobarla.
-        </p>
-        {requestSent ? (
-          <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-            Solicitud enviada. Cuando un entrenador la apruebe, podrás entrar. Usá &quot;Reintentar&quot; después.
-          </p>
+        {hasWebRegistrationPending ? (
+          <>
+            <div className="flex justify-center">
+              <Clock className="h-12 w-12 text-amber-600 dark:text-amber-400" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Tu solicitud de registro como jugador está <strong>pendiente de aprobación</strong>. Un administrador de la escuela la revisará pronto. Cuando te aprueben, podrás entrar al panel.
+            </p>
+          </>
         ) : (
-          <Button onClick={handleRequestAccess} disabled={sending} className="w-full" variant="secondary">
-            <Send className="mr-2 h-4 w-4" />
-            {sending ? "Enviando…" : "Solicitar acceso como jugador"}
-          </Button>
+          <>
+            <p className="text-muted-foreground">
+              Si eres <strong>jugador</strong>, podés enviar una solicitud. Un entrenador la verá en Solicitudes y te dará acceso al aprobarla.
+            </p>
+            {requestSent ? (
+              <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                Solicitud enviada. Cuando un entrenador la apruebe, podrás entrar. Usá &quot;Reintentar&quot; después.
+              </p>
+            ) : (
+              <Button onClick={handleRequestAccess} disabled={sending} className="w-full" variant="secondary">
+                <Send className="mr-2 h-4 w-4" />
+                {sending ? "Enviando…" : "Solicitar acceso como jugador"}
+              </Button>
+            )}
+          </>
         )}
         <div className="flex flex-col gap-2">
           <Button onClick={handleRetry} className="w-full">

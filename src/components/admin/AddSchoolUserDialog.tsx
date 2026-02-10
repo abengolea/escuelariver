@@ -34,16 +34,22 @@ import { Loader2, UserPlus } from "lucide-react";
 import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { initializeApp, deleteApp } from "firebase/app";
-import { firebaseConfig } from "@/firebase/config";
+import { getFirebaseConfig } from "@/firebase/config";
 import { doc, writeBatch, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
-const addUserSchema = z.object({
-  displayName: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
-  email: z.string().email("El correo electrónico no es válido."),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
-  role: z.enum(["school_admin", "coach"], { required_error: "El rol es requerido."}),
-});
+const addUserSchema = z
+  .object({
+    displayName: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
+    email: z.string().email("El correo electrónico no es válido."),
+    emailConfirm: z.string().email("El correo electrónico no es válido."),
+    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+    role: z.enum(["school_admin", "coach"], { required_error: "El rol es requerido." }),
+  })
+  .refine((data) => data.email === data.emailConfirm, {
+    message: "Los correos electrónicos no coinciden.",
+    path: ["emailConfirm"],
+  });
 
 export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
   const [open, setOpen] = useState(false);
@@ -55,6 +61,7 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
     defaultValues: {
       displayName: "",
       email: "",
+      emailConfirm: "",
       password: "",
     },
   });
@@ -63,7 +70,7 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
 
   async function onSubmit(values: z.infer<typeof addUserSchema>) {
     const tempAppName = `temp-user-creation-${Date.now()}`;
-    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempApp = initializeApp(getFirebaseConfig(), tempAppName);
     const tempAuth = getAuth(tempApp);
 
     try {
@@ -173,6 +180,19 @@ export function AddSchoolUserDialog({ schoolId }: { schoolId: string }) {
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="eperez@riverplate.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="emailConfirm"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirmar Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="Repetí el correo electrónico" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

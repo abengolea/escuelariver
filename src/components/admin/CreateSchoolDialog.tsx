@@ -28,7 +28,7 @@ import { useFirestore } from "@/firebase";
 import { collection, doc, writeBatch, Timestamp } from "firebase/firestore";
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { initializeApp, deleteApp } from "firebase/app";
-import { firebaseConfig } from "@/firebase/config";
+import { getFirebaseConfig } from "@/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
 
@@ -64,7 +64,7 @@ export function CreateSchoolDialog() {
 
   async function onSubmit(values: z.infer<typeof schoolSchema>) {
     const tempAppName = `temp-user-creation-${Date.now()}`;
-    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempApp = initializeApp(getFirebaseConfig(), tempAppName);
     const tempAuth = getAuth(tempApp);
     
     try {

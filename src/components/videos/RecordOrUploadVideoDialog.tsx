@@ -20,10 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { doc, getDoc } from "firebase/firestore";
 import { useStorage, useFirestore } from "@/firebase/provider";
 import { useUser, useCollection } from "@/firebase";
 import type { Player } from "@/lib/types";
 import { uploadPlayerVideoWithProgress } from "@/lib/player-videos";
+import { buildEmailHtml, escapeHtml, htmlToPlainText, sendMailDoc } from "@/lib/email";
 import { useToast } from "@/hooks/use-toast";
 import { Video, Upload, Loader2, Circle, Square } from "lucide-react";
 import {
@@ -225,6 +227,26 @@ export function RecordOrUploadVideoDialog({
         title: "Video subido",
         description: "Se añadió a la videoteca del jugador.",
       });
+      // Notificar por mail al jugador si tiene email
+      try {
+        const playerRef = doc(firestore, `schools/${schoolId}/players/${effectivePlayerId}`);
+        const playerSnap = await getDoc(playerRef);
+        const playerData = playerSnap.data();
+        const playerEmail = playerData?.email?.trim?.();
+        const firstName = playerData?.firstName ?? playerName?.trim() || "jugador";
+        if (playerEmail) {
+          const subject = "Nuevo video en tu videoteca - Escuelas River SN";
+          const contentHtml = `<p>Hola <strong>${escapeHtml(firstName)}</strong>,</p><p>Tu entrenador subió un nuevo video a tu videoteca. Entrá al panel para verlo.</p><p><a href="${typeof window !== "undefined" ? window.location.origin : ""}/dashboard" style="color: #d4002a; font-weight: bold;">Ver mi videoteca</a></p>`;
+          const html = buildEmailHtml(contentHtml, {
+            title: "Escuelas River SN",
+            greeting: "Tenés un nuevo video en tu perfil.",
+            baseUrl: typeof window !== "undefined" ? window.location.origin : "",
+          });
+          await sendMailDoc(firestore, { to: playerEmail, subject, html, text: htmlToPlainText(contentHtml) });
+        }
+      } catch {
+        // No bloquear si falla el envío del mail
+      }
       resetForm();
       onSuccess?.();
       onOpenChange(false);

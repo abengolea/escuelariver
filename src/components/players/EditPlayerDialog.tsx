@@ -37,16 +37,15 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getMissingProfileFieldLabels } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useFirestore } from "@/firebase";
-import { doc, updateDoc, setDoc, deleteDoc, Timestamp } from "firebase/firestore";
+import { useUser } from "@/firebase";
+import { PlayerPhotoField } from "./PlayerPhotoField";
+import { Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 import type { Player } from "@/lib/types";
 
 const playerSchema = z.object({
@@ -59,17 +58,14 @@ const playerSchema = z.object({
   email: z.string().email("Debe ser un email válido.").optional().or(z.literal("")),
   tutorName: z.string().min(1, "El nombre del tutor es requerido."),
   tutorPhone: z.string().min(1, "El teléfono del tutor es requerido."),
-  status: z.enum(["active", "inactive"]),
+  status: z.enum(["active", "inactive", "suspended"]),
   observations: z.string().optional(),
   photoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal("")),
   // Datos físicos y deportivos
   altura_cm: z.union([z.number().min(80, "Mín. 80 cm").max(220, "Máx. 220 cm"), z.undefined()]).optional(),
   peso_kg: z.union([z.number().min(15, "Mín. 15 kg").max(150, "Máx. 150 kg"), z.undefined()]).optional(),
-  envergadura_cm: z.union([z.number().min(100, "Mín. 100 cm").max(250, "Máx. 250 cm"), z.undefined()]).optional(),
   pie_dominante: z.enum(["derecho", "izquierdo", "ambidiestro"]).optional(),
   posicion_preferida: z.enum(["delantero", "mediocampo", "defensor", "arquero"]).optional(),
-  numero_camiseta: z.union([z.number().min(1, "Mín. 1").max(99, "Máx. 99"), z.undefined()]).optional(),
-  talle_camiseta: z.string().optional(),
 });
 
 interface EditPlayerDialogProps {
@@ -78,6 +74,8 @@ interface EditPlayerDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** Si es true, el jugador edita su propio perfil: no puede cambiar el campo Estado. */
+  isPlayerEditing?: boolean;
 }
 
 export function EditPlayerDialog({
@@ -86,8 +84,9 @@ export function EditPlayerDialog({
   isOpen,
   onOpenChange,
   onSuccess,
+  isPlayerEditing = false,
 }: EditPlayerDialogProps) {
-  const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
 
   const birthDate = player.birthDate instanceof Date
@@ -112,11 +111,8 @@ export function EditPlayerDialog({
       photoUrl: player.photoUrl ?? "",
       altura_cm: player.altura_cm ?? undefined,
       peso_kg: player.peso_kg ?? undefined,
-      envergadura_cm: player.envergadura_cm ?? undefined,
       pie_dominante: player.pie_dominante ?? undefined,
       posicion_preferida: player.posicion_preferida ?? undefined,
-      numero_camiseta: player.numero_camiseta ?? undefined,
-      talle_camiseta: player.talle_camiseta ?? "",
     },
   });
 
@@ -142,11 +138,8 @@ export function EditPlayerDialog({
         photoUrl: player.photoUrl ?? "",
         altura_cm: player.altura_cm ?? undefined,
         peso_kg: player.peso_kg ?? undefined,
-        envergadura_cm: player.envergadura_cm ?? undefined,
         pie_dominante: player.pie_dominante ?? undefined,
         posicion_preferida: player.posicion_preferida ?? undefined,
-        numero_camiseta: player.numero_camiseta ?? undefined,
-        talle_camiseta: player.talle_camiseta ?? "",
       });
     }
   }, [isOpen, player, form]);
@@ -154,7 +147,6 @@ export function EditPlayerDialog({
   const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof playerSchema>) {
-    const playerRef = doc(firestore, `schools/${schoolId}/players`, player.id);
     const updateData = {
       firstName: values.firstName,
       lastName: values.lastName,
@@ -171,43 +163,81 @@ export function EditPlayerDialog({
       observations: values.observations || null,
       altura_cm: values.altura_cm ?? null,
       peso_kg: values.peso_kg ?? null,
-      envergadura_cm: values.envergadura_cm ?? null,
       pie_dominante: values.pie_dominante ?? null,
       posicion_preferida: values.posicion_preferida ?? null,
-      numero_camiseta: values.numero_camiseta ?? null,
-      talle_camiseta: values.talle_camiseta?.trim() || null,
     };
 
-    try {
-      await updateDoc(playerRef, updateData);
-      const newEmailNorm = values.email?.trim().toLowerCase() || null;
-      const oldEmailNorm = player.email?.trim().toLowerCase() || null;
-      if (newEmailNorm) {
-        await setDoc(doc(firestore, "playerLogins", newEmailNorm), { schoolId, playerId: player.id });
-      }
-      if (oldEmailNorm && oldEmailNorm !== newEmailNorm) {
-        await deleteDoc(doc(firestore, "playerLogins", oldEmailNorm));
-      } else if (!newEmailNorm && oldEmailNorm) {
-        await deleteDoc(doc(firestore, "playerLogins", oldEmailNorm));
-      }
-      toast({
-        title: "Perfil actualizado",
-        description: `Los datos de ${values.firstName} ${values.lastName} han sido guardados correctamente.`,
-      });
+    const showSuccess = () => {
       onOpenChange(false);
       onSuccess?.();
-    } catch (err) {
-      const permissionError = new FirestorePermissionError({
-        path: `schools/${schoolId}/players/${player.id}`,
-        operation: "update",
-        requestResourceData: updateData,
+      if (isPlayerEditing) {
+        const missing = getMissingProfileFieldLabels({
+          firstName: values.firstName,
+          lastName: values.lastName,
+          birthDate: values.birthDate,
+          tutorName: values.tutorName,
+          tutorPhone: values.tutorPhone,
+          email: values.email,
+          photoUrl: values.photoUrl,
+        });
+        if (missing.length > 0) {
+          toast({
+            title: "Guardado correctamente",
+            description: `Se guardaron tus datos. Para desbloquear evaluaciones y videos completá: ${missing.join(", ")}.`,
+          });
+        } else {
+          toast({
+            title: "Perfil completo",
+            description: "Todos los datos están guardados. Ya podés acceder a evaluaciones, videos y más.",
+          });
+        }
+      } else {
+        toast({
+          title: "Guardado correctamente",
+          description: `Los datos de ${values.firstName} ${values.lastName} se guardaron correctamente.`,
+        });
+      }
+    };
+
+    // Siempre usar la API para actualizar (evita errores de permisos en reglas del cliente).
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo verificar tu sesión. Volvé a iniciar sesión.",
       });
-      errorEmitter.emit("permission-error", permissionError);
+      return;
+    }
+
+    try {
+      const token = await user.getIdToken();
+      const birthDate = updateData.birthDate as Timestamp;
+      const res = await fetch("/api/players/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          schoolId,
+          playerId: player.id,
+          oldEmail: player.email ?? null,
+          updateData: {
+            ...updateData,
+            birthDate: { seconds: birthDate.seconds, nanoseconds: birthDate.nanoseconds },
+          },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || data.detail || "Error al guardar");
+      }
+      showSuccess();
+    } catch (err) {
       toast({
         variant: "destructive",
         title: "Error al actualizar",
-        description:
-          "No se pudieron guardar los cambios. Verifica tus permisos e inténtalo de nuevo.",
+        description: err instanceof Error ? err.message : "No se pudieron guardar los cambios.",
       });
     }
   }
@@ -224,7 +254,7 @@ export function EditPlayerDialog({
         <DialogHeader>
           <DialogTitle>Editar perfil del jugador</DialogTitle>
           <DialogDescription>
-            Modifica los datos personales, de contacto y físicos del jugador.
+            <strong>Datos personales:</strong> nombre, apellido, fecha de nacimiento, DNI, tutor, teléfono, obra social, email, estado, foto, observaciones. <strong>Datos físicos:</strong> altura, peso, pie predominante, posición.
           </DialogDescription>
         </DialogHeader>
 
@@ -235,7 +265,7 @@ export function EditPlayerDialog({
                 <TabsTrigger value="personal">Datos personales</TabsTrigger>
                 <TabsTrigger value="fisicos">Datos físicos</TabsTrigger>
               </TabsList>
-            <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[45vh]">
+            <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[60vh]">
               <TabsContent value="personal" className="mt-0 space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <FormField
@@ -374,6 +404,7 @@ export function EditPlayerDialog({
                       </FormItem>
                     )}
                   />
+                  {!isPlayerEditing && (
                   <FormField
                     control={form.control}
                     name="status"
@@ -392,23 +423,31 @@ export function EditPlayerDialog({
                           <SelectContent>
                             <SelectItem value="active">Activo</SelectItem>
                             <SelectItem value="inactive">Inactivo</SelectItem>
+                            <SelectItem value="suspended">Suspendido por mora</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  )}
                   <FormField
                     control={form.control}
                     name="photoUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>URL de Foto (Opcional)</FormLabel>
+                        <FormLabel>Foto del jugador</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://..." {...field} />
+                          <PlayerPhotoField
+                            value={field.value ?? ""}
+                            onChange={field.onChange}
+                            schoolId={schoolId}
+                            playerId={player.id}
+                            playerName={`${player.firstName ?? ""} ${player.lastName ?? ""}`.trim()}
+                          />
                         </FormControl>
                         <FormDescription>
-                          URL pública de la imagen del jugador.
+                          Sacá una foto con la cámara o subí una imagen. Es necesario para que el jugador pueda ver su perfil completo.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -476,27 +515,6 @@ export function EditPlayerDialog({
                   />
                   <FormField
                     control={form.control}
-                    name="envergadura_cm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Envergadura (cm)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={100}
-                            max={250}
-                            placeholder="Ej: 170"
-                            value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                          />
-                        </FormControl>
-                        <FormDescription>Distancia entre las puntas de los dedos con brazos extendidos.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
                     name="pie_dominante"
                     render={({ field }) => (
                       <FormItem>
@@ -545,40 +563,6 @@ export function EditPlayerDialog({
                             <SelectItem value="arquero">Arquero</SelectItem>
                           </SelectContent>
                         </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="numero_camiseta"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número de camiseta</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={99}
-                            placeholder="Ej: 10"
-                            value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                          />
-                        </FormControl>
-                        <FormDescription>1–99.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="talle_camiseta"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Talle de camiseta</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ej: S, M, L, XL" {...field} />
-                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

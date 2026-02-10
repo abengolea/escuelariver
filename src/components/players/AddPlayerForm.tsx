@@ -211,6 +211,7 @@ export function AddPlayerForm() {
                                 captionLayout="dropdown"
                                 fromYear={2000}
                                 toYear={new Date().getFullYear()}
+                                locale={es}
                                 disabled={(date) =>
                                 date > new Date() || date < new Date("2000-01-01")
                                 }

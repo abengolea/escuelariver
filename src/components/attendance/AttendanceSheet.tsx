@@ -48,7 +48,7 @@ type Props = {
 
 export function AttendanceSheet({ schoolId }: Props) {
   const firestore = useFirestore();
-  const { user, isReady } = useUserProfile();
+  const { user, isReady, isPlayer } = useUserProfile();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [attendanceMap, setAttendanceMap] = useState<
@@ -58,8 +58,10 @@ export function AttendanceSheet({ schoolId }: Props) {
   const [loadingTraining, setLoadingTraining] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Solo staff (admin/coach) puede listar jugadores; un jugador no tiene permiso.
+  const canListPlayers = isReady && schoolId && !isPlayer;
   const { data: players, loading: playersLoading } = useCollection<Player>(
-    isReady && schoolId ? `schools/${schoolId}/players` : "",
+    canListPlayers ? `schools/${schoolId}/players` : "",
     { orderBy: ["lastName", "asc"] }
   );
 

@@ -52,6 +52,29 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/schools/$(schoolId)/players/$(playerId))
         && get(/databases/$(database)/documents/schools/$(schoolId)/players/$(playerId)).data.get('email', '').lower() == request.auth.token.email.lower();
     }
+    // True si en este request se está guardando el email del usuario autenticado (jugador editando su perfil).
+    function requestEmailMatchesAuth(schoolId, playerId) {
+      let reqEmail = request.resource.data.get('email', '');
+      return isSignedIn()
+        && request.auth.token.email != null
+        && reqEmail != null
+        && reqEmail is string
+        && reqEmail.lower() == request.auth.token.email.lower();
+    }
+    // True si el usuario es el jugador (doc ya tiene su email). Comparación case-insensitive.
+    function canUpdatePlayerAsSelf(schoolId, playerId) {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && (isOwnPlayer(schoolId, playerId) || requestEmailMatchesAuth(schoolId, playerId));
+    }
+    // True si el usuario tiene un playerLogin que apunta a este schoolId+playerId.
+    function hasPlayerLoginFor(schoolId, playerId) {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/playerLogins/$(request.auth.token.email.lower()))
+        && get(/databases/$(database)/documents/playerLogins/$(request.auth.token.email.lower())).data.get('schoolId', '') == schoolId
+        && get(/databases/$(database)/documents/playerLogins/$(request.auth.token.email.lower())).data.get('playerId', '') == playerId;
+    }
     
     // --- Schema Validation Helpers ---
 
@@ -145,14 +168,19 @@ service cloud.firestore {
     }
     
     match /schools/{schoolId}/players/{playerId} {
-      // Jugador puede leer su propio documento si el email coincide (case-insensitive).
+      // Jugador puede leer su documento si el email coincide o si tiene playerLogin para este jugador (doc sin email aún).
       allow read: if isSuperAdmin()
           || isMemberOfSchool(schoolId)
           || isSchoolAdmin(schoolId)
           || isCoach(schoolId)
-          || (isSignedIn() && request.auth.token.email != null && resource.data.get('email', '').lower() == request.auth.token.email.lower());
-      // Coaches can create/update, but only admins can delete.
-      allow create, update: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
+          || (isSignedIn() && request.auth.token.email != null && resource.data.get('email', '').lower() == request.auth.token.email.lower())
+          || hasPlayerLoginFor(schoolId, playerId);
+      // Solo staff crea jugadores; staff o jugador (email en request = auth email, o playerLogin) pueden actualizar.
+      allow create: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
+      allow update: if isSuperAdmin()
+          || isMemberOfSchool(schoolId)
+          || requestEmailMatchesAuth(schoolId, playerId)
+          || hasPlayerLoginFor(schoolId, playerId);
       allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
 

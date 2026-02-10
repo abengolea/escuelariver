@@ -23,6 +23,12 @@ export function getCategoryAge(birthDate: Date): number {
   return new Date().getFullYear() - bd.getFullYear();
 }
 
+/** Etiqueta de categoría U9, U10, U11... según edad que cumple en el año en curso. */
+export function getCategoryLabel(birthDate: Date): string {
+  const age = getCategoryAge(birthDate);
+  return `U${Math.max(5, Math.min(18, age))}`;
+}
+
 /** Indica si la fecha de nacimiento corresponde al día de hoy (mes y día). */
 export function isBirthdayToday(birthDate: Date | undefined | null): boolean {
   if (!birthDate) return false;
@@ -46,4 +52,52 @@ export function calculateIMC(weightKg: number, heightCm: number): number {
   if (heightCm <= 0) return 0;
   const heightM = heightCm / 100;
   return Math.round((weightKg / (heightM * heightM)) * 10) / 10;
+}
+
+/** Indica si el jugador tiene perfil completo (datos mínimos + foto + email) para poder ver evaluaciones, videos, etc. */
+export function isPlayerProfileComplete(player: { firstName?: string; lastName?: string; birthDate?: unknown; tutorContact?: { name?: string; phone?: string } | null; email?: string | null; photoUrl?: string | null }): boolean {
+  const hasName = Boolean(player.firstName?.trim() && player.lastName?.trim());
+  const hasBirthDate = Boolean(player.birthDate != null && player.birthDate !== "");
+  const tutor = player.tutorContact;
+  const hasTutor = Boolean(tutor && typeof tutor === "object" && (tutor.name?.trim() ?? "") !== "" && (tutor.phone?.trim() ?? "") !== "");
+  const email = (player.email ?? "").trim();
+  const hasEmail = email.length > 0 && email.includes("@");
+  const photo = (player.photoUrl ?? "").trim();
+  const hasPhoto = photo.length > 0 && (photo.startsWith("http://") || photo.startsWith("https://"));
+  return Boolean(hasName && hasBirthDate && hasTutor && hasEmail && hasPhoto);
+}
+
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  firstName: "Nombre",
+  lastName: "Apellido",
+  birthDate: "Fecha de nacimiento",
+  tutorName: "Nombre del tutor",
+  tutorPhone: "Teléfono del tutor",
+  email: "Email",
+  photoUrl: "Foto",
+};
+
+/** Devuelve la lista de nombres de campos que faltan para considerar el perfil completo (para mostrar al jugador). */
+export function getMissingProfileFieldLabels(values: {
+  firstName?: string;
+  lastName?: string;
+  birthDate?: unknown;
+  tutorName?: string;
+  tutorPhone?: string;
+  email?: string;
+  photoUrl?: string;
+}): string[] {
+  const missing: string[] = [];
+  if (!(values.firstName?.trim() && values.lastName?.trim())) {
+    if (!values.firstName?.trim()) missing.push(PROFILE_FIELD_LABELS.firstName);
+    if (!values.lastName?.trim()) missing.push(PROFILE_FIELD_LABELS.lastName);
+  }
+  if (values.birthDate == null || values.birthDate === "") missing.push(PROFILE_FIELD_LABELS.birthDate);
+  if (!values.tutorName?.trim()) missing.push(PROFILE_FIELD_LABELS.tutorName);
+  if (!values.tutorPhone?.trim()) missing.push(PROFILE_FIELD_LABELS.tutorPhone);
+  const email = (values.email ?? "").trim();
+  if (email.length === 0 || !email.includes("@")) missing.push(PROFILE_FIELD_LABELS.email);
+  const photo = (values.photoUrl ?? "").trim();
+  if (photo.length === 0 || (!photo.startsWith("http://") && !photo.startsWith("https://"))) missing.push(PROFILE_FIELD_LABELS.photoUrl);
+  return missing;
 }

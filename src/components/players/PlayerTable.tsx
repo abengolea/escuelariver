@@ -108,13 +108,25 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
               <TableCell>
                 <Badge
                   variant={
-                    player.status === "active"
+                    player.status === "suspended"
+                      ? "destructive"
+                      : player.status === "active"
                       ? "secondary"
-                      : "destructive"
+                      : "secondary"
                   }
-                  className={`capitalize ${player.status === "active" ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400" : ""}`}
+                  className={`capitalize ${
+                    player.status === "active"
+                      ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400"
+                      : player.status === "suspended"
+                      ? "border-amber-600/50 bg-amber-500/10 text-amber-800 dark:text-amber-400"
+                      : ""
+                  }`}
                 >
-                  {player.status === 'active' ? 'Activo' : 'Inactivo'}
+                  {player.status === "active"
+                    ? "Activo"
+                    : player.status === "suspended"
+                    ? "Suspendido por mora"
+                    : "Inactivo"}
                 </Badge>
               </TableCell>
             </TableRow>

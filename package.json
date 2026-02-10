@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "seed:support": "tsx scripts/seed-support-flows.ts"
+    "seed:support": "tsx scripts/seed-support-flows.ts",
+    "simulate:payment": "tsx scripts/simulate-electronic-payment.ts"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",

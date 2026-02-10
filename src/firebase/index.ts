@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
-import { initializeFirebase, firebaseConfig } from './config';
+import { initializeFirebase } from './config';
 import { FirebaseApp } from 'firebase/app';
 
 export * from './provider';
@@ -29,9 +29,6 @@ let storage: FirebaseStorage;
 
 function getFirebase() {
   if (!app) {
-    if (!firebaseConfig.apiKey) {
-      throw new Error('Firebase config is not initialized');
-    }
     app = initializeFirebase();
     auth = getAuth(app);
     firestore = getFirestore(app);

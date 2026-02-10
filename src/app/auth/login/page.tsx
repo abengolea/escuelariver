@@ -225,11 +225,19 @@ export default function LoginPage() {
             Iniciar Sesión con Google
           </Button>
         </form>
-        <div className="mt-4 text-center text-sm">
-          ¿No tienes una cuenta?{" "}
-          <Link href="/auth/signup" className="underline">
-            Regístrate
-          </Link>
+        <div className="mt-4 space-y-2 text-center text-sm">
+          <p>
+            ¿No tienes una cuenta?{" "}
+            <Link href="/auth/signup" className="underline">
+              Regístrate
+            </Link>
+          </p>
+          <p>
+            ¿Sos jugador?{" "}
+            <Link href="/auth/registro" className="underline">
+              Registrate como jugador
+            </Link>
+          </p>
         </div>
       </CardContent>
     </Card>

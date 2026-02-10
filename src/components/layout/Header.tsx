@@ -24,9 +24,10 @@ export function Header() {
   const { user } = useUser();
   const auth = useAuth();
   const router = useRouter();
-  const { isReady, activeSchoolId, isPlayer } = useUserProfile();
-  // Solo staff (admin/coach) puede listar jugadores y pendingPlayers; un jugador no tiene permiso.
-  const canListSchoolCollections = isReady && activeSchoolId && !isPlayer;
+  const { isReady, activeSchoolId, profile } = useUserProfile();
+  // Solo staff (school_admin o coach) puede listar jugadores y pendingPlayers; nunca listar si es jugador.
+  const isStaff = profile?.role === "school_admin" || profile?.role === "coach";
+  const canListSchoolCollections = isReady && activeSchoolId && isStaff;
   const { data: players } = useCollection<Player>(
     canListSchoolCollections ? `schools/${activeSchoolId}/players` : "",
     { orderBy: ["lastName", "asc"] }
@@ -55,16 +56,18 @@ export function Header() {
          <SidebarTrigger />
        </div>
       <div className="w-full flex-1">
-        <form>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar jugadores..."
-              className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
-            />
-          </div>
-        </form>
+        {isStaff && (
+          <form>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar jugadores..."
+                className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
+              />
+            </div>
+          </form>
+        )}
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

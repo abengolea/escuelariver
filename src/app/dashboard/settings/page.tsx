@@ -16,13 +16,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
 import { useUserProfile } from "@/firebase/auth/use-user-profile";
 import { useAuth, useFirestore } from "@/firebase/provider";
-import { collection, addDoc } from "firebase/firestore";
+import { buildEmailHtml, htmlToPlainText, sendMailDoc } from "@/lib/email";
 import { Upload, Moon, Sun, Mail } from "lucide-react";
 
 const LOGO_STORAGE_KEY = "app-logo-data-url";
-
-/** Colección que usa la extensión Trigger Email (firestore-send-email). Si usaste otro nombre al instalar, cámbialo aquí. */
-const MAIL_COLLECTION = "mail";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -53,15 +50,14 @@ export default function SettingsPage() {
     }
     setSendingTest(true);
     try {
-      const mailRef = collection(firestore, MAIL_COLLECTION);
-      await addDoc(mailRef, {
-        to,
-        message: {
-          subject: "Prueba Trigger Email - Escuela River",
-          html: "<p>Este es un <strong>email de prueba</strong> desde la extensión Trigger Email.</p><p>Si lo recibiste, la configuración está correcta.</p>",
-          text: "Este es un email de prueba desde la extensión Trigger Email. Si lo recibiste, la configuración está correcta.",
-        },
+      const subject = "Prueba Trigger Email - Escuela River";
+      const contentHtml = "<p>Este es un <strong>email de prueba</strong> desde la extensión Trigger Email.</p><p>Si lo recibiste, la configuración está correcta.</p>";
+      const html = buildEmailHtml(contentHtml, {
+        title: "Escuelas River SN",
+        baseUrl: typeof window !== "undefined" ? window.location.origin : "",
       });
+      const text = htmlToPlainText(contentHtml);
+      await sendMailDoc(firestore, { to, subject, html, text });
       toast({
         title: "Email de prueba enviado",
         description: `Se encoló el envío a ${to}. Revisá la bandeja (y spam) en unos segundos.`,
