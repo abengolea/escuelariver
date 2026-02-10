@@ -29,6 +29,19 @@ export function getCategoryLabel(birthDate: Date): string {
   return `U${Math.max(5, Math.min(18, age))}`;
 }
 
+/** Orden de categorías para ordenar listas (U5, U6, ... U18). */
+export const CATEGORY_ORDER = ["U5", "U6", "U7", "U8", "U9", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18"] as const;
+
+/** Compara dos etiquetas de categoría para ordenar (U5 < U6 < ... < U18). */
+export function compareCategory(a: string, b: string): number {
+  const i = CATEGORY_ORDER.indexOf(a as (typeof CATEGORY_ORDER)[number]);
+  const j = CATEGORY_ORDER.indexOf(b as (typeof CATEGORY_ORDER)[number]);
+  if (i === -1 && j === -1) return 0;
+  if (i === -1) return 1;
+  if (j === -1) return -1;
+  return i - j;
+}
+
 /** Indica si la fecha de nacimiento corresponde al día de hoy (mes y día). */
 export function isBirthdayToday(birthDate: Date | undefined | null): boolean {
   if (!birthDate) return false;
@@ -65,6 +78,18 @@ export function isPlayerProfileComplete(player: { firstName?: string; lastName?:
   const photo = (player.photoUrl ?? "").trim();
   const hasPhoto = photo.length > 0 && (photo.startsWith("http://") || photo.startsWith("https://"));
   return Boolean(hasName && hasBirthDate && hasTutor && hasEmail && hasPhoto);
+}
+
+/** Indica si la ficha médica del jugador está cargada y aprobada por admin/entrenador. */
+export function isMedicalRecordApproved(player: { medicalRecord?: { approvedAt?: unknown } | null }): boolean {
+  const mr = player.medicalRecord;
+  return Boolean(mr && mr.approvedAt != null);
+}
+
+/** Indica si la ficha médica fue rechazada (incumplida) por admin/entrenador. */
+export function isMedicalRecordRejected(player: { medicalRecord?: { rejectedAt?: unknown } | null }): boolean {
+  const mr = player.medicalRecord;
+  return Boolean(mr && mr.rejectedAt != null);
 }
 
 const PROFILE_FIELD_LABELS: Record<string, string> = {

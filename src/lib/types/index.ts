@@ -64,8 +64,33 @@ export interface Player {
   talle_camiseta?: string;
   createdAt: Date;
   createdBy: string; // uid
+  /** Si true, el jugador está archivado: no aparece en listados ni cuenta en totales/cantidades. Útil para jugadores de prueba. */
+  archived?: boolean;
+  archivedAt?: Date;
+  archivedBy?: string;
+  /** Ficha médica (PDF): subida por el jugador o por staff; aprobada cuando admin/entrenador marca cumplido. */
+  medicalRecord?: MedicalRecord;
   // No está en el modelo de Firestore, se añade en el frontend.
-  escuelaId?: string; 
+  escuelaId?: string;
+}
+
+/** Ficha médica del jugador (PDF). Subida por jugador o staff; aprobada o rechazada por admin/entrenador. */
+export interface MedicalRecord {
+  /** URL pública del PDF en Storage. */
+  url: string;
+  /** Ruta en Storage, ej: schools/{schoolId}/players/{playerId}/medical-record.pdf */
+  storagePath: string;
+  uploadedAt: Date;
+  /** UID de quien subió (jugador o staff). */
+  uploadedBy: string;
+  /** Si está definido, la ficha fue revisada y marcada cumplida por admin/entrenador. */
+  approvedAt?: Date;
+  approvedBy?: string;
+  /** Si está definido, la ficha fue rechazada (incumplida); el jugador debe subir una nueva. */
+  rejectedAt?: Date;
+  rejectedBy?: string;
+  /** Motivo del rechazo (ej. mal impresa, faltan datos). */
+  rejectionReason?: string;
 }
 
 export interface PendingPlayer {

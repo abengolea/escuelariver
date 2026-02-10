@@ -16,6 +16,7 @@ import {
   Headphones,
   Banknote,
   FileText,
+  FileHeart,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,17 +35,20 @@ import { RiverPlateLogo } from "../icons/RiverPlateLogo";
 import { useUserProfile, useCollection, useDoc, useFirebase } from "@/firebase";
 import { isPlayerProfileComplete } from "@/lib/utils";
 import type { Player } from "@/lib/types";
+import { isMedicalRecordApproved } from "@/lib/utils";
 import { getAuth } from "firebase/auth";
 import type { PendingPlayer } from "@/lib/types";
 import type { AccessRequest } from "@/lib/types";
 
+// Orden por importancia: núcleo operativo → seguimiento → comunicación → administración
 const schoolUserMenuItems = [
   { href: "/dashboard", label: "Panel Principal", icon: Home },
   { href: "/dashboard/players", label: "Jugadores", icon: Users },
   { href: "/dashboard/attendance", label: "Asistencia", icon: ClipboardCheck },
-  { href: "/dashboard/record-video", label: "Videoteca", icon: Video },
+  { href: "/dashboard/medical-records", label: "Fichas médicas", icon: FileHeart },
   { href: "/dashboard/registrations", label: "Solicitudes", icon: UserCheck },
   { href: "/dashboard/physical-assessments-config", label: "Evaluaciones Físicas", icon: Activity },
+  { href: "/dashboard/record-video", label: "Videoteca", icon: Video },
   { href: "/dashboard/support", label: "Centro de Soporte", icon: MessageCircle },
 ];
 
@@ -98,6 +102,16 @@ export function SidebarNav() {
     isReady ? "accessRequests" : "",
     { where: ["status", "==", "pending"] }
   );
+  const { data: allPlayers } = useCollection<Player>(
+    canListSchoolCollections ? `schools/${activeSchoolId}/players` : "",
+    {}
+  );
+  const medicalRecordsPendingCount = React.useMemo(() => {
+    if (!allPlayers?.length) return 0;
+    return allPlayers.filter(
+      (p) => !p.archived && (!p.medicalRecord?.url || !isMedicalRecordApproved(p))
+    ).length;
+  }, [allPlayers]);
   const solicitudesCount = (pendingPlayers?.length ?? 0) + (accessRequests?.length ?? 0);
 
   let menuItems;
@@ -129,18 +143,25 @@ export function SidebarNav() {
     }
   } else {
     // Start with the base items for any school user (coach / school_admin)
-    menuItems = [...schoolUserMenuItems]; 
-    // Add management and messages ONLY for school admins
+    menuItems = [...schoolUserMenuItems];
+    // Add Pagos, Mensajes y Gestionar Escuela solo para school_admin, en orden de importancia
     if (profile?.role === 'school_admin' && profile.activeSchoolId) {
-      menuItems.push(
-        { href: "/dashboard/payments", label: "Pagos", icon: Banknote },
-        { href: "/dashboard/messages", label: "Mensajes", icon: Mail },
-        {
-          href: `/dashboard/schools/${profile.activeSchoolId}`,
-          label: "Gestionar Escuela",
-          icon: Shield
-        }
-      );
+      const pagos = { href: "/dashboard/payments", label: "Pagos", icon: Banknote };
+      const mensajes = { href: "/dashboard/messages", label: "Mensajes", icon: Mail };
+      const gestionarEscuela = {
+        href: `/dashboard/schools/${profile.activeSchoolId}`,
+        label: "Gestionar Escuela",
+        icon: Shield
+      };
+      // Pagos después de Asistencia (muy importante); Mensajes y Gestionar al final
+      const afterAttendance = 3; // índice tras Panel, Jugadores, Asistencia
+      menuItems = [
+        ...menuItems.slice(0, afterAttendance),
+        pagos,
+        ...menuItems.slice(afterAttendance),
+        mensajes,
+        gestionarEscuela
+      ];
     }
   }
 
@@ -182,6 +203,11 @@ export function SidebarNav() {
                     {item.href === "/dashboard/registrations" && solicitudesCount > 0 && (
                       <Badge variant="destructive" className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-xs">
                         {solicitudesCount > 99 ? "99+" : solicitudesCount}
+                      </Badge>
+                    )}
+                    {item.href === "/dashboard/medical-records" && medicalRecordsPendingCount > 0 && (
+                      <Badge variant="secondary" className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-xs" title="Fichas pendientes">
+                        {medicalRecordsPendingCount > 99 ? "99+" : medicalRecordsPendingCount}
                       </Badge>
                     )}
                     {"badgeOverdue" in item && item.badgeOverdue && hasPaymentOverdue && (
