@@ -36,16 +36,24 @@ Para que **cada escuela cobre directo** en su propia cuenta:
 |----------|-------------|
 | `MERCADOPAGO_CLIENT_ID` | ID de la aplicación (Mercado Pago Developers → Tu app → Credenciales). |
 | `MERCADOPAGO_CLIENT_SECRET` | Secret de la aplicación (mismo lugar). |
-| `NEXT_PUBLIC_APP_URL` | URL base de la app (ej. `https://app.escuelariver.com`) para armar `redirect_uri`. |
+| `NEXT_PUBLIC_APP_URL` | URL base de la app (ej. `https://escuelariver--lexflow-consultas.us-east4.hosted.app`) para armar `redirect_uri`. |
 | `MERCADOPAGO_USE_TEST_TOKENS` | Opcional. Si es `true`, al intercambiar el code se pide token de prueba (`test_token: true`). |
+
+**Firebase App Hosting (producción):** `MERCADOPAGO_CLIENT_SECRET` se configura como secret. Ejecutá una sola vez: `firebase apphosting:secrets:set mercadopago-client-secret` y pegá el valor del secret de la app de Mercado Pago. El `apphosting.yaml` ya referencia este secret y la URL de producción.
 
 ### URLs de redirección en la app de Mercado Pago
 
-En **Mercado Pago Developers → Tu aplicación → Detalles / URLs de redirección**, agregar:
+**Dónde configurarlas (paso a paso):**
 
-- Desarrollo: `http://localhost:9002/api/payments/mercadopago/callback`
-- Staging: `https://tu-staging.com/api/payments/mercadopago/callback`
-- Producción: `https://tu-dominio.com/api/payments/mercadopago/callback`
+1. Entrá al **Panel del desarrollador**: [https://www.mercadopago.com.ar/developers/panel/app](https://www.mercadopago.com.ar/developers/panel/app) (iniciá sesión si hace falta).
+2. En la lista de aplicaciones, **hacé clic en la tarjeta de tu aplicación** (la que tiene el Client ID que usás en la app).
+3. En la pantalla **Detalles de la aplicación**, hacé clic en el botón **"Editar datos"**.
+4. Bajá hasta la sección **"Configuraciones avanzadas"**.
+5. Ahí vas a ver el campo **"URLs de redireccionamiento"**. Agregá cada URL en una línea (o el formato que permita el panel):
+   - Desarrollo: `http://localhost:9002/api/payments/mercadopago/callback`
+   - Staging: `https://tu-staging.com/api/payments/mercadopago/callback`
+   - Producción: `https://escuelariver--lexflow-consultas.us-east4.hosted.app/api/payments/mercadopago/callback`
+6. Guardá los cambios.
 
 El `redirect_uri` que usa la app es exactamente: `{NEXT_PUBLIC_APP_URL}/api/payments/mercadopago/callback`.
 

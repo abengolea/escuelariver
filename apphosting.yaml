@@ -35,3 +35,16 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # URL base de la app en producción (redirect_uri OAuth Mercado Pago)
+  - variable: NEXT_PUBLIC_APP_URL
+    value: "https://escuelariver--lexflow-consultas.us-east4.hosted.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Mercado Pago OAuth (crear secret: firebase apphosting:secrets:set mercadopago-client-secret)
+  - variable: MERCADOPAGO_CLIENT_ID
+    value: "5150882001064843"
+    availability:
+      - RUNTIME
+  - variable: MERCADOPAGO_CLIENT_SECRET
+    secret: mercadopago-client-secret
