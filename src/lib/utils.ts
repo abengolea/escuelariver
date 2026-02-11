@@ -17,22 +17,22 @@ export function calculateAge(birthDate: Date): number {
   return age;
 }
 
-/** Edad que cumple (o cumplió) en el año en curso. Usada para categorías Sub-X / U-X. */
+/** Edad que cumple (o cumplió) en el año en curso. Usada para categorías SUB-X. */
 export function getCategoryAge(birthDate: Date): number {
   const bd = birthDate instanceof Date ? birthDate : new Date(birthDate);
   return new Date().getFullYear() - bd.getFullYear();
 }
 
-/** Etiqueta de categoría U9, U10, U11... según edad que cumple en el año en curso. */
+/** Etiqueta de categoría SUB-9, SUB-10, SUB-11... según edad que cumple en el año en curso. */
 export function getCategoryLabel(birthDate: Date): string {
   const age = getCategoryAge(birthDate);
-  return `U${Math.max(5, Math.min(18, age))}`;
+  return `SUB-${Math.max(5, Math.min(18, age))}`;
 }
 
-/** Orden de categorías para ordenar listas (U5, U6, ... U18). */
-export const CATEGORY_ORDER = ["U5", "U6", "U7", "U8", "U9", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18"] as const;
+/** Orden de categorías para ordenar listas (SUB-5, SUB-6, ... SUB-18). */
+export const CATEGORY_ORDER = ["SUB-5", "SUB-6", "SUB-7", "SUB-8", "SUB-9", "SUB-10", "SUB-11", "SUB-12", "SUB-13", "SUB-14", "SUB-15", "SUB-16", "SUB-17", "SUB-18"] as const;
 
-/** Compara dos etiquetas de categoría para ordenar (U5 < U6 < ... < U18). */
+/** Compara dos etiquetas de categoría para ordenar (SUB-5 < SUB-6 < ... < SUB-18). */
 export function compareCategory(a: string, b: string): number {
   const i = CATEGORY_ORDER.indexOf(a as (typeof CATEGORY_ORDER)[number]);
   const j = CATEGORY_ORDER.indexOf(b as (typeof CATEGORY_ORDER)[number]);

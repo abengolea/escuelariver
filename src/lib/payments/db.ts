@@ -180,17 +180,40 @@ export async function findPaymentByProviderId(
   return toPayment(snap.docs[0]);
 }
 
-/** Crea Payment document */
+/**
+ * Crea Payment document.
+ * Si se pasa idempotencyKey (ej. "mercadopago_12345"), se usa como ID de documento:
+ * si ya existe, se devuelve ese pago (evita duplicados por doble notificación de MP).
+ */
 export async function createPayment(
   db: Firestore,
-  data: Omit<Payment, 'id' | 'createdAt'>
+  data: Omit<Payment, 'id' | 'createdAt'>,
+  idempotencyKey?: string
 ): Promise<Payment> {
   const paymentType = data.paymentType ?? (isRegistrationPeriod(data.period) ? 'registration' : 'monthly');
-  const ref = await db.collection(COLLECTIONS.payments).add({
+  const admin = await import('firebase-admin');
+  const now = admin.firestore.Timestamp.now();
+  const col = db.collection(COLLECTIONS.payments);
+
+  if (idempotencyKey) {
+    const ref = col.doc(idempotencyKey);
+    const existing = await ref.get();
+    if (existing.exists) return toPayment(existing);
+    await ref.set({
+      ...data,
+      paymentType,
+      paidAt: data.paidAt ?? null,
+      createdAt: now,
+    });
+    const snap = await ref.get();
+    return toPayment(snap);
+  }
+
+  const ref = await col.add({
     ...data,
     paymentType,
     paidAt: data.paidAt ?? null,
-    createdAt: (await import('firebase-admin')).firestore.Timestamp.now(),
+    createdAt: now,
   });
   const snap = await ref.get();
   return toPayment(snap);

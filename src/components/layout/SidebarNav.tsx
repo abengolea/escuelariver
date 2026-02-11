@@ -40,9 +40,6 @@ import { isPlayerProfileComplete } from "@/lib/utils";
 import type { Player } from "@/lib/types";
 import { isMedicalRecordApproved } from "@/lib/utils";
 import { getAuth } from "firebase/auth";
-import type { PendingPlayer } from "@/lib/types";
-import type { AccessRequest } from "@/lib/types";
-
 // Orden por importancia: núcleo operativo → seguimiento → comunicación → administración
 const schoolUserMenuItems = [
   { href: "/dashboard", label: "Panel Principal", icon: Home },
@@ -102,14 +99,6 @@ export function SidebarNav() {
   const isStaff = profile?.role === "school_admin" || profile?.role === "coach";
   const canListSchoolCollections = isReady && activeSchoolId && isStaff;
 
-  const { data: pendingPlayers } = useCollection<PendingPlayer>(
-    canListSchoolCollections ? `schools/${activeSchoolId}/pendingPlayers` : "",
-    {}
-  );
-  const { data: accessRequests } = useCollection<AccessRequest>(
-    isReady ? "accessRequests" : "",
-    { where: ["status", "==", "pending"] }
-  );
   const { data: allPlayers } = useCollection<Player>(
     canListSchoolCollections ? `schools/${activeSchoolId}/players` : "",
     {}
@@ -120,7 +109,6 @@ export function SidebarNav() {
       (p) => !p.archived && (!p.medicalRecord?.url || !isMedicalRecordApproved(p))
     ).length;
   }, [allPlayers]);
-  const solicitudesCount = (pendingPlayers?.length ?? 0) + (accessRequests?.length ?? 0);
 
   let menuItems;
 
@@ -208,11 +196,6 @@ export function SidebarNav() {
                     >
                     <item.icon />
                     <span>{item.label}</span>
-                    {item.href === "/dashboard/registrations" && solicitudesCount > 0 && (
-                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-xs">
-                        {solicitudesCount > 99 ? "99+" : solicitudesCount}
-                      </Badge>
-                    )}
                     {item.href === "/dashboard/medical-records" && medicalRecordsPendingCount > 0 && (
                       <Badge variant="secondary" className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-xs" title="Fichas pendientes">
                         {medicalRecordsPendingCount > 99 ? "99+" : medicalRecordsPendingCount}

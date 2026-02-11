@@ -28,7 +28,7 @@
     },
      "Category": {
       "title": "Categoría",
-      "description": "Representa una categoría de edad dentro de una escuela (ej. Sub-12).",
+      "description": "Representa una categoría de edad dentro de una escuela (ej. SUB-12).",
       "type": "object",
       "properties": {
         "name": { "type": "string" },

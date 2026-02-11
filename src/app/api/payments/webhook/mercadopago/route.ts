@@ -107,11 +107,6 @@ async function processNotification(params: {
   const amount = payment.transaction_amount ?? 0;
   const currency = payment.currency_id ?? 'ARS';
 
-  const existing = await findPaymentByProviderId(db, 'mercadopago', String(paymentId));
-  if (existing && existing.status === 'approved') {
-    return NextResponse.json({ ok: true, message: 'Already processed' });
-  }
-
   const playerExists = await playerExistsInSchool(db, schoolId, playerId);
   if (!playerExists) {
     console.warn('[webhook/mercadopago] Player not in school', { schoolId, playerId });
@@ -119,17 +114,22 @@ async function processNotification(params: {
   }
 
   const now = new Date();
-  await createPayment(db, {
-    playerId,
-    schoolId,
-    period,
-    amount,
-    currency,
-    provider: 'mercadopago',
-    providerPaymentId: String(paymentId),
-    status: 'approved',
-    paidAt: now,
-  });
+  const idempotencyKey = `mercadopago_${paymentId}`;
+  await createPayment(
+    db,
+    {
+      playerId,
+      schoolId,
+      period,
+      amount,
+      currency,
+      provider: 'mercadopago',
+      providerPaymentId: String(paymentId),
+      status: 'approved',
+      paidAt: now,
+    },
+    idempotencyKey
+  );
 
   await updatePlayerStatus(db, schoolId, playerId, 'active');
 

@@ -27,7 +27,7 @@ import {
 import { Mail, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Categorías de edad (U9, U10, ...) derivadas de los jugadores. */
+/** Categorías de edad (SUB-9, SUB-10, ...) derivadas de los jugadores. */
 function getCategoriesFromPlayers(players: Player[]): string[] {
   const set = new Set<string>();
   for (const p of players) {
