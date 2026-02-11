@@ -43,7 +43,8 @@ export async function GET(request: Request) {
 
 const PutBodySchema = z.object({
   schoolId: z.string().min(1),
-  amount: z.number().positive(),
+  /** Cuota mensual. 0 = solo cobro de inscripción (registrationAmount). */
+  amount: z.number().min(0),
   currency: z.string().min(1).default('ARS'),
   dueDayOfMonth: z.number().int().min(1).max(31),
   moraFromActivationMonth: z.boolean().optional(),
@@ -52,6 +53,10 @@ const PutBodySchema = z.object({
   delinquencyDaysEmail: z.number().int().min(1).max(90).optional(),
   delinquencyDaysSuspension: z.number().int().min(1).max(365).optional(),
   registrationAmount: z.number().min(0).optional(),
+  /** Montos de cuota mensual por categoría (SUB-5, SUB-6, ... SUB-18). */
+  amountByCategory: z.record(z.string(), z.number().min(0)).optional(),
+  /** Montos de inscripción por categoría. */
+  registrationAmountByCategory: z.record(z.string(), z.number().min(0)).optional(),
   registrationCancelsMonthFee: z.boolean().optional(),
 });
 
@@ -82,6 +87,8 @@ export async function PUT(request: Request) {
       delinquencyDaysEmail,
       delinquencyDaysSuspension,
       registrationAmount,
+      amountByCategory,
+      registrationAmountByCategory,
       registrationCancelsMonthFee,
     } = parsed.data;
     const db = getAdminFirestore();
@@ -100,6 +107,8 @@ export async function PUT(request: Request) {
     if (delinquencyDaysEmail !== undefined) update.delinquencyDaysEmail = delinquencyDaysEmail;
     if (delinquencyDaysSuspension !== undefined) update.delinquencyDaysSuspension = delinquencyDaysSuspension;
     if (registrationAmount !== undefined) update.registrationAmount = registrationAmount;
+    if (amountByCategory !== undefined) update.amountByCategory = amountByCategory;
+    if (registrationAmountByCategory !== undefined) update.registrationAmountByCategory = registrationAmountByCategory;
     if (registrationCancelsMonthFee !== undefined) update.registrationCancelsMonthFee = registrationCancelsMonthFee;
 
     await db

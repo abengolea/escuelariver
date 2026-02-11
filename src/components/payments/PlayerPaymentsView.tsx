@@ -18,16 +18,16 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Banknote, AlertTriangle, CheckCircle, History, Loader2, CreditCard, ChevronDown } from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertTriangle, CheckCircle, History, Loader2, CreditCard } from "lucide-react";
 import type { Payment } from "@/lib/types/payments";
 import type { DelinquentInfo } from "@/lib/types/payments";
-
-type PaymentProviderOption = "mercadopago" | "dlocal";
 
 const STATUS_LABELS: Record<string, string> = {
   approved: "Aprobado",
@@ -70,15 +70,37 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
   const [loading, setLoading] = useState(true);
   const [indexBuilding, setIndexBuilding] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [payingProvider, setPayingProvider] = useState<PaymentProviderOption | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
+  const [showAlDiaDialog, setShowAlDiaDialog] = useState(false);
+  const [showRetryPrompt, setShowRetryPrompt] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const hasRegistrationPending = delinquent?.period === REGISTRATION_PERIOD;
+
+  // Si la carga tarda más de 8 segundos, mostrar opción de reintentar
+  useEffect(() => {
+    if (!loading) {
+      setShowRetryPrompt(false);
+      return;
+    }
+    const t = setTimeout(() => setShowRetryPrompt(true), 8000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const fetchData = useCallback(async (isRetry = false) => {
     if (!isRetry) setLoading(true);
+    setFetchError(null);
     setIndexBuilding(false);
     const token = await getToken();
     if (!token) {
       setLoading(false);
+      toast({
+        title: "Sesión expirada",
+        description: "Volvé a iniciar sesión para ver tus pagos.",
+        variant: "destructive",
+      });
       return;
     }
     try {
@@ -114,9 +136,17 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
       setSuggestedCurrency(body.suggestedCurrency ?? "ARS");
     } catch (e) {
       console.error(e);
+      const isNetworkError =
+        e instanceof TypeError && e.message === "Failed to fetch";
+      const message = isNetworkError
+        ? "No se pudo conectar. Verificá tu conexión a internet e intentá de nuevo."
+        : e instanceof Error
+          ? e.message
+          : "No se pudieron cargar tus pagos";
+      setFetchError(message);
       toast({
         title: "Error",
-        description: e instanceof Error ? e.message : "No se pudieron cargar tus pagos",
+        description: message,
         variant: "destructive",
       });
       setPayments([]);
@@ -131,8 +161,15 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
     fetchData();
   }, [fetchData]);
 
+  // Pop-up de inscripción: se abre cuando el sistema detecta inscripción pendiente
+  useEffect(() => {
+    if (!loading && delinquent?.period === REGISTRATION_PERIOD) {
+      setShowRegistrationDialog(true);
+    }
+  }, [loading, delinquent?.period]);
+
   const handlePayCuota = useCallback(
-    async (provider: PaymentProviderOption) => {
+    async (onSuccess?: () => void) => {
       const token = await getToken();
       if (!token || !schoolId || !playerId) {
         toast({ title: "Error", description: "No se pudo iniciar el pago.", variant: "destructive" });
@@ -149,7 +186,7 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
         });
         return;
       }
-      setPayingProvider(provider);
+      setPaying(true);
       try {
         const res = await fetch("/api/payments/intent", {
           method: "POST",
@@ -158,7 +195,7 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            provider,
+            provider: "mercadopago",
             playerId,
             schoolId,
             period,
@@ -168,6 +205,12 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+          // 409 = ya está al día (no es error, es confirmación positiva)
+          if (res.status === 409) {
+            setShowAlDiaDialog(true);
+            fetchData(true);
+            return;
+          }
           toast({
             title: "Error",
             description: data.error ?? "No se pudo generar el link de pago.",
@@ -181,6 +224,7 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
             title: "Link generado",
             description: "Se abrió la ventana de pago. Si no se abrió, revisá el bloqueador de ventanas.",
           });
+          onSuccess?.();
         }
       } catch (e) {
         toast({
@@ -189,17 +233,73 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
           variant: "destructive",
         });
       } finally {
-        setPayingProvider(null);
+        setPaying(false);
       }
     },
-    [getToken, schoolId, playerId, delinquent, suggestedPeriod, suggestedAmount, suggestedCurrency, toast]
+    [getToken, schoolId, playerId, delinquent, suggestedPeriod, suggestedAmount, suggestedCurrency, toast, fetchData]
   );
 
   if (loading && !indexBuilding) {
     return (
       <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Mis pagos</h1>
+          <p className="text-muted-foreground mt-1">Cargando tus pagos…</p>
+        </div>
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-64 w-full" />
+        {showRetryPrompt && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">La carga está tardando más de lo habitual.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setRetrying(true);
+                fetchData(true);
+              }}
+              disabled={retrying}
+            >
+              {retrying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Reintentar
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Mis pagos</h1>
+          <p className="text-muted-foreground">
+            Historial de cuotas y estado de tu cuenta
+          </p>
+        </div>
+        <Alert variant="destructive" className="border-destructive/50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error al cargar</AlertTitle>
+          <AlertDescription>
+            {fetchError}
+            <div className="mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={retrying}
+                onClick={() => {
+                  setRetrying(true);
+                  setFetchError(null);
+                  fetchData(true);
+                }}
+              >
+                {retrying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Reintentar
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -248,38 +348,20 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
           </p>
         </div>
         <div className="shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="gap-2 font-headline"
-                disabled={payingProvider != null || (suggestedAmount <= 0 && !delinquent)}
-              >
-                {payingProvider ? (
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-2 font-headline"
+            disabled={paying || (suggestedAmount <= 0 && !delinquent)}
+            onClick={() => handlePayCuota()}
+          >
+            {paying ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <CreditCard className="h-4 w-4" />
                 )}
-                Pagar cuota
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => handlePayCuota("mercadopago")}
-                disabled={payingProvider != null}
-              >
-                Mercado Pago
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handlePayCuota("dlocal")}
-                disabled={payingProvider != null}
-              >
-                DLocal
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {hasRegistrationPending ? "Pagar inscripción" : "Pagar cuota"}
+          </Button>
         </div>
       </div>
 
@@ -298,7 +380,18 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
             )}
             {" "}
             Monto: {delinquent.currency} {delinquent.amount.toLocaleString("es-AR")}.
-            Contactá a tu escuela para regularizar el pago.
+            Podés pagar online con el botón de arriba.
+            {hasRegistrationPending && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 border-destructive/50 hover:bg-destructive/10"
+                onClick={() => setShowRegistrationDialog(true)}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Pagar inscripción
+              </Button>
+            )}
           </AlertDescription>
         </Alert>
       ) : (
@@ -314,6 +407,63 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
           </CardHeader>
         </Card>
       )}
+
+      {/* Pop-up cuando ya está al día */}
+      <Dialog open={showAlDiaDialog} onOpenChange={setShowAlDiaDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <CheckCircle className="h-5 w-5" />
+              ¡Estás al día!
+            </DialogTitle>
+            <DialogDescription>
+              No tenés pagos pendientes. Tu cuenta está en orden.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowAlDiaDialog(false)}>
+              Entendido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pop-up de inscripción pendiente */}
+      <Dialog open={showRegistrationDialog && hasRegistrationPending} onOpenChange={setShowRegistrationDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Pagá la inscripción
+            </DialogTitle>
+            <DialogDescription>
+              {delinquent && (
+                <>
+                  Tenés el derecho de inscripción pendiente. Monto a abonar:{" "}
+                  <strong className="text-foreground">
+                    {delinquent.currency} {delinquent.amount.toLocaleString("es-AR")}
+                  </strong>
+                  .
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => handlePayCuota(() => setShowRegistrationDialog(false))}
+              disabled={paying}
+              className="w-full"
+            >
+              {paying ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-2" />
+              )}
+              Pagar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Historial de pagos */}
       <Card>

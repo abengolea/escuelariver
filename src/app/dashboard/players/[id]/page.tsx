@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Cake, User, Contact, Bot, FilePlus, ArrowLeft, UserX, ClipboardCheck, Video } from "lucide-react";
 import { calculateAge, isPlayerProfileComplete } from "@/lib/utils";
-import { useDoc, useUserProfile, useCollection, useUser } from "@/firebase";
+import { useDoc, useUserProfile, useCollection, useUser, useFirebase } from "@/firebase";
+import { getAuth } from "firebase/auth";
 import type { Player, Evaluation } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryTab } from "@/components/players/PlayerProfile/SummaryTab";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Archive, Lock, FileHeart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PlayerPaymentStatusCard } from "@/components/players/PlayerPaymentStatusCard";
 
 export default function PlayerProfilePage() {
   const params = useParams();
@@ -45,6 +47,13 @@ export default function PlayerProfilePage() {
   const id = params.id as string;
   const { activeSchoolId, isReady: profileReady, profile, isSuperAdmin } = useUserProfile();
   const { user } = useUser();
+  const { app } = useFirebase();
+  const getToken = async () => {
+    const auth = getAuth(app);
+    const u = auth.currentUser;
+    if (!u) return null;
+    return u.getIdToken();
+  };
   const { toast } = useToast();
   const router = useRouter();
   const isViewingAsPlayer = profile?.role === "player" && String(profile?.playerId ?? "") === String(id);
@@ -379,6 +388,13 @@ export default function PlayerProfilePage() {
             </Alert>
           )}
           <SummaryTab player={playerWithSchool} lastCoachComment={evaluations?.[0]?.coachComments} />
+          <div className="mt-4">
+            <PlayerPaymentStatusCard
+              getToken={getToken}
+              playerId={isViewingAsPlayer ? undefined : id}
+              schoolId={isViewingAsPlayer ? undefined : schoolId ?? undefined}
+            />
+          </div>
           <Card className="mt-4">
             <CardHeader>
               <CardTitle className="font-headline">Ficha médica</CardTitle>

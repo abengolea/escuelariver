@@ -9,8 +9,9 @@ import { createPaymentIntentSchema } from '@/lib/payments/schemas';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { createPaymentIntent } from '@/lib/payments/db';
 import { createPaymentIntentWithProvider } from '@/lib/payments/provider-stub';
-import { getOrCreatePaymentConfig, getMercadoPagoAccessToken } from '@/lib/payments/db';
+import { getOrCreatePaymentConfig, getMercadoPagoAccessToken, getExpectedAmountForPeriod, findApprovedPayment } from '@/lib/payments/db';
 import { verifyIdToken } from '@/lib/auth-server';
+import { REGISTRATION_PERIOD } from '@/lib/payments/constants';
 
 export async function POST(request: Request) {
   try {
@@ -28,14 +29,34 @@ export async function POST(request: Request) {
       );
     }
 
-    const { provider, playerId, schoolId, period, amount, currency } = parsed.data;
+    const { provider, playerId, schoolId, period, currency } = parsed.data;
     const db = getAdminFirestore();
 
-    // Verificar que la escuela tenga configuración y el monto coincida (opcional: permitir override)
     const config = await getOrCreatePaymentConfig(db, schoolId);
-    if (config.amount <= 0) {
+
+    // Verificar que lo que quiere pagar no esté ya pagado
+    const existingPayment = await findApprovedPayment(db, playerId, period);
+    if (existingPayment) {
       return NextResponse.json(
-        { error: 'La escuela no tiene configuración de cuotas' },
+        {
+          error: isRegistration
+            ? 'Ya tenés la inscripción pagada'
+            : 'Ya tenés esa cuota pagada',
+        },
+        { status: 409 }
+      );
+    }
+
+    // Usar siempre el monto de la config del servidor (seguridad: no confiar en el cliente)
+    const isRegistration = period === REGISTRATION_PERIOD;
+    const amount = await getExpectedAmountForPeriod(db, schoolId, playerId, period, config);
+    if (amount <= 0) {
+      return NextResponse.json(
+        {
+          error: isRegistration
+            ? 'La escuela no tiene configuración de cuota de inscripción para esta categoría'
+            : 'La escuela no tiene configuración de cuotas mensuales para esta categoría',
+        },
         { status: 400 }
       );
     }

@@ -16,8 +16,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, CheckCircle2, AlertTriangle } from "lucide-react";
+import { CreditCard, CheckCircle2, AlertTriangle, Layers } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CATEGORY_ORDER } from "@/lib/utils";
 
 interface PaymentConfigTabProps {
   schoolId: string;
@@ -28,6 +29,8 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
   const [amount, setAmount] = useState("");
   const [dueDayOfMonth, setDueDayOfMonth] = useState("10");
   const [registrationAmount, setRegistrationAmount] = useState("");
+  const [amountByCategory, setAmountByCategory] = useState<Record<string, string>>({});
+  const [registrationAmountByCategory, setRegistrationAmountByCategory] = useState<Record<string, string>>({});
   const [registrationCancelsMonthFee, setRegistrationCancelsMonthFee] = useState(true);
   const [moraFromActivationMonth, setMoraFromActivationMonth] = useState(true);
   const [prorateDayOfMonth, setProrateDayOfMonth] = useState("15");
@@ -76,6 +79,16 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
           setAmount(String(data.amount ?? ""));
           setDueDayOfMonth(String(data.dueDayOfMonth ?? 10));
           setRegistrationAmount(String(data.registrationAmount ?? ""));
+          setAmountByCategory(
+            Object.fromEntries(
+              Object.entries(data.amountByCategory ?? {}).map(([k, v]) => [k, String(v)])
+            )
+          );
+          setRegistrationAmountByCategory(
+            Object.fromEntries(
+              Object.entries(data.registrationAmountByCategory ?? {}).map(([k, v]) => [k, String(v)])
+            )
+          );
           setRegistrationCancelsMonthFee(data.registrationCancelsMonthFee !== false);
           setMoraFromActivationMonth(data.moraFromActivationMonth !== false);
           setProrateDayOfMonth(String(data.prorateDayOfMonth ?? 15));
@@ -96,7 +109,7 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
   }, [schoolId, getToken]);
 
   const handleSave = async () => {
-    const am = parseFloat(amount);
+    const am = amount === "" ? 0 : parseFloat(amount);
     const day = parseInt(dueDayOfMonth, 10);
     const prorateDay = parseInt(prorateDayOfMonth, 10);
     const proratePct = parseInt(proratePercent, 10);
@@ -133,6 +146,21 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
       return;
     }
 
+    const amountByCat: Record<string, number> = {};
+    for (const [cat, val] of Object.entries(amountByCategory)) {
+      if (val !== "" && val !== undefined) {
+        const n = parseFloat(val);
+        if (!isNaN(n) && n >= 0) amountByCat[cat] = n;
+      }
+    }
+    const regByCat: Record<string, number> = {};
+    for (const [cat, val] of Object.entries(registrationAmountByCategory)) {
+      if (val !== "" && val !== undefined) {
+        const n = parseFloat(val);
+        if (!isNaN(n) && n >= 0) regByCat[cat] = n;
+      }
+    }
+
     setSaving(true);
     const token = await getToken();
     if (!token) return;
@@ -149,6 +177,8 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
           currency: "ARS",
           dueDayOfMonth: day,
           registrationAmount: regAm,
+          amountByCategory: Object.keys(amountByCat).length ? amountByCat : undefined,
+          registrationAmountByCategory: Object.keys(regByCat).length ? regByCat : undefined,
           registrationCancelsMonthFee,
           moraFromActivationMonth,
           prorateDayOfMonth: prorateDay,
@@ -266,14 +296,14 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
 
       <Card>
         <CardHeader>
-          <CardTitle>Derecho de inscripción</CardTitle>
+          <CardTitle>Derecho de inscripción (cuota de ingreso)</CardTitle>
           <CardDescription>
-            Monto inicial de inscripción (puede ser distinto a la cuota mensual). Definí si al pagar la inscripción se considera cubierta la cuota del mes de alta o si la cuota se paga aparte.
+            Definí el costo que paga cada jugador al inscribirse. Este es el valor que se cobra cuando el jugador paga la cuota de ingreso. Puede ser distinto a la cuota mensual. 0 = sin cobro de inscripción.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="registrationAmount">Monto inscripción (ARS). 0 = sin cobro de inscripción</Label>
+            <Label htmlFor="registrationAmount">Costo de inscripción (ARS)</Label>
             <Input
               id="registrationAmount"
               type="number"
@@ -295,6 +325,68 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
               checked={registrationCancelsMonthFee}
               onCheckedChange={setRegistrationCancelsMonthFee}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Layers className="h-5 w-5" />
+            Valores por categoría
+          </CardTitle>
+          <CardDescription>
+            Podés definir cuota mensual e inscripción distintas por categoría (SUB-5, SUB-6, … SUB-18). Si dejás vacío, se usa el valor por defecto de arriba.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="pb-2 pr-4 font-medium">Categoría</th>
+                  <th className="pb-2 pr-4 font-medium">Cuota mensual (ARS)</th>
+                  <th className="pb-2 font-medium">Inscripción (ARS)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CATEGORY_ORDER.map((cat) => (
+                  <tr key={cat} className="border-b last:border-0">
+                    <td className="py-2 pr-4 font-medium">{cat}</td>
+                    <td className="py-2 pr-4">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder={amount || "igual al valor por defecto"}
+                        value={amountByCategory[cat] ?? ""}
+                        onChange={(e) =>
+                          setAmountByCategory((prev) => ({
+                            ...prev,
+                            [cat]: e.target.value,
+                          }))
+                        }
+                        className="h-8 w-28"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder={registrationAmount || "igual al valor por defecto"}
+                        value={registrationAmountByCategory[cat] ?? ""}
+                        onChange={(e) =>
+                          setRegistrationAmountByCategory((prev) => ({
+                            ...prev,
+                            [cat]: e.target.value,
+                          }))
+                        }
+                        className="h-8 w-28"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>

@@ -9,10 +9,23 @@ import { COLLECTIONS, REGISTRATION_PERIOD, MERCADOPAGO_CONNECTION_DOC } from './
 import { getDueDate, isRegistrationPeriod } from './schemas';
 import type { Payment, PaymentIntent, PaymentConfig, DelinquentInfo, MercadoPagoConnection } from '@/lib/types/payments';
 import type { Player } from '@/lib/types';
+import { getCategoryLabel } from '@/lib/utils';
 
 type Firestore = admin.firestore.Firestore;
 type DocumentSnapshot = admin.firestore.DocumentSnapshot;
 type Timestamp = admin.firestore.Timestamp;
+
+/** Obtiene la cuota mensual para una categoría (usa amount por defecto si no hay override). */
+function getAmountForCategory(config: PaymentConfig, category: string): number {
+  const override = config.amountByCategory?.[category];
+  return override !== undefined ? override : config.amount;
+}
+
+/** Obtiene el derecho de inscripción para una categoría (usa registrationAmount por defecto si no hay override). */
+function getRegistrationAmountForCategory(config: PaymentConfig, category: string): number {
+  const override = config.registrationAmountByCategory?.[category];
+  return override !== undefined ? override : (config.registrationAmount ?? 0);
+}
 
 function toDate(val: unknown): Date {
   if (val instanceof Date) return val;
@@ -63,6 +76,8 @@ export async function getOrCreatePaymentConfig(
       delinquencyDaysEmail: d.delinquencyDaysEmail ?? 10,
       delinquencyDaysSuspension: d.delinquencyDaysSuspension ?? 30,
       registrationAmount: d.registrationAmount ?? 0,
+      amountByCategory: d.amountByCategory,
+      registrationAmountByCategory: d.registrationAmountByCategory,
       registrationCancelsMonthFee: d.registrationCancelsMonthFee !== false,
       emailTemplates: d.emailTemplates,
       updatedAt: toDate(d.updatedAt),
@@ -126,6 +141,39 @@ export async function setMercadoPagoConnection(
 export async function getMercadoPagoAccessToken(db: Firestore, schoolId: string): Promise<string | null> {
   const conn = await getMercadoPagoConnection(db, schoolId);
   return conn?.access_token ?? null;
+}
+
+/**
+ * Calcula el monto esperado para un pago según la config, jugador y período.
+ * Para inscripción: registrationAmount. Para cuota mensual: amount o prorrateado.
+ */
+export async function getExpectedAmountForPeriod(
+  db: Firestore,
+  schoolId: string,
+  playerId: string,
+  period: string,
+  config: PaymentConfig
+): Promise<number> {
+  const playerRef = db.collection('schools').doc(schoolId).collection('players').doc(playerId);
+  const playerSnap = await playerRef.get();
+  const birthDate = playerSnap.exists && playerSnap.data()?.birthDate
+    ? toDate(playerSnap.data()!.birthDate)
+    : new Date();
+  const category = getCategoryLabel(birthDate);
+
+  if (period === REGISTRATION_PERIOD) return getRegistrationAmountForCategory(config, category);
+
+  const amount = getAmountForCategory(config, category);
+  if (!playerSnap.exists) return amount;
+  const playerData = playerSnap.data()!;
+  const activatedAt = playerData.createdAt ? toDate(playerData.createdAt) : new Date();
+  const activationPeriod = `${activatedAt.getFullYear()}-${String(activatedAt.getMonth() + 1).padStart(2, '0')}`;
+  const activationDay = activatedAt.getDate();
+  const prorateDay = config.prorateDayOfMonth ?? 15;
+  const proratePct = (config.proratePercent ?? 50) / 100;
+  const isActivationMonth = period === activationPeriod;
+  const prorated = prorateDay > 0 && isActivationMonth && activationDay > prorateDay;
+  return prorated ? Math.round(amount * proratePct) : amount;
 }
 
 /** Verifica que el jugador exista en esa escuela y no esté archivado. Regla: solo crear pagos con jugadores no archivados. */
@@ -444,6 +492,8 @@ export async function getActivePlayersWithConfig(
         delinquencyDaysEmail: d!.delinquencyDaysEmail ?? 10,
         delinquencyDaysSuspension: d!.delinquencyDaysSuspension ?? 30,
         registrationAmount: d!.registrationAmount ?? 0,
+        amountByCategory: d!.amountByCategory,
+        registrationAmountByCategory: d!.registrationAmountByCategory,
         registrationCancelsMonthFee: d!.registrationCancelsMonthFee !== false,
         updatedAt: toDate(d!.updatedAt),
         updatedBy: d!.updatedBy ?? '',
@@ -525,9 +575,11 @@ export async function computeDelinquents(
     const activatedAt = player.createdAt instanceof Date ? player.createdAt : new Date(player.createdAt);
     const activationPeriod = periodFromDate(activatedAt);
     const hasPaidRegistration = await findApprovedRegistrationPayment(db, player.id);
+    const birthDate = player.birthDate instanceof Date ? player.birthDate : new Date(player.birthDate);
+    const category = getCategoryLabel(birthDate);
 
     // Inscripción pendiente
-    const registrationAmount = config.registrationAmount ?? 0;
+    const registrationAmount = getRegistrationAmountForCategory(config, category);
     if (registrationAmount > 0 && !hasPaidRegistration) {
       const dueDate = getDueDate(activationPeriod, config.dueDayOfMonth);
       const daysOverdue = dueDate <= now ? Math.floor((now.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000)) : 0;
@@ -547,8 +599,9 @@ export async function computeDelinquents(
       });
     }
 
-    // Cuota mensual: solo si hay monto configurado
-    if (config.amount <= 0) continue;
+    // Cuota mensual: solo si hay monto configurado (para esta categoría)
+    const monthlyAmount = getAmountForCategory(config, category);
+    if (monthlyAmount <= 0) continue;
 
     const activationDay = activatedAt.getDate();
     const prorateDay = config.prorateDayOfMonth ?? 15;
@@ -575,7 +628,7 @@ export async function computeDelinquents(
       if (isActivationMonth && registrationCancelsMonthFee && hasPaidRegistration) continue;
 
       const prorated = prorateDay > 0 && isActivationMonth && activationDay > prorateDay;
-      const amount = prorated ? Math.round(config.amount * proratePct) : config.amount;
+      const amount = prorated ? Math.round(monthlyAmount * proratePct) : monthlyAmount;
 
       const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000));
       delinquents.push({

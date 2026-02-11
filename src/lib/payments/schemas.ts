@@ -17,7 +17,8 @@ export const createPaymentIntentSchema = z.object({
   playerId: z.string().min(1, 'playerId requerido'),
   schoolId: z.string().min(1, 'schoolId requerido'),
   period: periodSchema,
-  amount: z.number().positive('Monto debe ser positivo'),
+  /** Monto opcional: el servidor lo calcula desde la config (seguridad). */
+  amount: z.number().positive('Monto debe ser positivo').optional(),
   currency: z.string().min(1, 'Moneda requerida').default('ARS'),
 });
 
