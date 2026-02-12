@@ -57,6 +57,7 @@ const schoolUserMenuItems = [
 
 const superAdminMenuItems = [
     { href: "/dashboard", label: "Escuelas", icon: Building },
+    { href: "/dashboard/admin/mensualidades", label: "Mensualidades", icon: Banknote },
     { href: "/dashboard/admin/physical-template", label: "Evaluaciones físicas (plantilla)", icon: Activity },
     { href: "/dashboard/support/operator", label: "Tickets de Soporte", icon: Headphones },
     { href: "/dashboard/admin/config", label: "Configuración global", icon: Sliders },

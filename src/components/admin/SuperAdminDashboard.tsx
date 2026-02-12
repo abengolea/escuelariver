@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { Building, MoreHorizontal, Power, PowerOff, Loader2, Users, ShieldCheck, Edit, BarChart3, Activity, DollarSign } from "lucide-react";
+import { Building, MoreHorizontal, Power, PowerOff, Loader2, Users, ShieldCheck, Edit, BarChart3 } from "lucide-react";
 import { useCollection, useFirestore, useUserProfile } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { writeAuditLog } from "@/lib/audit";
@@ -40,8 +40,6 @@ import { EditSchoolDialog } from "./EditSchoolDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlatformUsersList } from "./PlatformUsersList";
 import { SuperAdminReportsTab } from "./SuperAdminReportsTab";
-import { SuperAdminPhysicalTemplateTab } from "./SuperAdminPhysicalTemplateTab";
-import { SuperAdminMensualidadesTab } from "./SuperAdminMensualidadesTab";
 
 export function SuperAdminDashboard() {
     const { data: schools, loading: schoolsLoading } = useCollection<School>('schools', { orderBy: ['createdAt', 'desc']});
@@ -137,18 +135,10 @@ export function SuperAdminDashboard() {
             </div>
 
              <Tabs defaultValue="schools" className="w-full">
-                <TabsList className="w-full grid grid-cols-5 gap-1 p-1 h-auto md:h-10 bg-card">
+                <TabsList className="w-full grid grid-cols-3 gap-1 p-1 h-auto md:h-10 bg-card">
                     <TabsTrigger value="schools" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
                         <Building className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
                         <span className="truncate">Escuelas</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="mensualidades" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
-                        <DollarSign className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-                        <span className="truncate">Mensualidades</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="physical" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
-                        <Activity className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-                        <span className="truncate">Evaluaciones físicas</span>
                     </TabsTrigger>
                     <TabsTrigger value="users" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
                         <Users className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
@@ -251,12 +241,6 @@ export function SuperAdminDashboard() {
                             )}
                         </CardContent>
                     </Card>
-                </TabsContent>
-                <TabsContent value="mensualidades">
-                    <SuperAdminMensualidadesTab schools={schools ?? null} />
-                </TabsContent>
-                <TabsContent value="physical">
-                    <SuperAdminPhysicalTemplateTab schools={schools ?? null} />
                 </TabsContent>
                 <TabsContent value="reports">
                     <SuperAdminReportsTab
