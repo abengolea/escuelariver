@@ -1,6 +1,6 @@
 /**
  * Creación de preferencia en Mercado Pago para cobro de mensualidad de escuela a la plataforma.
- * Usa MERCADOPAGO_PLATFORM_ACCESS_TOKEN (cuenta de Escuela River).
+ * Usa MERCADOPAGO_PLATFORM_ACCESS_TOKEN (cuenta Notificassrl - titular de la plataforma).
  */
 
 import { MercadoPagoConfig, Preference } from 'mercadopago';

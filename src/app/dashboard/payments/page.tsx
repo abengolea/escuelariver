@@ -3,7 +3,7 @@
 import { useUserProfile, useFirebase } from "@/firebase";
 import { getAuth } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,22 @@ export default function PaymentsPage() {
     if (tabFromUrl === "config" || tabFromUrl === "delinquents" || tabFromUrl === "mensualidad") return tabFromUrl;
     return "payments";
   }, [tabFromUrl]);
+
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
+
+  const onTabChange = (value: string) => {
+    setActiveTab(value);
+    const url = new URL(window.location.href);
+    if (value === "payments") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", value);
+    window.history.replaceState({}, "", url.pathname + url.search);
+  };
+
+  const isMensualidadTab = activeTab === "mensualidad";
 
   useEffect(() => {
     if (!paymentResult) return;
@@ -113,54 +129,67 @@ export default function PaymentsPage() {
     <div className="space-y-6 min-w-0">
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight font-headline sm:text-3xl">Pagos y Morosidad</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Gestioná cuotas, pagos ingresados y morosos de tu escuela
-          </p>
+          {isMensualidadTab ? (
+            <>
+              <h1 className="text-2xl font-bold tracking-tight font-headline sm:text-3xl flex items-center gap-2">
+                <Building2 className="h-6 w-6 sm:h-7 sm:w-7" />
+                Mensualidad a la plataforma
+              </h1>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                Cuota mensual que tu escuela paga a Escuela River
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold tracking-tight font-headline sm:text-3xl">Pagos y Morosidad</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                Gestioná cuotas, pagos ingresados y morosos de tu escuela
+              </p>
+            </>
+          )}
         </div>
-        <Link
-          href="/dashboard/payments/test"
-          className="inline-flex items-center text-xs sm:text-sm text-muted-foreground hover:underline shrink-0"
-        >
-          <FlaskConical className="mr-1 h-4 w-4" />
-          Pruebas de pagos
-        </Link>
+        {!isMensualidadTab && (
+          <Link
+            href="/dashboard/payments/test"
+            className="inline-flex items-center text-xs sm:text-sm text-muted-foreground hover:underline shrink-0"
+          >
+            <FlaskConical className="mr-1 h-4 w-4" />
+            Pruebas de pagos
+          </Link>
+        )}
       </div>
 
-      <Tabs defaultValue={defaultTab} key={tabFromUrl ?? "payments"}>
-        <TabsList className="w-full grid grid-cols-4 gap-1 p-1 h-auto md:h-10 bg-card">
-          <TabsTrigger value="payments" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
-            <Banknote className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Pagos ingresados</span>
-            <span className="sm:hidden truncate">Pagos</span>
-          </TabsTrigger>
-          <TabsTrigger value="delinquents" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="truncate">Morosos</span>
-          </TabsTrigger>
-          <TabsTrigger value="mensualidad" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
-            <Building2 className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="truncate">Mensualidad</span>
-          </TabsTrigger>
-          <TabsTrigger value="config" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
-            <Settings className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Configuración</span>
-            <span className="sm:hidden truncate">Config</span>
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="payments">
-          <PaymentsTab schoolId={schoolId} getToken={getToken} />
-        </TabsContent>
-        <TabsContent value="delinquents">
-          <DelinquentsTab schoolId={schoolId} getToken={getToken} />
-        </TabsContent>
-        <TabsContent value="mensualidad">
-          <SchoolAdminMensualidadView schoolId={schoolId} getToken={getToken} refreshTrigger={schoolFeeResult} />
-        </TabsContent>
-        <TabsContent value="config">
-          <PaymentConfigTab schoolId={schoolId} getToken={getToken} />
-        </TabsContent>
-      </Tabs>
+      {isMensualidadTab ? (
+        <SchoolAdminMensualidadView schoolId={schoolId} getToken={getToken} refreshTrigger={schoolFeeResult} />
+      ) : (
+        <Tabs value={activeTab} onValueChange={onTabChange} key={tabFromUrl ?? "payments"}>
+          <TabsList className="w-full grid grid-cols-3 gap-1 p-1 h-auto md:h-10 bg-card">
+            <TabsTrigger value="payments" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+              <Banknote className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Pagos ingresados</span>
+              <span className="sm:hidden truncate">Pagos</span>
+            </TabsTrigger>
+            <TabsTrigger value="delinquents" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="truncate">Morosos</span>
+            </TabsTrigger>
+            <TabsTrigger value="config" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+              <Settings className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Configuración</span>
+              <span className="sm:hidden truncate">Config</span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="payments">
+            <PaymentsTab schoolId={schoolId} getToken={getToken} />
+          </TabsContent>
+          <TabsContent value="delinquents">
+            <DelinquentsTab schoolId={schoolId} getToken={getToken} />
+          </TabsContent>
+          <TabsContent value="config">
+            <PaymentConfigTab schoolId={schoolId} getToken={getToken} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertTriangle, CheckCircle, History, Loader2, CreditCard, Building2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, History, Loader2, CreditCard } from "lucide-react";
 
 type UnpaidItem = { period: string; dueDate: string; daysOverdue: number; amount: number; lateFee: number };
 type PaymentRow = { id: string; period: string; amount: number; lateFeeAmount?: number; currency: string; status: string; provider: string; paidAt?: string };
@@ -136,13 +136,7 @@ export function SchoolAdminMensualidadView({ schoolId, getToken, refreshTrigger 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Mensualidad a la plataforma
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">Cargando…</p>
-        </div>
+        <p className="text-muted-foreground text-sm">Cargando…</p>
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-48 w-full" />
       </div>
@@ -152,15 +146,6 @@ export function SchoolAdminMensualidadView({ schoolId, getToken, refreshTrigger 
   if (status?.isBonified) {
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Mensualidad a la plataforma
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            Tu escuela está bonificada y no debe pagar mensualidad.
-          </p>
-        </div>
         <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/30">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200 text-lg">
@@ -181,16 +166,7 @@ export function SchoolAdminMensualidadView({ schoolId, getToken, refreshTrigger 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Mensualidad a la plataforma
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            Tu escuela paga una cuota mensual a Escuela River. Similar a las cuotas de los jugadores.
-          </p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         {status?.inDebt && firstUnpaid && (
           <div className="shrink-0">
             <Button
