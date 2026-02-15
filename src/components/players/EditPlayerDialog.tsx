@@ -348,8 +348,8 @@ export function EditPlayerDialog({
                       <FormItem>
                         <FormLabel>Género / Categoría</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
+                          onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)}
+                          value={field.value ?? "__none__"}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -357,7 +357,7 @@ export function EditPlayerDialog({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">No especificado</SelectItem>
+                            <SelectItem value="__none__">No especificado</SelectItem>
                             <SelectItem value="masculino">Masculino</SelectItem>
                             <SelectItem value="femenino">Femenino</SelectItem>
                           </SelectContent>
