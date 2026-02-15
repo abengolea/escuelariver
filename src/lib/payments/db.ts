@@ -5,8 +5,8 @@
 
 import type admin from 'firebase-admin';
 import { getAdminFirestore, getAdminAuth } from '@/lib/firebase-admin';
-import { COLLECTIONS, REGISTRATION_PERIOD, MERCADOPAGO_CONNECTION_DOC } from './constants';
-import { getDueDate, isRegistrationPeriod } from './schemas';
+import { COLLECTIONS, REGISTRATION_PERIOD, CLOTHING_PERIOD_PREFIX, MERCADOPAGO_CONNECTION_DOC } from './constants';
+import { getDueDate, isRegistrationPeriod, isClothingPeriod } from './schemas';
 import type { Payment, PaymentIntent, PaymentConfig, DelinquentInfo, MercadoPagoConnection } from '@/lib/types/payments';
 import type { Player } from '@/lib/types';
 import { getCategoryLabel } from '@/lib/utils';
@@ -52,7 +52,7 @@ function toPayment(docSnap: DocumentSnapshot): Payment {
     paidAt: d.paidAt ? toDate(d.paidAt) : undefined,
     createdAt: toDate(d.createdAt),
     metadata: d.metadata,
-    paymentType: d.paymentType ?? (isRegistrationPeriod(period) ? 'registration' : 'monthly'),
+    paymentType: d.paymentType ?? (isRegistrationPeriod(period) ? 'registration' : isClothingPeriod(period) ? 'clothing' : 'monthly'),
   };
 }
 
@@ -79,6 +79,8 @@ export async function getOrCreatePaymentConfig(
       amountByCategory: d.amountByCategory,
       registrationAmountByCategory: d.registrationAmountByCategory,
       registrationCancelsMonthFee: d.registrationCancelsMonthFee !== false,
+      clothingAmount: d.clothingAmount ?? 0,
+      clothingInstallments: d.clothingInstallments ?? 2,
       emailTemplates: d.emailTemplates,
       updatedAt: toDate(d.updatedAt),
       updatedBy: d.updatedBy ?? '',
@@ -96,6 +98,8 @@ export async function getOrCreatePaymentConfig(
     delinquencyDaysSuspension: 30,
     registrationAmount: 0,
     registrationCancelsMonthFee: true,
+    clothingAmount: 0,
+    clothingInstallments: 2,
     updatedAt: new Date(),
     updatedBy: '',
   };
@@ -163,6 +167,19 @@ export async function getExpectedAmountForPeriod(
 
   if (period === REGISTRATION_PERIOD) return getRegistrationAmountForCategory(config, category);
 
+  if (isClothingPeriod(period)) {
+    const total = config.clothingAmount ?? 0;
+    const installments = config.clothingInstallments ?? 2;
+    if (total <= 0 || installments < 1) return 0;
+    const match = period.match(/^ropa-(\d+)$/);
+    if (!match) return 0;
+    const idx = parseInt(match[1], 10);
+    if (idx < 1 || idx > installments) return 0;
+    const base = Math.floor(total / installments);
+    const remainder = total - base * installments;
+    return idx <= remainder ? base + 1 : base;
+  }
+
   const amount = getAmountForCategory(config, category);
   if (!playerSnap.exists) return amount;
   const playerData = playerSnap.data()!;
@@ -213,6 +230,39 @@ export async function findApprovedRegistrationPayment(
   return findApprovedPayment(db, playerId, REGISTRATION_PERIOD);
 }
 
+/** Cuota de ropa pendiente para un jugador. */
+export interface ClothingPendingItem {
+  period: string;
+  amount: number;
+  installmentIndex: number;
+  totalInstallments: number;
+}
+
+/** Obtiene las cuotas de ropa pendientes para un jugador según la config de la escuela. */
+export async function getClothingPendingForPlayer(
+  db: Firestore,
+  schoolId: string,
+  playerId: string,
+  config: PaymentConfig
+): Promise<ClothingPendingItem[]> {
+  const total = config.clothingAmount ?? 0;
+  const installments = config.clothingInstallments ?? 2;
+  if (total <= 0 || installments < 1) return [];
+
+  const pending: ClothingPendingItem[] = [];
+  for (let i = 1; i <= installments; i++) {
+    const period = `${CLOTHING_PERIOD_PREFIX}${i}`;
+    const hasPaid = await findApprovedPayment(db, playerId, period);
+    if (!hasPaid) {
+      const amount = await getExpectedAmountForPeriod(db, schoolId, playerId, period, config);
+      if (amount > 0) {
+        pending.push({ period, amount, installmentIndex: i, totalInstallments: installments });
+      }
+    }
+  }
+  return pending;
+}
+
 /** Busca pago por provider + providerPaymentId (evitar duplicados) */
 export async function findPaymentByProviderId(
   db: Firestore,
@@ -238,7 +288,7 @@ export async function createPayment(
   data: Omit<Payment, 'id' | 'createdAt'>,
   idempotencyKey?: string
 ): Promise<Payment> {
-  const paymentType = data.paymentType ?? (isRegistrationPeriod(data.period) ? 'registration' : 'monthly');
+  const paymentType = data.paymentType ?? (isRegistrationPeriod(data.period) ? 'registration' : isClothingPeriod(data.period) ? 'clothing' : 'monthly');
   const admin = await import('firebase-admin');
   const now = admin.firestore.Timestamp.now();
   const col = db.collection(COLLECTIONS.payments);
@@ -495,6 +545,8 @@ export async function getActivePlayersWithConfig(
         amountByCategory: d!.amountByCategory,
         registrationAmountByCategory: d!.registrationAmountByCategory,
         registrationCancelsMonthFee: d!.registrationCancelsMonthFee !== false,
+        clothingAmount: d!.clothingAmount ?? 0,
+        clothingInstallments: d!.clothingInstallments ?? 2,
         updatedAt: toDate(d!.updatedAt),
         updatedBy: d!.updatedBy ?? '',
       }
@@ -510,6 +562,8 @@ export async function getActivePlayersWithConfig(
         delinquencyDaysSuspension: 30,
         registrationAmount: 0,
         registrationCancelsMonthFee: true,
+        clothingAmount: 0,
+        clothingInstallments: 2,
         updatedAt: new Date(),
         updatedBy: '',
       };

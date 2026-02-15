@@ -1,5 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
+import { EditCoachFeedbackDialog } from "@/components/players/EditCoachFeedbackDialog";
 import type { Player } from "@/lib/types";
 
 const POSICION_LABELS: Record<string, string> = {
@@ -15,8 +21,21 @@ const PIE_LABELS: Record<string, string> = {
   ambidiestro: "Ambidiestro",
 };
 
-export function SummaryTab({ player, lastCoachComment }: { player: Player; lastCoachComment?: string }) {
+interface SummaryTabProps {
+  player: Player;
+  lastCoachComment?: string;
+  canEditCoachFeedback?: boolean;
+  schoolId?: string;
+  playerId?: string;
+}
+
+export function SummaryTab({ player, lastCoachComment, canEditCoachFeedback, schoolId, playerId }: SummaryTabProps) {
+    const [editFeedbackOpen, setEditFeedbackOpen] = useState(false);
     const hasDeportivo = player.posicion_preferida || player.pie_dominante || player.altura_cm || player.peso_kg;
+
+    const displayFeedback =
+      (player.coachFeedback?.trim() || lastCoachComment?.trim() || player.observations?.trim()) ||
+      "No hay observaciones registradas para este jugador.";
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -51,7 +70,9 @@ export function SummaryTab({ player, lastCoachComment }: { player: Player; lastC
                             )}
                              <TableRow>
                                 <TableCell className="font-medium text-muted-foreground">Estado</TableCell>
-                                <TableCell className="text-right capitalize">{player.status === 'active' ? 'Activo' : 'Inactivo'}</TableCell>
+                                <TableCell className="text-right capitalize">
+                                  {player.status === "active" ? "Activo" : player.status === "suspended" ? "Mora" : "Inactivo"}
+                                </TableCell>
                             </TableRow>
                              <TableRow>
                                 <TableCell className="font-medium text-muted-foreground">Contacto Tutor</TableCell>
@@ -99,15 +120,36 @@ export function SummaryTab({ player, lastCoachComment }: { player: Player; lastC
             </Card>
             )}
              <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle className="font-headline">Observaciones del Entrenador</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="font-headline">Devolución del Entrenador</CardTitle>
+                    {canEditCoachFeedback && schoolId && playerId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditFeedbackOpen(true)}
+                        className="shrink-0"
+                      >
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Editar
+                      </Button>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <p className="text-sm text-muted-foreground italic">
-                        {lastCoachComment?.trim() || player.observations || "No hay observaciones registradas para este jugador."}
+                        {displayFeedback}
                     </p>
                 </CardContent>
             </Card>
+            {canEditCoachFeedback && schoolId && playerId && (
+              <EditCoachFeedbackDialog
+                isOpen={editFeedbackOpen}
+                onOpenChange={setEditFeedbackOpen}
+                schoolId={schoolId}
+                playerId={playerId}
+                playerName={`${player.firstName ?? ""} ${player.lastName ?? ""}`.trim()}
+                initialValue={player.coachFeedback ?? lastCoachComment ?? player.observations ?? ""}
+              />
+            )}
         </div>
     );
 }

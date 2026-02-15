@@ -387,7 +387,13 @@ export default function PlayerProfilePage() {
               </AlertDescription>
             </Alert>
           )}
-          <SummaryTab player={playerWithSchool} lastCoachComment={evaluations?.[0]?.coachComments} />
+          <SummaryTab
+            player={playerWithSchool}
+            lastCoachComment={evaluations?.[0]?.coachComments}
+            canEditCoachFeedback={!isViewingAsPlayer && (profile?.role === "school_admin" || profile?.role === "coach")}
+            schoolId={schoolId ?? undefined}
+            playerId={id}
+          />
           <div className="mt-4">
             <PlayerPaymentStatusCard
               getToken={getToken}

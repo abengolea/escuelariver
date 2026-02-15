@@ -5,11 +5,12 @@
 import { z } from 'zod';
 
 const PERIOD_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+const CLOTHING_PERIOD_REGEX = /^ropa-\d+$/;
 export const REGISTRATION_PERIOD = 'inscripcion';
 
 const periodSchema = z.string().refine(
-  (v) => v === REGISTRATION_PERIOD || PERIOD_REGEX.test(v),
-  { message: 'Período: YYYY-MM o inscripcion' }
+  (v) => v === REGISTRATION_PERIOD || PERIOD_REGEX.test(v) || CLOTHING_PERIOD_REGEX.test(v),
+  { message: 'Período: YYYY-MM, inscripcion o ropa-N' }
 );
 
 export const createPaymentIntentSchema = z.object({
@@ -54,9 +55,9 @@ export const paymentConfigSchema = z.object({
   dueDayOfMonth: z.number().int().min(1).max(31),
 });
 
-/** Valida formato YYYY-MM o inscripción. */
+/** Valida formato YYYY-MM, inscripción o ropa-N. */
 export function isValidPeriod(period: string): boolean {
-  return period === REGISTRATION_PERIOD || PERIOD_REGEX.test(period);
+  return period === REGISTRATION_PERIOD || PERIOD_REGEX.test(period) || CLOTHING_PERIOD_REGEX.test(period);
 }
 
 /** Indica si el período es el de inscripción. */
@@ -64,8 +65,19 @@ export function isRegistrationPeriod(period: string): boolean {
   return period === REGISTRATION_PERIOD;
 }
 
-/** Obtiene la fecha de vencimiento para un período dado y día del mes. */
+/** Indica si el período es de pago de ropa (ropa-1, ropa-2, etc.). */
+export function isClothingPeriod(period: string): boolean {
+  return CLOTHING_PERIOD_REGEX.test(period);
+}
+
+/** Obtiene la fecha de vencimiento para un período dado y día del mes. Para ropa-N usa el mes actual. */
 export function getDueDate(period: string, dueDayOfMonth: number): Date {
+  if (isClothingPeriod(period)) {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const day = Math.min(dueDayOfMonth, lastDay);
+    return new Date(now.getFullYear(), now.getMonth(), day);
+  }
   const [y, m] = period.split('-').map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   const day = Math.min(dueDayOfMonth, lastDay);

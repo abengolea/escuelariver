@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, CheckCircle2, AlertTriangle, Layers } from "lucide-react";
+import { CreditCard, CheckCircle2, AlertTriangle, Layers, Shirt } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CATEGORY_ORDER } from "@/lib/utils";
 
@@ -29,6 +29,8 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
   const [amount, setAmount] = useState("");
   const [dueDayOfMonth, setDueDayOfMonth] = useState("10");
   const [registrationAmount, setRegistrationAmount] = useState("");
+  const [clothingAmount, setClothingAmount] = useState("");
+  const [clothingInstallments, setClothingInstallments] = useState("2");
   const [amountByCategory, setAmountByCategory] = useState<Record<string, string>>({});
   const [registrationAmountByCategory, setRegistrationAmountByCategory] = useState<Record<string, string>>({});
   const [registrationCancelsMonthFee, setRegistrationCancelsMonthFee] = useState(true);
@@ -79,6 +81,8 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
           setAmount(String(data.amount ?? ""));
           setDueDayOfMonth(String(data.dueDayOfMonth ?? 10));
           setRegistrationAmount(String(data.registrationAmount ?? ""));
+          setClothingAmount(String(data.clothingAmount ?? ""));
+          setClothingInstallments(String(data.clothingInstallments ?? 2));
           setAmountByCategory(
             Object.fromEntries(
               Object.entries(data.amountByCategory ?? {}).map(([k, v]) => [k, String(v)])
@@ -145,6 +149,16 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
       toast({ title: "Error", description: "Monto inscripción debe ser ≥ 0", variant: "destructive" });
       return;
     }
+    const clothAm = clothingAmount === "" ? 0 : parseFloat(clothingAmount);
+    if (clothingAmount !== "" && (isNaN(clothAm) || clothAm < 0)) {
+      toast({ title: "Error", description: "Monto ropa debe ser ≥ 0", variant: "destructive" });
+      return;
+    }
+    const clothInst = parseInt(clothingInstallments, 10);
+    if (clothingAmount !== "" && clothAm > 0 && (isNaN(clothInst) || clothInst < 1 || clothInst > 24)) {
+      toast({ title: "Error", description: "Cuotas de ropa: 1-24", variant: "destructive" });
+      return;
+    }
 
     const amountByCat: Record<string, number> = {};
     for (const [cat, val] of Object.entries(amountByCategory)) {
@@ -177,6 +191,8 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
           currency: "ARS",
           dueDayOfMonth: day,
           registrationAmount: regAm,
+          clothingAmount: clothAm,
+          clothingInstallments: clothAm > 0 ? clothInst : undefined,
           amountByCategory: Object.keys(amountByCat).length ? amountByCat : undefined,
           registrationAmountByCategory: Object.keys(regByCat).length ? regByCat : undefined,
           registrationCancelsMonthFee,
@@ -325,6 +341,46 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
               checked={registrationCancelsMonthFee}
               onCheckedChange={setRegistrationCancelsMonthFee}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shirt className="h-5 w-5" />
+            Pago de ropa
+          </CardTitle>
+          <CardDescription>
+            Concepto adicional para cobrar indumentaria. Definí el monto total y en cuántas cuotas se puede abonar (por defecto 2). 0 = sin cobro de ropa. Se puede pagar por Mercado Pago o manualmente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="clothingAmount">Monto total (ARS)</Label>
+            <Input
+              id="clothingAmount"
+              type="number"
+              min={0}
+              value={clothingAmount}
+              onChange={(e) => setClothingAmount(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <Label htmlFor="clothingInstallments">Número de cuotas</Label>
+            <Input
+              id="clothingInstallments"
+              type="number"
+              min={1}
+              max={24}
+              value={clothingInstallments}
+              onChange={(e) => setClothingInstallments(e.target.value)}
+              placeholder="2"
+            />
+            <p className="text-sm text-muted-foreground mt-1">
+              El monto se divide en estas cuotas. Cada cuota se puede pagar por separado (Mercado Pago o manual).
+            </p>
           </div>
         </CardContent>
       </Card>

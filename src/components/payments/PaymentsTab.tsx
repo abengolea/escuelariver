@@ -59,9 +59,11 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const REGISTRATION_PERIOD = "inscripcion";
 
-/** Convierte "2026-02" → "FEBRERO-2026", "inscripcion" → "Inscripción" */
+/** Convierte "2026-02" → "FEBRERO-2026", "inscripcion" → "Inscripción", "ropa-1" → "Pago de ropa (1)" */
 function formatPeriodDisplay(period: string): string {
   if (period === REGISTRATION_PERIOD) return "Inscripción";
+  const ropaMatch = period.match(/^ropa-(\d+)$/);
+  if (ropaMatch) return `Pago de ropa (${ropaMatch[1]})`;
   if (!period || !/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return period;
   const [y, m] = period.split("-");
   const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
@@ -102,11 +104,19 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   });
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPlayerId, setManualPlayerId] = useState("");
-  const [manualPaymentType, setManualPaymentType] = useState<"monthly" | "registration">("monthly");
+  const [manualPaymentType, setManualPaymentType] = useState<"monthly" | "registration" | "clothing">("monthly");
   const [manualPeriod, setManualPeriod] = useState(currentPeriod());
+  const [manualClothingInstallment, setManualClothingInstallment] = useState("1");
   const [manualAmount, setManualAmount] = useState("15000");
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [configRegistrationAmount, setConfigRegistrationAmount] = useState(0);
+  const [configClothingAmount, setConfigClothingAmount] = useState(0);
+  const [configClothingInstallments, setConfigClothingInstallments] = useState(2);
+  const [clothingPendingForPlayer, setClothingPendingForPlayer] = useState<
+    { period: string; amount: number; installmentIndex: number; totalInstallments: number }[]
+  >([]);
+  const [clothingConfigured, setClothingConfigured] = useState(false);
+  const [clothingPendingLoading, setClothingPendingLoading] = useState(false);
   const { toast } = useToast();
 
   const { data: players } = useCollection<Player>(
@@ -125,6 +135,8 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
       if (res.ok) {
         const data = await res.json();
         setConfigRegistrationAmount(Number(data.registrationAmount) || 0);
+        setConfigClothingAmount(Number(data.clothingAmount) || 0);
+        setConfigClothingInstallments(Math.max(1, Number(data.clothingInstallments) || 2));
       }
     } catch {
       // ignore
@@ -171,9 +183,62 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
     fetchConfig();
   }, [fetchConfig]);
 
+  // Al seleccionar jugador + tipo ropa: chequear cuántas cuotas configuradas y cuáles pagadas
+  const fetchClothingPending = useCallback(async () => {
+    if (manualPaymentType !== "clothing" || !manualPlayerId || !schoolId) {
+      setClothingPendingForPlayer([]);
+      setClothingConfigured(false);
+      return;
+    }
+    setClothingPendingLoading(true);
+    const token = await getToken();
+    if (!token) {
+      setClothingPendingForPlayer([]);
+      setClothingPendingLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch(
+        `/api/payments/clothing-pending?schoolId=${encodeURIComponent(schoolId)}&playerId=${encodeURIComponent(manualPlayerId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setClothingPendingForPlayer(data.clothingPending ?? []);
+        setClothingConfigured(data.clothingConfigured ?? false);
+      } else {
+        setClothingPendingForPlayer([]);
+        setClothingConfigured(false);
+      }
+    } catch {
+      setClothingPendingForPlayer([]);
+      setClothingConfigured(false);
+    } finally {
+      setClothingPendingLoading(false);
+    }
+  }, [manualPaymentType, manualPlayerId, schoolId, getToken]);
+
+  useEffect(() => {
+    fetchClothingPending();
+  }, [fetchClothingPending]);
+
+  // Al cargar cuotas pendientes, seleccionar la primera y su monto
+  useEffect(() => {
+    if (manualPaymentType === "clothing" && clothingPendingForPlayer.length > 0) {
+      const first = clothingPendingForPlayer[0];
+      setManualClothingInstallment(String(first.installmentIndex));
+      setManualAmount(String(first.amount));
+    }
+  }, [manualPaymentType, clothingPendingForPlayer]);
+
   const handleManualPayment = async () => {
     const amount = parseFloat(manualAmount);
-    const period = manualPaymentType === "registration" ? REGISTRATION_PERIOD : manualPeriod;
+    const period =
+      manualPaymentType === "registration"
+        ? REGISTRATION_PERIOD
+        : manualPaymentType === "clothing"
+          ? `ropa-${manualClothingInstallment}`
+          : manualPeriod;
     if (!manualPlayerId || Number.isNaN(amount) || amount <= 0) {
       toast({ variant: "destructive", title: "Completá jugador y monto válido." });
       return;
@@ -213,6 +278,7 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
       setManualPlayerId("");
       setManualPaymentType("monthly");
       setManualPeriod(currentPeriod());
+      setManualClothingInstallment("1");
       setManualAmount("15000");
       fetchPayments();
     } catch (e) {
@@ -442,9 +508,15 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
               <Label>Tipo de pago</Label>
               <Select
                 value={manualPaymentType}
-                onValueChange={(v: "monthly" | "registration") => {
+                onValueChange={(v: "monthly" | "registration" | "clothing") => {
                   setManualPaymentType(v);
                   if (v === "registration") setManualAmount(String(configRegistrationAmount || ""));
+                  if (v === "clothing" && configClothingInstallments > 0) {
+                    const perCuota = Math.floor(configClothingAmount / configClothingInstallments);
+                    const remainder = configClothingAmount - perCuota * configClothingInstallments;
+                    const firstCuota = perCuota + (remainder > 0 ? 1 : 0);
+                    setManualAmount(String(firstCuota));
+                  }
                 }}
               >
                 <SelectTrigger className="mt-1">
@@ -453,9 +525,69 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
                 <SelectContent>
                   <SelectItem value="monthly">Cuota mensual</SelectItem>
                   <SelectItem value="registration">Inscripción</SelectItem>
+                  <SelectItem value="clothing">Pago de ropa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {manualPaymentType === "clothing" && (
+              <div>
+                <Label htmlFor="manual-clothing">¿Qué cuota del pago de ropa es?</Label>
+                {!manualPlayerId ? (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Elegí un jugador para ver sus cuotas pendientes (según la config de la escuela: {configClothingInstallments} cuota{configClothingInstallments !== 1 ? "s" : ""} por defecto).
+                  </p>
+                ) : clothingPendingLoading ? (
+                  <p className="text-sm text-muted-foreground mt-1">Cargando cuotas pendientes…</p>
+                ) : clothingPendingForPlayer.length === 0 && clothingConfigured ? (
+                  <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
+                    Este jugador ya tiene todas las cuotas de ropa pagadas ({configClothingInstallments} cuota{configClothingInstallments !== 1 ? "s" : ""} configurada{configClothingInstallments !== 1 ? "s" : ""}).
+                  </p>
+                ) : clothingPendingForPlayer.length === 0 && !clothingConfigured ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      La escuela no tiene pago de ropa configurado. Podés registrar igual (2 cuotas por defecto). Configurá en Administración → Pagos → Configuración para que se calcule automáticamente.
+                    </p>
+                    <Select
+                      value={manualClothingInstallment}
+                      onValueChange={setManualClothingInstallment}
+                    >
+                      <SelectTrigger id="manual-clothing" className="mt-1">
+                        <SelectValue placeholder="Elegí la cuota" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Cuota 1</SelectItem>
+                        <SelectItem value="2">Cuota 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </>
+                ) : (
+                  <>
+                    <Select
+                      value={manualClothingInstallment}
+                      onValueChange={(v) => {
+                        setManualClothingInstallment(v);
+                        const item = clothingPendingForPlayer.find((p) => String(p.installmentIndex) === v);
+                        if (item) setManualAmount(String(item.amount));
+                      }}
+                    >
+                      <SelectTrigger id="manual-clothing" className="mt-1">
+                        <SelectValue placeholder="Elegí la cuota" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clothingPendingForPlayer.map((item) => (
+                          <SelectItem key={item.period} value={String(item.installmentIndex)}>
+                            Cuota {item.installmentIndex} de {item.totalInstallments} — ARS {item.amount.toLocaleString("es-AR")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Se muestran solo las cuotas pendientes de este jugador ({configClothingInstallments} cuota{configClothingInstallments !== 1 ? "s" : ""} configurada{configClothingInstallments !== 1 ? "s" : ""}).
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
             {manualPaymentType === "monthly" && (
               <div>
                 <Label htmlFor="manual-period">Período (YYYY-MM)</Label>
@@ -475,7 +607,13 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
                 type="number"
                 value={manualAmount}
                 onChange={(e) => setManualAmount(e.target.value)}
-                placeholder={manualPaymentType === "registration" ? String(configRegistrationAmount || "0") : "15000"}
+                placeholder={
+                  manualPaymentType === "registration"
+                    ? String(configRegistrationAmount || "0")
+                    : manualPaymentType === "clothing"
+                      ? String(configClothingAmount ? Math.floor(configClothingAmount / configClothingInstallments) : "0")
+                      : "15000"
+                }
                 className="mt-1"
               />
             </div>
@@ -484,7 +622,19 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
             <Button variant="outline" onClick={() => setManualOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleManualPayment} disabled={manualSubmitting}>
+            <Button
+              onClick={handleManualPayment}
+              disabled={
+                manualSubmitting ||
+                !!(
+                  manualPaymentType === "clothing" &&
+                  manualPlayerId &&
+                  clothingPendingForPlayer.length === 0 &&
+                  clothingConfigured &&
+                  !clothingPendingLoading
+                )
+              }
+            >
               {manualSubmitting ? "Guardando…" : "Registrar pago"}
             </Button>
           </DialogFooter>

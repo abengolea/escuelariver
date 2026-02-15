@@ -83,6 +83,8 @@ export interface Player {
   status: 'active' | 'inactive' | 'suspended';
   photoUrl?: string;
   observations?: string;
+  /** Devolución/comentario del entrenador (editable por admin/entrenador con un botón). */
+  coachFeedback?: string;
   /** Altura en cm (datos físicos de referencia). */
   altura_cm?: number;
   /** Peso en kg (datos físicos de referencia). */

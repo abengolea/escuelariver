@@ -20,3 +20,6 @@ export const DEFAULT_CURRENCY = 'ARS';
 
 /** Período usado para el pago único de derecho de inscripción. */
 export const REGISTRATION_PERIOD = 'inscripcion';
+
+/** Prefijo para períodos de pago de ropa: ropa-1, ropa-2, etc. */
+export const CLOTHING_PERIOD_PREFIX = 'ropa-';

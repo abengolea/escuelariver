@@ -58,6 +58,10 @@ const PutBodySchema = z.object({
   /** Montos de inscripción por categoría. */
   registrationAmountByCategory: z.record(z.string(), z.number().min(0)).optional(),
   registrationCancelsMonthFee: z.boolean().optional(),
+  /** Monto total del pago de ropa (0 = sin cobro). Se divide en clothingInstallments cuotas. */
+  clothingAmount: z.number().min(0).optional(),
+  /** Número de cuotas para el pago de ropa. Default 2. */
+  clothingInstallments: z.number().int().min(1).max(24).optional(),
 });
 
 export async function PUT(request: Request) {
@@ -90,6 +94,8 @@ export async function PUT(request: Request) {
       amountByCategory,
       registrationAmountByCategory,
       registrationCancelsMonthFee,
+      clothingAmount,
+      clothingInstallments,
     } = parsed.data;
     const db = getAdminFirestore();
     const admin = await import('firebase-admin');
@@ -110,6 +116,8 @@ export async function PUT(request: Request) {
     if (amountByCategory !== undefined) update.amountByCategory = amountByCategory;
     if (registrationAmountByCategory !== undefined) update.registrationAmountByCategory = registrationAmountByCategory;
     if (registrationCancelsMonthFee !== undefined) update.registrationCancelsMonthFee = registrationCancelsMonthFee;
+    if (clothingAmount !== undefined) update.clothingAmount = clothingAmount;
+    if (clothingInstallments !== undefined) update.clothingInstallments = clothingInstallments;
 
     await db
       .collection('schools')

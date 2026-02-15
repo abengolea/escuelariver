@@ -12,6 +12,7 @@ import { createPaymentIntentWithProvider } from '@/lib/payments/provider-stub';
 import { getOrCreatePaymentConfig, getMercadoPagoAccessToken, getExpectedAmountForPeriod, findApprovedPayment } from '@/lib/payments/db';
 import { verifyIdToken } from '@/lib/auth-server';
 import { REGISTRATION_PERIOD } from '@/lib/payments/constants';
+import { isRegistrationPeriod, isClothingPeriod } from '@/lib/payments/schemas';
 
 export async function POST(request: Request) {
   try {
@@ -37,28 +38,23 @@ export async function POST(request: Request) {
     // Verificar que lo que quiere pagar no esté ya pagado
     const existingPayment = await findApprovedPayment(db, playerId, period);
     if (existingPayment) {
-      return NextResponse.json(
-        {
-          error: isRegistration
-            ? 'Ya tenés la inscripción pagada'
-            : 'Ya tenés esa cuota pagada',
-        },
-        { status: 409 }
-      );
+      const errMsg = isRegistrationPeriod(period)
+        ? 'Ya tenés la inscripción pagada'
+        : isClothingPeriod(period)
+          ? 'Ya tenés esa cuota de ropa pagada'
+          : 'Ya tenés esa cuota pagada';
+      return NextResponse.json({ error: errMsg }, { status: 409 });
     }
 
     // Usar siempre el monto de la config del servidor (seguridad: no confiar en el cliente)
-    const isRegistration = period === REGISTRATION_PERIOD;
     const amount = await getExpectedAmountForPeriod(db, schoolId, playerId, period, config);
     if (amount <= 0) {
-      return NextResponse.json(
-        {
-          error: isRegistration
-            ? 'La escuela no tiene configuración de cuota de inscripción para esta categoría'
-            : 'La escuela no tiene configuración de cuotas mensuales para esta categoría',
-        },
-        { status: 400 }
-      );
+      const errMsg = isRegistrationPeriod(period)
+        ? 'La escuela no tiene configuración de cuota de inscripción para esta categoría'
+        : isClothingPeriod(period)
+          ? 'La escuela no tiene configuración de pago de ropa'
+          : 'La escuela no tiene configuración de cuotas mensuales para esta categoría';
+      return NextResponse.json({ error: errMsg }, { status: 400 });
     }
 
     const mercadopagoAccessToken = provider === 'mercadopago'

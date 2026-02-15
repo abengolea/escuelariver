@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertTriangle, CheckCircle, History, Loader2, CreditCard } from "lucide-react";
+import { AlertTriangle, CheckCircle, History, Loader2, CreditCard, Shirt } from "lucide-react";
 import type { Payment } from "@/lib/types/payments";
 import type { DelinquentInfo } from "@/lib/types/payments";
 
@@ -46,6 +46,8 @@ const REGISTRATION_PERIOD = "inscripcion";
 
 function formatPeriodDisplay(period: string): string {
   if (period === REGISTRATION_PERIOD) return "Inscripción";
+  const ropaMatch = period.match(/^ropa-(\d+)$/);
+  if (ropaMatch) return `Pago de ropa (${ropaMatch[1]})`;
   if (!period || !/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) return period;
   const [y, m] = period.split("-");
   const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
@@ -53,6 +55,7 @@ function formatPeriodDisplay(period: string): string {
   return `${monthName}-${y}`;
 }
 
+type ClothingPendingItem = { period: string; amount: number; installmentIndex: number; totalInstallments: number };
 type PaymentRow = Payment & { paidAt?: string; createdAt: string };
 
 interface PlayerPaymentsViewProps {
@@ -67,6 +70,7 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
   const [suggestedPeriod, setSuggestedPeriod] = useState<string>("");
   const [suggestedAmount, setSuggestedAmount] = useState<number>(0);
   const [suggestedCurrency, setSuggestedCurrency] = useState<string>("ARS");
+  const [clothingPending, setClothingPending] = useState<ClothingPendingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [indexBuilding, setIndexBuilding] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -134,6 +138,7 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
       setSuggestedPeriod(body.suggestedPeriod ?? "");
       setSuggestedAmount(body.suggestedAmount ?? 0);
       setSuggestedCurrency(body.suggestedCurrency ?? "ARS");
+      setClothingPending(body.clothingPending ?? []);
     } catch (e) {
       console.error(e);
       const isNetworkError =
@@ -169,15 +174,15 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
   }, [loading, delinquent?.period]);
 
   const handlePayCuota = useCallback(
-    async (onSuccess?: () => void) => {
+    async (onSuccess?: () => void, overridePeriod?: string, overrideAmount?: number, overrideCurrency?: string) => {
       const token = await getToken();
       if (!token || !schoolId || !playerId) {
         toast({ title: "Error", description: "No se pudo iniciar el pago.", variant: "destructive" });
         return;
       }
-      const period = delinquent ? delinquent.period : suggestedPeriod;
-      const amount = delinquent ? delinquent.amount : suggestedAmount;
-      const currency = delinquent ? delinquent.currency : suggestedCurrency;
+      const period = overridePeriod ?? (delinquent ? delinquent.period : suggestedPeriod);
+      const amount = overrideAmount ?? (delinquent ? delinquent.amount : suggestedAmount);
+      const currency = overrideCurrency ?? (delinquent ? delinquent.currency : suggestedCurrency);
       if (amount <= 0) {
         toast({
           title: "Sin monto configurado",
@@ -237,6 +242,14 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
       }
     },
     [getToken, schoolId, playerId, delinquent, suggestedPeriod, suggestedAmount, suggestedCurrency, toast, fetchData]
+  );
+
+  const handlePayClothing = useCallback(
+    async (item: ClothingPendingItem) => {
+      await handlePayCuota(undefined, item.period, item.amount, suggestedCurrency);
+      fetchData(true);
+    },
+    [handlePayCuota, suggestedCurrency, fetchData]
   );
 
   if (loading && !indexBuilding) {
@@ -427,6 +440,46 @@ export function PlayerPaymentsView({ getToken }: PlayerPaymentsViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cuotas de ropa pendientes */}
+      {clothingPending.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200 text-lg">
+              <Shirt className="h-5 w-5" />
+              Pago de ropa pendiente
+            </CardTitle>
+            <CardDescription>
+              Tenés {clothingPending.length} {clothingPending.length === 1 ? "cuota" : "cuotas"} de ropa por abonar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {clothingPending.map((item) => (
+              <div
+                key={item.period}
+                className="flex items-center justify-between rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-gray-900 p-3"
+              >
+                <div>
+                  <p className="font-medium">{formatPeriodDisplay(item.period)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Cuota {item.installmentIndex} de {item.totalInstallments} · {suggestedCurrency} {item.amount.toLocaleString("es-AR")}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-500 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-950/50"
+                  disabled={paying}
+                  onClick={() => handlePayClothing(item)}
+                >
+                  {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
+                  Pagar
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pop-up de inscripción pendiente */}
       <Dialog open={showRegistrationDialog && hasRegistrationPending} onOpenChange={setShowRegistrationDialog}>

@@ -44,7 +44,6 @@ import { useUser } from "@/firebase";
 import { PlayerPhotoField } from "./PlayerPhotoField";
 import { Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Player } from "@/lib/types";
 
@@ -250,8 +249,8 @@ export function EditPlayerDialog({
         onOpenChange(open);
       }}
     >
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] sm:max-h-[90vh] flex flex-col p-4 sm:p-6">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Editar perfil del jugador</DialogTitle>
           <DialogDescription>
             <strong>Datos personales:</strong> nombre, apellido, fecha de nacimiento, DNI, tutor, teléfono, obra social, email, estado, foto, observaciones. <strong>Datos físicos:</strong> altura, peso, pie predominante, posición.
@@ -259,13 +258,13 @@ export function EditPlayerDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
-            <Tabs defaultValue="personal" className="flex-1 flex flex-col min-h-0">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <Tabs defaultValue="personal" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <TabsList className="grid w-full grid-cols-2 mb-4 flex-shrink-0">
                 <TabsTrigger value="personal">Datos personales</TabsTrigger>
                 <TabsTrigger value="fisicos">Datos físicos</TabsTrigger>
               </TabsList>
-            <ScrollArea className="flex-1 pr-4 -mr-4 max-h-[60vh]">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2 -mr-2">
               <TabsContent value="personal" className="mt-0 space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <FormField
@@ -569,10 +568,10 @@ export function EditPlayerDialog({
                   />
                 </div>
               </TabsContent>
-            </ScrollArea>
+            </div>
             </Tabs>
 
-            <DialogFooter className="pt-6 mt-4 border-t">
+            <DialogFooter className="pt-6 mt-4 border-t flex-shrink-0">
               <Button
                 type="button"
                 variant="outline"

@@ -14,14 +14,14 @@ export type PlayerStatus = 'active' | 'inactive' | 'suspended';
 
 // --- Modelos ---
 
-/** Tipo de pago: cuota mensual o derecho de inscripción (una sola vez por jugador). */
-export type PaymentType = 'monthly' | 'registration';
+/** Tipo de pago: cuota mensual, derecho de inscripción, o pago de ropa (en cuotas). */
+export type PaymentType = 'monthly' | 'registration' | 'clothing';
 
 export interface Payment {
   id: string;
   playerId: string;
   schoolId: string;
-  period: string; // YYYY-MM para cuota mensual; "inscripcion" para inscripción
+  period: string; // YYYY-MM para cuota mensual; "inscripcion" para inscripción; "ropa-N" para pago de ropa cuota N
   amount: number;
   currency: string;
   provider: PaymentProvider;
@@ -88,6 +88,10 @@ export interface PaymentConfig {
   registrationAmountByCategory?: Record<string, number>;
   /** true: pagar inscripción cuenta como pagar la cuota del mes de alta. false: inscripción y cuota se pagan por separado (cuota a mes vencido). Default true. */
   registrationCancelsMonthFee?: boolean;
+  /** Monto total del pago de ropa (0 = sin cobro de ropa). Se divide en clothingInstallments cuotas. */
+  clothingAmount?: number;
+  /** Número de cuotas para el pago de ropa. Default 2. */
+  clothingInstallments?: number;
   /** Plantillas opcionales (por ahora placeholders). */
   emailTemplates?: {
     receiptSubject?: string;
