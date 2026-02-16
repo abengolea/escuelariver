@@ -261,6 +261,7 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
     const [improvingRubricKey, setImprovingRubricKey] = useState<string | null>(null);
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const coachCommentsRef = useRef<HTMLTextAreaElement | null>(null);
+    const transcriptByIndexRef = useRef<Map<number, string>>(new Map());
 
     const isEditMode = Boolean(editingEvaluation?.id);
 
@@ -423,7 +424,7 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
 
     const canUseVoice = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
-    const toggleVoice = (currentValue: string, onChange: (v: string) => void) => {
+    const toggleVoice = async (currentValue: string, onChange: (v: string) => void) => {
         const SpeechRecognitionAPI = (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
             ?? (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
         if (!SpeechRecognitionAPI) return;
@@ -435,24 +436,54 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
             return;
         }
 
+        transcriptByIndexRef.current = new Map();
+        const baseValue = currentValue ?? "";
+
+        // Pedir permiso de micrófono antes (ayuda en localhost y evita errores silenciosos)
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach((t) => t.stop());
+        } catch {
+            toast({
+                variant: "destructive",
+                title: "Error de voz",
+                description: "Permiso de micrófono denegado o no disponible. Revisá la configuración del navegador.",
+            });
+            return;
+        }
+
         const recognition = new SpeechRecognitionAPI();
         recognition.lang = "es-AR";
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.onresult = (event: SpeechRecognitionEvent) => {
-            const transcript = Array.from(event.results)
-                .map((r) => r[0].transcript)
-                .join("");
-            if (transcript) onChange(currentValue ? `${currentValue} ${transcript}` : transcript);
+            // Actualizar transcripción por índice (interim y final) para evitar duplicados
+            const startIdx = typeof event.resultIndex === "number" ? event.resultIndex : 0;
+            for (let i = startIdx; i < event.results.length; i++) {
+                const r = event.results[i];
+                const t = r[0]?.transcript?.trim();
+                if (t) transcriptByIndexRef.current.set(i, t);
+            }
+            const parts = Array.from(transcriptByIndexRef.current.entries())
+                .sort((a, b) => a[0] - b[0])
+                .map(([, text]) => text);
+            const fullTranscript = parts.join(" ");
+            if (fullTranscript) onChange(baseValue ? `${baseValue} ${fullTranscript}` : fullTranscript);
         };
         recognition.onend = () => {
             setRecording(false);
             recognitionRef.current = null;
         };
-        recognition.onerror = () => {
+        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
             setRecording(false);
             recognitionRef.current = null;
-            toast({ variant: "destructive", title: "Error de voz", description: "No se pudo grabar. Prueba de nuevo." });
+            const err = event.error;
+            let desc = "No se pudo grabar. Prueba de nuevo.";
+            if (err === "not-allowed") desc = "Permiso de micrófono denegado. Revisá la configuración del navegador.";
+            else if (err === "no-speech") desc = "No se detectó voz. Hablá más cerca del micrófono.";
+            else if (err === "audio-capture") desc = "No se encontró micrófono o está en uso por otra app.";
+            else if (err === "network") desc = "El servicio de voz no respondió. Si tenés internet, probá desactivar VPN/firewall o usar otro navegador (Chrome suele funcionar mejor).";
+            toast({ variant: "destructive", title: "Error de voz", description: desc });
         };
         recognitionRef.current = recognition;
         recognition.start();
