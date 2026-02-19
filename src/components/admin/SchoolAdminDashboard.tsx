@@ -26,7 +26,7 @@ export function SchoolAdminDashboard() {
 
   const { data: players, loading: playersLoading } = useCollection<Player>(
       activeSchoolId ? `schools/${activeSchoolId}/players` : '',
-      { limit: 20, orderBy: ['createdAt', 'desc'] }
+      { orderBy: ['createdAt', 'desc'] }
   );
 
   const activePlayers = useMemo(() => (players ?? []).filter((p) => !p.archived), [players]);
@@ -138,18 +138,20 @@ export function SchoolAdminDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jugadores Activos</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activePlayers.filter(p => p.status === 'active').length}</div>
-            <p className="text-xs text-muted-foreground">
-              {activePlayers.length} en total
-            </p>
-          </CardContent>
-        </Card>
+        <Link href={activeSchoolId ? `/dashboard/players?schoolId=${activeSchoolId}` : "/dashboard/players"}>
+          <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Jugadores Activos</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activePlayers.filter(p => p.status === 'active').length}</div>
+              <p className="text-xs text-muted-foreground">
+                {activePlayers.length} en total
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sede Actual</CardTitle>

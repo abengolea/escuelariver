@@ -22,6 +22,7 @@ import {
   UserX,
   Building2,
   Newspaper,
+  Dumbbell,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -47,6 +48,7 @@ const schoolUserMenuItems = [
   { href: "/dashboard", label: "Panel Principal", icon: Home },
   { href: "/dashboard/players", label: "Jugadores", icon: Users },
   { href: "/dashboard/attendance", label: "Asistencia", icon: ClipboardCheck },
+  { href: "/dashboard/training-schedules", label: "Entrenamientos", icon: Dumbbell },
   { href: "/dashboard/medical-records", label: "Fichas médicas", icon: FileHeart },
   { href: "/dashboard/registrations", label: "Solicitudes", icon: UserCheck },
   { href: "/dashboard/physical-assessments-config", label: "Evaluaciones Físicas", icon: Activity },

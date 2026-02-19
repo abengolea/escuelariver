@@ -84,6 +84,10 @@ export interface PaymentConfig {
   registrationAmount?: number;
   /** Montos de cuota mensual por categoría (SUB-5, SUB-6, ... SUB-18). Si no hay valor para una categoría, se usa amount. */
   amountByCategory?: Record<string, number>;
+  /** Cuota mensual para jugadoras (género femenino). Si no se define, se usa 40000 por defecto. */
+  amountFemenino?: number;
+  /** Cuota mensual para arqueros (posición arquero). Si no se define, se usa 30000 por defecto. */
+  amountArquero?: number;
   /** Montos de inscripción por categoría. Si no hay valor para una categoría, se usa registrationAmount. */
   registrationAmountByCategory?: Record<string, number>;
   /** true: pagar inscripción cuenta como pagar la cuota del mes de alta. false: inscripción y cuota se pagan por separado (cuota a mes vencido). Default true. */

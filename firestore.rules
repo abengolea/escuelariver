@@ -280,6 +280,16 @@ service cloud.firestore {
       allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
     }
 
+    // Configuración de horarios de entrenamiento (slots, categorías, cupos, entrenador)
+    match /schools/{schoolId}/trainingConfig/{configId} {
+      allow read: if isSuperAdmin()
+          || isMemberOfSchool(schoolId)
+          || isSchoolAdmin(schoolId)
+          || isCoach(schoolId);
+      allow create, update: if isSuperAdmin() || isSchoolAdmin(schoolId) || isCoach(schoolId);
+      allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);
+    }
+
     // Evaluaciones físicas por jugador
     match /schools/{schoolId}/physicalAssessments/{assessmentId} {
       allow read: if isSuperAdmin()

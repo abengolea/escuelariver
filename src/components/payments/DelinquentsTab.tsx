@@ -46,30 +46,49 @@ interface DelinquentsTabProps {
 export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
   const [delinquents, setDelinquents] = useState<DelinquentInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [manualDialog, setManualDialog] = useState<DelinquentInfo | null>(null);
   const [manualAmount, setManualAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
   const fetchDelinquents = useCallback(async () => {
+    if (!schoolId) return;
     setLoading(true);
+    setFetchError(null);
     const token = await getToken();
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      setFetchError("Sesión expirada. Volvé a iniciar sesión.");
+      return;
+    }
     try {
-      const res = await fetch(`/api/payments/delinquents?schoolId=${schoolId}`, {
+      const res = await fetch(`/api/payments/delinquents?schoolId=${encodeURIComponent(schoolId)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Error al cargar morosos");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          data.error ??
+          (res.status === 401 ? "Sesión expirada. Volvé a iniciar sesión." : null) ??
+          (res.status === 400 ? "Falta seleccionar la escuela." : null) ??
+          (res.status === 503 ? "Los índices se están creando. Volvé a intentar en unos minutos." : null) ??
+          `Error al cargar morosos (${res.status})`;
+        setFetchError(msg);
+        toast({ title: "Error", description: msg, variant: "destructive" });
+        return;
+      }
+      const list = data.delinquents ?? [];
       setDelinquents(
-        data.delinquents.map((d: DelinquentInfo & { dueDate: string }) => ({
+        list.map((d: DelinquentInfo & { dueDate: string }) => ({
           ...d,
           dueDate: new Date(d.dueDate),
         }))
       );
     } catch (e) {
-      console.error(e);
-      toast({ title: "Error", description: "No se pudieron cargar los morosos", variant: "destructive" });
+      const message = e instanceof Error ? e.message : "No se pudieron cargar los morosos";
+      setFetchError(message);
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -156,6 +175,13 @@ export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
     <div className="space-y-4">
       {loading ? (
         <Skeleton className="h-64 w-full" />
+      ) : fetchError ? (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-8 text-center">
+          <p className="text-destructive font-medium mb-2">{fetchError}</p>
+          <Button variant="outline" size="sm" onClick={() => fetchDelinquents()}>
+            Reintentar
+          </Button>
+        </div>
       ) : delinquents.length === 0 ? (
         <div className="rounded-lg border bg-muted/30 p-8 text-center text-muted-foreground">
           No hay morosos en esta escuela

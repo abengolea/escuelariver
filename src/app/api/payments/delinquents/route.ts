@@ -37,9 +37,22 @@ export async function GET(request: Request) {
       })),
     });
   } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
     console.error('[payments/delinquents]', e);
+    const isIndexBuilding =
+      message.includes('index is currently building') ||
+      (e as { details?: string })?.details?.includes?.('index is currently building');
+    if (isIndexBuilding) {
+      return NextResponse.json(
+        {
+          error: 'Los índices de Firestore se están creando. Volvé a intentar en unos minutos.',
+          code: 'INDEX_BUILDING',
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { error: 'Error al listar morosos' },
+      { error: 'Error al listar morosos', detail: process.env.NODE_ENV === 'development' ? message : undefined },
       { status: 500 }
     );
   }

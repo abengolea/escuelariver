@@ -15,10 +15,27 @@ type Firestore = admin.firestore.Firestore;
 type DocumentSnapshot = admin.firestore.DocumentSnapshot;
 type Timestamp = admin.firestore.Timestamp;
 
-/** Obtiene la cuota mensual para una categoría (usa amount por defecto si no hay override). */
+/** Obtiene la cuota mensual base para una categoría (usa amount por defecto si no hay override). */
 function getAmountForCategory(config: PaymentConfig, category: string): number {
   const override = config.amountByCategory?.[category];
   return override !== undefined ? override : config.amount;
+}
+
+/** Obtiene la cuota mensual para un jugador según categoría, género y posición. Arquero tiene prioridad sobre femenino. */
+function getAmountForPlayer(
+  config: PaymentConfig,
+  category: string,
+  player?: { genero?: string; posicion_preferida?: string }
+): number {
+  const base = getAmountForCategory(config, category);
+  if (!player) return base;
+  if (player.posicion_preferida === 'arquero') {
+    return config.amountArquero ?? 30000;
+  }
+  if (player.genero === 'femenino') {
+    return config.amountFemenino ?? 40000;
+  }
+  return base;
 }
 
 /** Obtiene el derecho de inscripción para una categoría (usa registrationAmount por defecto si no hay override). */
@@ -77,6 +94,8 @@ export async function getOrCreatePaymentConfig(
       delinquencyDaysSuspension: d.delinquencyDaysSuspension ?? 30,
       registrationAmount: d.registrationAmount ?? 0,
       amountByCategory: d.amountByCategory,
+      amountFemenino: d.amountFemenino,
+      amountArquero: d.amountArquero,
       registrationAmountByCategory: d.registrationAmountByCategory,
       registrationCancelsMonthFee: d.registrationCancelsMonthFee !== false,
       clothingAmount: d.clothingAmount ?? 0,
@@ -180,9 +199,12 @@ export async function getExpectedAmountForPeriod(
     return idx <= remainder ? base + 1 : base;
   }
 
-  const amount = getAmountForCategory(config, category);
+  const playerData = playerSnap.exists ? playerSnap.data()! : null;
+  const amount = getAmountForPlayer(config, category, playerData ? {
+    genero: playerData.genero,
+    posicion_preferida: playerData.posicion_preferida,
+  } : undefined);
   if (!playerSnap.exists) return amount;
-  const playerData = playerSnap.data()!;
   const activatedAt = playerData.createdAt ? toDate(playerData.createdAt) : new Date();
   const activationPeriod = `${activatedAt.getFullYear()}-${String(activatedAt.getMonth() + 1).padStart(2, '0')}`;
   const activationDay = activatedAt.getDate();
@@ -567,6 +589,8 @@ export async function getActivePlayersWithConfig(
         delinquencyDaysSuspension: d!.delinquencyDaysSuspension ?? 30,
         registrationAmount: d!.registrationAmount ?? 0,
         amountByCategory: d!.amountByCategory,
+        amountFemenino: d!.amountFemenino,
+        amountArquero: d!.amountArquero,
         registrationAmountByCategory: d!.registrationAmountByCategory,
         registrationCancelsMonthFee: d!.registrationCancelsMonthFee !== false,
         clothingAmount: d!.clothingAmount ?? 0,
@@ -606,6 +630,8 @@ export async function getActivePlayersWithConfig(
         email: data.email,
         createdAt: toDate(data.createdAt),
         createdBy: data.createdBy ?? '',
+        genero: data.genero,
+        posicion_preferida: data.posicion_preferida,
       } as Player,
       config,
     };
@@ -677,8 +703,11 @@ export async function computeDelinquents(
       });
     }
 
-    // Cuota mensual: solo si hay monto configurado (para esta categoría)
-    const monthlyAmount = getAmountForCategory(config, category);
+    // Cuota mensual: solo si hay monto configurado (para esta categoría/género/posición)
+    const monthlyAmount = getAmountForPlayer(config, category, {
+      genero: player.genero,
+      posicion_preferida: player.posicion_preferida,
+    });
     if (monthlyAmount <= 0) continue;
 
     const activationDay = activatedAt.getDate();
