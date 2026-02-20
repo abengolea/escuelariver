@@ -13,7 +13,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCollection, useUserProfile, useDoc } from "@/firebase";
 import type { Player, School as SchoolType } from "@/lib/types";
-import { getCategoryLabel, compareCategory } from "@/lib/utils";
+import { getCategoryLabel } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useMemo } from "react";
 
@@ -31,23 +31,17 @@ export function SchoolAdminDashboard() {
 
   const activePlayers = useMemo(() => (players ?? []).filter((p) => !p.archived), [players]);
 
+  // Jugadores más recientes (ya vienen ordenados por createdAt desc desde Firestore)
   const playersByCategory = useMemo(() => {
     if (!activePlayers.length) return [];
-    return [...activePlayers]
+    return activePlayers
+      .slice(0, 8)
       .map((p) => ({
         player: p,
         category: p.birthDate
           ? getCategoryLabel(p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate))
           : "-",
-      }))
-      .sort((a, b) => {
-        const cmp = compareCategory(a.category, b.category);
-        if (cmp !== 0) return cmp;
-        const lnA = (a.player.lastName ?? "").toLowerCase();
-        const lnB = (b.player.lastName ?? "").toLowerCase();
-        return lnA.localeCompare(lnB);
-      })
-      .slice(0, 8);
+      }));
   }, [activePlayers]);
 
   const isLoading = !isReady || schoolLoading || playersLoading;
