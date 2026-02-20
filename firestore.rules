@@ -108,8 +108,11 @@ service cloud.firestore {
     
     // CRÍTICO: Permite que un usuario busque sus propios roles en CUALQUIER escuela.
     // Necesario para la collectionGroup query que se ejecuta al iniciar sesión.
+    // Comparación case-insensitive: Auth y documentos pueden tener mayúsculas distintas.
     match /{path=**}/users/{userId} {
-      allow read: if isSignedIn() && resource.data.email == request.auth.token.email;
+      allow read: if isSignedIn()
+        && request.auth.token.email != null
+        && resource.data.get('email', '').lower() == request.auth.token.email.lower();
     }
 
     // Colección para Trigger Email (extensión firestore-send-email). Solo crear; la extensión actualiza estado.
@@ -183,8 +186,8 @@ service cloud.firestore {
     }
     
     match /schools/{schoolId}/users/{userId} {
-        // A user can read their own user document, an admin of that school can read any, and a super admin can read any.
-        allow read: if isSuperAdmin() || isSchoolAdmin(schoolId) || request.auth.uid == userId;
+        // Staff (admin, coach, editor, viewer) puede listar/leer usuarios de la escuela (ej. para asignar entrenador en horarios).
+        allow read: if isSuperAdmin() || isStaffOfSchool(schoolId) || request.auth.uid == userId;
         // Admins can write, but only valid roles.
         allow create, update: if (isSuperAdmin() || isSchoolAdmin(schoolId)) && isValidSchoolUserRole(request.resource.data.role);
         allow delete: if isSuperAdmin() || isSchoolAdmin(schoolId);

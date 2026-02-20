@@ -109,7 +109,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
         : "-",
     }));
     let filtered = withCategory;
-    if (generoFilter === "masculino" || generoFilter === "femenino") {
+    if (generoFilter === "masculino" || generoFilter === "femenino" || generoFilter === "arquero") {
       filtered = filtered.filter((x) => x.player.genero === generoFilter);
     }
     if (categoryFilter !== "") {
@@ -159,7 +159,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
       escape(player.birthDate ? (player.birthDate instanceof Date ? player.birthDate.toISOString().slice(0, 10) : new Date(player.birthDate).toISOString().slice(0, 10)) : ""),
       escape(player.birthDate ? String(calculateAge(player.birthDate)) : ""),
       escape(category),
-      escape(player.genero === "masculino" ? "Masculino" : player.genero === "femenino" ? "Femenino" : ""),
+      escape(player.genero === "masculino" ? "Masculino" : player.genero === "femenino" ? "Femenino" : player.genero === "arquero" ? "Arquero" : ""),
       escape(player.dni),
       escape(player.healthInsurance),
       escape(player.email),
@@ -233,6 +233,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="masculino">Masculino</SelectItem>
               <SelectItem value="femenino">Femenino</SelectItem>
+              <SelectItem value="arquero">Arquero</SelectItem>
             </SelectContent>
           </Select>
         </div>

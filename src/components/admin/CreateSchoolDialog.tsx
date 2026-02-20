@@ -101,7 +101,7 @@ export function CreateSchoolDialog() {
       const schoolUserRef = doc(firestore, 'schools', newSchoolRef.id, 'users', newUser.uid);
       const schoolUserData = {
           displayName: values.adminDisplayName,
-          email: values.adminEmail,
+          email: (values.adminEmail ?? '').trim().toLowerCase(),
           role: 'school_admin' as const,
       };
       batch.set(schoolUserRef, schoolUserData);
@@ -109,7 +109,7 @@ export function CreateSchoolDialog() {
       // Doc 3: The user's global profile document
       const platformUserRef = doc(firestore, 'platformUsers', newUser.uid);
        const platformUserData = {
-          email: values.adminEmail,
+          email: (values.adminEmail ?? '').trim().toLowerCase(),
           super_admin: false,
           createdAt: Timestamp.now()
        };

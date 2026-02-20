@@ -72,7 +72,7 @@ const playerSchema = z.object({
   status: z.enum(["active", "inactive"]),
   observations: z.string().optional(),
   photoUrl: z.string().optional().or(z.literal("")),
-  genero: z.enum(["masculino", "femenino"]).optional(),
+  genero: z.enum(["masculino", "femenino", "arquero"]).optional(),
 });
 
 export function AddPlayerForm() {
@@ -426,9 +426,10 @@ export function AddPlayerForm() {
                                 <SelectItem value="__none__">No especificado</SelectItem>
                                 <SelectItem value="masculino">Masculino</SelectItem>
                                 <SelectItem value="femenino">Femenino</SelectItem>
+                                <SelectItem value="arquero">Arquero</SelectItem>
                             </SelectContent>
                         </Select>
-                        <FormDescription>Categorías femenino y masculino usan los mismos años (SUB-5 a SUB-18).</FormDescription>
+                        <FormDescription>Masculino y femenino usan SUB-5 a SUB-18. Arquero entrena una vez por semana (sin género).</FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}

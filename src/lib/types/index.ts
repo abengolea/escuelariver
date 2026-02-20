@@ -95,8 +95,8 @@ export interface Player {
   pie_dominante?: 'derecho' | 'izquierdo' | 'ambidiestro';
   /** Posición preferida en cancha. */
   posicion_preferida?: 'delantero' | 'mediocampo' | 'defensor' | 'arquero';
-  /** Género para categorías femenino/masculino (mismos años SUB-5 a SUB-18). */
-  genero?: 'masculino' | 'femenino';
+  /** Categoría de entrenamiento: masculino, femenino o arquero (entrenamiento una vez por semana, sin género). */
+  genero?: 'masculino' | 'femenino' | 'arquero';
   /** Número de camiseta (opcional). */
   numero_camiseta?: number;
   /** Talle de camiseta (opcional). */
@@ -197,10 +197,12 @@ export interface TrainingSlot {
   dayOfWeek: number;
   /** Hora en formato "HH:mm" (ej. "17:00") */
   time?: string;
-  /** Categoría inicial del rango (ej. "SUB-5") */
+  /** Categoría inicial del rango (ej. "SUB-5"). Para slots de arquero puede ser "ARQUERO". */
   categoryFrom: string;
-  /** Categoría final del rango (ej. "SUB-10") */
+  /** Categoría final del rango (ej. "SUB-10"). Para slots de arquero puede ser "ARQUERO". */
   categoryTo: string;
+  /** Tipo de categoría: masculino, femenino o arquero. Si no se define, el slot incluye todos los géneros (retrocompatibilidad). */
+  tipoCategoria?: 'masculino' | 'femenino' | 'arquero';
   /** Cupo máximo de jugadores en este slot */
   maxQuota: number;
   /** UID del entrenador asignado (SchoolUser con role coach) */

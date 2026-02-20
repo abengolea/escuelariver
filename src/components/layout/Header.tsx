@@ -41,13 +41,14 @@ export function Header() {
     {}
   );
   const { data: accessRequests } = useCollection(
-    isReady ? "accessRequests" : "",
+    canListSchoolCollections ? "accessRequests" : "",
     { where: ["status", "==", "pending"] }
   );
   const playersList = (players ?? []).filter((p) => !p.archived);
   const birthdaysToday = playersList.filter((p) => isBirthdayToday(p.birthDate));
   const birthdayCount = birthdaysToday.length;
-  const solicitudesCount = (pendingPlayers?.length ?? 0) + (accessRequests?.length ?? 0);
+  // Solo staff ve solicitudes pendientes; el jugador no debe verlas.
+  const solicitudesCount = isStaff ? (pendingPlayers?.length ?? 0) + (accessRequests?.length ?? 0) : 0;
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];

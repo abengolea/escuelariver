@@ -220,6 +220,20 @@ function SlotList({ schoolId, slots, onEdit, onDelete, onAdd }: SlotListProps) {
     coachList.find((c) => c.id === coachId)?.displayName ?? coachId;
 
   const getPlayersInSlot = (slot: TrainingSlot) => {
+    if (slot.tipoCategoria === "arquero") {
+      return activePlayers.filter((p) => p.genero === "arquero");
+    }
+    if (slot.tipoCategoria === "masculino" || slot.tipoCategoria === "femenino") {
+      return activePlayers.filter((p) => {
+        if (p.genero !== slot.tipoCategoria) return false;
+        if (!p.birthDate) return false;
+        const cat = getCategoryLabel(
+          p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate)
+        );
+        return isCategoryInRange(cat, slot.categoryFrom, slot.categoryTo);
+      });
+    }
+    // Retrocompatibilidad: slot sin tipoCategoria incluye todos los géneros
     return activePlayers.filter((p) => {
       if (!p.birthDate) return false;
       const cat = getCategoryLabel(
@@ -290,7 +304,11 @@ function SlotList({ schoolId, slots, onEdit, onDelete, onAdd }: SlotListProps) {
                           </span>
                         )}
                         <span className="font-medium">
-                          {slot.categoryFrom} a {slot.categoryTo}
+                          {slot.tipoCategoria === "arquero"
+                            ? "Arquero"
+                            : `${slot.categoryFrom} a ${slot.categoryTo}`}
+                          {slot.tipoCategoria === "masculino" && " (M)"}
+                          {slot.tipoCategoria === "femenino" && " (F)"}
                         </span>
                         <span className="text-muted-foreground text-sm">
                           Cupo: {slot.maxQuota}
@@ -373,6 +391,7 @@ function SlotFormDialog({
 
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [time, setTime] = useState("17:00");
+  const [tipoCategoria, setTipoCategoria] = useState<"masculino" | "femenino" | "arquero" | "">("");
   const [categoryFrom, setCategoryFrom] = useState("SUB-5");
   const [categoryTo, setCategoryTo] = useState("SUB-10");
   const [maxQuota, setMaxQuota] = useState("25");
@@ -382,6 +401,7 @@ function SlotFormDialog({
     if (editingSlot) {
       setDayOfWeek(editingSlot.dayOfWeek);
       setTime(editingSlot.time ?? "17:00");
+      setTipoCategoria(editingSlot.tipoCategoria ?? "");
       setCategoryFrom(editingSlot.categoryFrom);
       setCategoryTo(editingSlot.categoryTo);
       setMaxQuota(String(editingSlot.maxQuota));
@@ -389,6 +409,7 @@ function SlotFormDialog({
     } else {
       setDayOfWeek(1);
       setTime("17:00");
+      setTipoCategoria("");
       setCategoryFrom("SUB-5");
       setCategoryTo("SUB-10");
       setMaxQuota("25");
@@ -405,27 +426,28 @@ function SlotFormDialog({
     const quota = parseInt(maxQuota, 10);
     if (isNaN(quota) || quota < 1) return;
     if (!coachId) return;
-    if (compareCategory(categoryFrom, categoryTo) > 0) return;
+    const isArquero = tipoCategoria === "arquero";
+    if (!isArquero && compareCategory(categoryFrom, categoryTo) > 0) return;
 
     const newSlot: TrainingSlot = {
       dayOfWeek,
       time: time || undefined,
-      categoryFrom,
-      categoryTo,
+      categoryFrom: isArquero ? "ARQUERO" : categoryFrom,
+      categoryTo: isArquero ? "ARQUERO" : categoryTo,
+      tipoCategoria: tipoCategoria || undefined,
       maxQuota: quota,
       coachId,
     };
 
+    const matchSlot = (s: TrainingSlot) =>
+      s.dayOfWeek === editingSlot!.dayOfWeek &&
+      s.time === editingSlot!.time &&
+      s.categoryFrom === editingSlot!.categoryFrom &&
+      s.categoryTo === editingSlot!.categoryTo;
+
     let slots: TrainingSlot[];
     if (editingSlot) {
-      slots = currentSlots.map((s) =>
-        s.dayOfWeek === editingSlot.dayOfWeek &&
-        s.time === editingSlot.time &&
-        s.categoryFrom === editingSlot.categoryFrom &&
-        s.categoryTo === editingSlot.categoryTo
-          ? newSlot
-          : s
-      );
+      slots = currentSlots.map((s) => (matchSlot(s) ? newSlot : s));
     } else {
       slots = [...currentSlots, newSlot];
     }
@@ -463,38 +485,61 @@ function SlotFormDialog({
       </div>
 
       <div className="space-y-2">
-        <Label>Rango de categorías</Label>
+        <Label>Tipo de categoría</Label>
+        <Select
+          value={tipoCategoria || "all"}
+          onValueChange={(v) => setTipoCategoria(v === "all" ? "" : (v as "masculino" | "femenino" | "arquero"))}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Todos (sin filtro)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos (sin filtro)</SelectItem>
+            <SelectItem value="masculino">Masculino</SelectItem>
+            <SelectItem value="femenino">Femenino</SelectItem>
+            <SelectItem value="arquero">Arquero</SelectItem>
+          </SelectContent>
+        </Select>
         <p className="text-xs text-muted-foreground">
-          De una categoría a otra: todos los jugadores en ese rango practican en este horario.
+          Arquero: entrenamiento una vez por semana, sin distinción de género.
         </p>
-        <div className="flex gap-2 items-center">
-          <Select value={categoryFrom} onValueChange={setCategoryFrom}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CATEGORY_ORDER.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-muted-foreground">a</span>
-          <Select value={categoryTo} onValueChange={setCategoryTo}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {validCategoryTo.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
+
+      {tipoCategoria !== "arquero" && (
+        <div className="space-y-2">
+          <Label>Rango de categorías</Label>
+          <p className="text-xs text-muted-foreground">
+            De una categoría a otra: todos los jugadores en ese rango practican en este horario.
+          </p>
+          <div className="flex gap-2 items-center">
+            <Select value={categoryFrom} onValueChange={setCategoryFrom}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORY_ORDER.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-muted-foreground">a</span>
+            <Select value={categoryTo} onValueChange={setCategoryTo}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {validCategoryTo.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label>Cupo máximo</Label>
@@ -573,8 +618,11 @@ function DeleteSlotDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>¿Eliminar este horario?</AlertDialogTitle>
           <AlertDialogDescription>
-            {DAY_NAMES[slot.dayOfWeek]} {slot.time && `a las ${slot.time}`} - {slot.categoryFrom} a{" "}
-            {slot.categoryTo}. Esta acción no se puede deshacer.
+            {DAY_NAMES[slot.dayOfWeek]} {slot.time && `a las ${slot.time}`} -{" "}
+            {slot.tipoCategoria === "arquero"
+              ? "Arquero"
+              : `${slot.categoryFrom} a ${slot.categoryTo}`}
+            . Esta acción no se puede deshacer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

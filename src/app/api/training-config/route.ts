@@ -17,6 +17,7 @@ const TrainingSlotSchema = z.object({
   time: z.string().optional().refine((v) => !v || /^\d{1,2}:\d{2}$/.test(v), "Formato HH:mm"),
   categoryFrom: z.string().min(1),
   categoryTo: z.string().min(1),
+  tipoCategoria: z.enum(["masculino", "femenino", "arquero"]).optional(),
   maxQuota: z.number().int().min(1).max(500),
   coachId: z.string().min(1),
 });

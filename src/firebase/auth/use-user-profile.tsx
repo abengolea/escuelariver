@@ -57,9 +57,16 @@ export function useUserProfile() {
     // 4. If not super admin, it must be a regular user. Fetch their school roles (coach/admin).
     setIsSuperAdmin(false);
     
+    // Normalizar email a minúsculas: Firestore es case-sensitive y Auth puede devolver mayúsculas.
+    const emailNorm = (user.email ?? '').trim().toLowerCase();
+    if (!emailNorm) {
+      setMemberships([]);
+      setProfileLoading(false);
+      return;
+    }
     const userRolesQuery = query(
         collectionGroup(firestore, 'users'),
-        where('email', '==', user.email)
+        where('email', '==', emailNorm)
     );
 
     getDocs(userRolesQuery).then(snapshot => {
@@ -79,12 +86,6 @@ export function useUserProfile() {
         return;
       }
       // 5. No membership in users: check playerLogins (email -> schoolId + playerId) para que el jugador inicie sesión.
-      const emailNorm = (user.email ?? '').trim().toLowerCase();
-      if (!emailNorm) {
-        setMemberships([]);
-        setProfileLoading(false);
-        return;
-      }
       const loginRef = doc(firestore, 'playerLogins', emailNorm);
       getDoc(loginRef).then(loginSnap => {
         if (!loginSnap.exists()) {

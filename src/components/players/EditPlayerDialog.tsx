@@ -65,7 +65,7 @@ const playerSchema = z.object({
   peso_kg: z.union([z.number().min(15, "Mín. 15 kg").max(150, "Máx. 150 kg"), z.undefined()]).optional(),
   pie_dominante: z.enum(["derecho", "izquierdo", "ambidiestro"]).optional(),
   posicion_preferida: z.enum(["delantero", "mediocampo", "defensor", "arquero"]).optional(),
-  genero: z.enum(["masculino", "femenino"]).optional(),
+  genero: z.enum(["masculino", "femenino", "arquero"]).optional(),
 });
 
 interface EditPlayerDialogProps {
@@ -360,9 +360,10 @@ export function EditPlayerDialog({
                             <SelectItem value="__none__">No especificado</SelectItem>
                             <SelectItem value="masculino">Masculino</SelectItem>
                             <SelectItem value="femenino">Femenino</SelectItem>
+                            <SelectItem value="arquero">Arquero</SelectItem>
                           </SelectContent>
                         </Select>
-                        <FormDescription>Categorías femenino y masculino usan los mismos años (SUB-5 a SUB-18).</FormDescription>
+                        <FormDescription>Masculino y femenino usan SUB-5 a SUB-18. Arquero entrena una vez por semana (sin género).</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
