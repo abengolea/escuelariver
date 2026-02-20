@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -18,14 +17,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useCollection,
   useFirestore,
@@ -39,12 +38,16 @@ import {
   setDoc,
   addDoc,
   collection,
+  query,
+  where,
+  getDocs,
+  writeBatch,
   Timestamp,
 } from "firebase/firestore";
 import type { AccessRequest, Player } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Loader2, UserPlus, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, UserPlus, X } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -68,6 +71,8 @@ export function AccessRequestsList() {
   const activePlayers = (players ?? []).filter((p) => !p.archived);
 
   const [actionState, setActionState] = useState<ActionState>(null);
+  const [playerSearch, setPlayerSearch] = useState("");
+  const [playerPopoverOpen, setPlayerPopoverOpen] = useState(false);
   const [approveDialog, setApproveDialog] = useState<{
     request: AccessRequest;
     linkToPlayerId: string | "new";
@@ -106,12 +111,25 @@ export function AccessRequestsList() {
           schoolId: activeSchoolId,
           playerId: newPlayerRef.id,
         });
-        await updateDoc(doc(firestore, "accessRequests", request.id), {
+        const batch = writeBatch(firestore);
+        batch.update(doc(firestore, "accessRequests", request.id), {
           status: "approved",
           approvedSchoolId: activeSchoolId,
           approvedPlayerId: newPlayerRef.id,
           approvedAt: Timestamp.now(),
         });
+        // Rechazar duplicados del mismo email para limpiar la base
+        const dupesSnap = await getDocs(
+          query(
+            collection(firestore, "accessRequests"),
+            where("email", "==", emailNorm),
+            where("status", "==", "pending")
+          )
+        );
+        dupesSnap.docs.forEach((d) => {
+          if (d.id !== request.id) batch.update(d.ref, { status: "rejected" });
+        });
+        await batch.commit();
         toast({
           title: "Solicitud aprobada",
           description: `Se creó el jugador y ${request.email} ya puede iniciar sesión.`,
@@ -123,12 +141,24 @@ export function AccessRequestsList() {
           schoolId: activeSchoolId,
           playerId: linkToPlayerId,
         });
-        await updateDoc(doc(firestore, "accessRequests", request.id), {
+        const batch = writeBatch(firestore);
+        batch.update(doc(firestore, "accessRequests", request.id), {
           status: "approved",
           approvedSchoolId: activeSchoolId,
           approvedPlayerId: linkToPlayerId,
           approvedAt: Timestamp.now(),
         });
+        const dupesSnap = await getDocs(
+          query(
+            collection(firestore, "accessRequests"),
+            where("email", "==", emailNorm),
+            where("status", "==", "pending")
+          )
+        );
+        dupesSnap.docs.forEach((d) => {
+          if (d.id !== request.id) batch.update(d.ref, { status: "rejected" });
+        });
+        await batch.commit();
         toast({
           title: "Solicitud aprobada",
           description: `Se vinculó ${request.email} al jugador. Ya puede iniciar sesión.`,
@@ -179,6 +209,14 @@ export function AccessRequestsList() {
   const sortedPending = [...pendingList].sort(
     (a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
   );
+  // Una sola solicitud por email (la más reciente) para evitar duplicados en la UI
+  const dedupedByEmail = sortedPending.reduce<AccessRequest[]>((acc, req) => {
+    const emailNorm = req.email.trim().toLowerCase();
+    if (!acc.some((r) => r.email.trim().toLowerCase() === emailNorm)) {
+      acc.push(req);
+    }
+    return acc;
+  }, []);
 
   if (!isReady || !activeSchoolId) return null;
 
@@ -215,11 +253,11 @@ export function AccessRequestsList() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {sortedPending.length === 0 ? (
+          {dedupedByEmail.length === 0 ? (
             <p className="text-muted-foreground text-sm">No hay solicitudes de acceso pendientes.</p>
           ) : (
             <ul className="space-y-3">
-              {sortedPending.map((req) => (
+              {dedupedByEmail.map((req) => (
                 <li
                   key={req.id}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
@@ -267,7 +305,16 @@ export function AccessRequestsList() {
         </CardContent>
       </Card>
 
-      <Dialog open={!!approveDialog} onOpenChange={() => setApproveDialog(null)}>
+      <Dialog
+        open={!!approveDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setApproveDialog(null);
+            setPlayerSearch("");
+            setPlayerPopoverOpen(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Aprobar solicitud de acceso</DialogTitle>
@@ -281,23 +328,80 @@ export function AccessRequestsList() {
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label>Jugador</Label>
-                <Select
-                  value={approveDialog.linkToPlayerId}
-                  onValueChange={(v) => setApproveDialog({ ...approveDialog, linkToPlayerId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Elegir jugador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="new">Crear nuevo jugador con este email</SelectItem>
-                    {activePlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.firstName} {p.lastName}
-                        {p.email ? ` (${p.email})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={playerPopoverOpen} onOpenChange={setPlayerPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between font-normal"
+                    >
+                      {approveDialog.linkToPlayerId === "new"
+                        ? "Crear nuevo jugador con este email"
+                        : (() => {
+                            const sel = activePlayers.find((p) => p.id === approveDialog.linkToPlayerId);
+                            return sel ? `${sel.firstName} ${sel.lastName}` : "Buscar jugador…";
+                          })()}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <div className="flex items-center border-b px-2">
+                      <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por nombre o apellido…"
+                        value={playerSearch}
+                        onChange={(e) => setPlayerSearch(e.target.value)}
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                    </div>
+                    <ScrollArea className="max-h-[240px]">
+                      <div className="p-1">
+                        <button
+                          type="button"
+                          className="flex w-full items-center rounded-sm px-2 py-2 text-sm hover:bg-accent"
+                          onClick={() => {
+                            setApproveDialog({ ...approveDialog, linkToPlayerId: "new" });
+                            setPlayerSearch("");
+                            setPlayerPopoverOpen(false);
+                          }}
+                        >
+                          <span className="font-medium">Crear nuevo jugador con este email</span>
+                        </button>
+                        {(() => {
+                          const q = playerSearch.trim().toLowerCase();
+                          const filtered = activePlayers.filter((p) => {
+                            if (!q) return true;
+                            const full = `${(p.firstName || "").toLowerCase()} ${(p.lastName || "").toLowerCase()}`;
+                            return full.includes(q) || full.split(/\s+/).some((w) => w.startsWith(q));
+                          });
+                          return filtered.length > 0 ? (
+                            filtered.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="flex w-full items-center rounded-sm px-2 py-2 text-sm hover:bg-accent"
+                                onClick={() => {
+                                  setApproveDialog({ ...approveDialog, linkToPlayerId: p.id });
+                                  setPlayerSearch("");
+                                  setPlayerPopoverOpen(false);
+                                }}
+                              >
+                                {p.firstName} {p.lastName}
+                              </button>
+                            ))
+                          ) : (
+                            <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                              No hay jugadores que coincidan.
+                            </p>
+                          );
+                        })()}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">
+                  Escribí para buscar por nombre o apellido.
+                </p>
               </div>
             </div>
           )}

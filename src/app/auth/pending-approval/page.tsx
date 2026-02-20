@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth, useFirestore } from "@/firebase";
 import { signOut } from "firebase/auth";
-import { collection, addDoc, doc, getDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, doc, getDoc, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PendingApprovalPage() {
@@ -19,6 +19,7 @@ export default function PendingApprovalPage() {
   const [requestSent, setRequestSent] = useState(false);
   const [hasWebRegistrationPending, setHasWebRegistrationPending] = useState<boolean | null>(null);
   const [isAccountDisabled, setIsAccountDisabled] = useState<boolean | null>(null);
+  const [hasPendingAccessRequest, setHasPendingAccessRequest] = useState<boolean | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -42,6 +43,7 @@ export default function PendingApprovalPage() {
     if (!user?.email) {
       setHasWebRegistrationPending(false);
       setIsAccountDisabled(false);
+      setHasPendingAccessRequest(false);
       return;
     }
     const emailNorm = user.email.trim().toLowerCase();
@@ -66,6 +68,16 @@ export default function PendingApprovalPage() {
         setIsAccountDisabled(status !== undefined && status !== "active");
       })
       .catch(() => setIsAccountDisabled(false));
+    // Verificar si ya tiene una solicitud de acceso pendiente (evitar duplicados)
+    getDocs(
+      query(
+        collection(firestore, "accessRequests"),
+        where("uid", "==", user.uid),
+        where("status", "==", "pending")
+      )
+    )
+      .then((snap) => setHasPendingAccessRequest(!snap.empty))
+      .catch(() => setHasPendingAccessRequest(false));
   }, [auth.currentUser, firestore]);
 
   const handleRetry = () => {
@@ -78,8 +90,33 @@ export default function PendingApprovalPage() {
       toast({ variant: "destructive", title: "Error", description: "No se pudo obtener tu email." });
       return;
     }
+    if (hasPendingAccessRequest) {
+      toast({
+        variant: "destructive",
+        title: "Ya tenés una solicitud pendiente",
+        description: "Esperá a que un entrenador la apruebe. No hace falta enviar otra.",
+      });
+      return;
+    }
     setSending(true);
     try {
+      // Verificación final antes de crear (evitar duplicados por doble clic o race)
+      const existingSnap = await getDocs(
+        query(
+          collection(firestore, "accessRequests"),
+          where("uid", "==", user.uid),
+          where("status", "==", "pending")
+        )
+      );
+      if (!existingSnap.empty) {
+        setHasPendingAccessRequest(true);
+        setRequestSent(true);
+        toast({
+          title: "Ya tenés una solicitud pendiente",
+          description: "Esperá a que un entrenador la apruebe.",
+        });
+        return;
+      }
       await addDoc(collection(firestore, "accessRequests"), {
         uid: user.uid,
         email: user.email.trim().toLowerCase(),
@@ -89,6 +126,7 @@ export default function PendingApprovalPage() {
         createdAt: Timestamp.now(),
       });
       setRequestSent(true);
+      setHasPendingAccessRequest(true);
       toast({
         title: "Solicitud enviada",
         description: "Un entrenador verá tu solicitud en Solicitudes y te dará acceso cuando la apruebe.",
@@ -139,9 +177,9 @@ export default function PendingApprovalPage() {
             <p className="text-muted-foreground">
               Si eres <strong>jugador</strong>, podés enviar una solicitud. Un entrenador la verá en Solicitudes y te dará acceso al aprobarla.
             </p>
-            {requestSent ? (
+            {requestSent || hasPendingAccessRequest ? (
               <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                Solicitud enviada. Cuando un entrenador la apruebe, podrás entrar. Usá &quot;Reintentar&quot; después.
+                Ya tenés una solicitud pendiente. Cuando un entrenador la apruebe, podrás entrar. Usá &quot;Reintentar&quot; después.
               </p>
             ) : (
               <Button onClick={handleRequestAccess} disabled={sending} className="w-full" variant="secondary">
