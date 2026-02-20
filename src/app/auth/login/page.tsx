@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser, useFirestore } from "@/firebase";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, type User, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword, type User, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -110,14 +110,6 @@ export default function LoginPage() {
     });
   };
 
-  const handleGoogleLogin = () => {
-    handleLogin(async () => {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      return result.user;
-    });
-  };
-
   const handlePasswordReset = async () => {
     if (!email) {
       toast({
@@ -177,7 +169,7 @@ export default function LoginPage() {
             </TooltipProvider>
         </div>
         <CardDescription>
-          Ingresa tu correo para acceder al panel de tu escuela.
+          Ingresá con tu correo y contraseña. Si no tenés cuenta, registrate primero como jugador.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -219,10 +211,6 @@ export default function LoginPage() {
           <Button type="submit" className="w-full" disabled={isLoggingIn}>
             {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Iniciar Sesión
-          </Button>
-          <Button variant="outline" className="w-full" type="button" onClick={handleGoogleLogin} disabled={isLoggingIn}>
-            {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Iniciar Sesión con Google
           </Button>
         </form>
         <div className="mt-4 text-center text-sm">
