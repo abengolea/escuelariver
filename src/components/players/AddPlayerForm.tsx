@@ -341,11 +341,12 @@ export function AddPlayerForm() {
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 captionLayout="dropdown"
-                                fromYear={2000}
-                                toYear={new Date().getFullYear()}
+                                startMonth={new Date(1985, 0)}
+                                endMonth={new Date(new Date().getFullYear(), 11)}
+                                defaultMonth={field.value}
                                 locale={es}
                                 disabled={(date) =>
-                                date > new Date() || date < new Date("2000-01-01")
+                                date > new Date() || date < new Date("1985-01-01")
                                 }
                                 initialFocus
                             />

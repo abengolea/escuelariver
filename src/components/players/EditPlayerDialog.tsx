@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,11 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { CalendarIcon, Loader2 } from "lucide-react";
@@ -88,6 +83,8 @@ export function EditPlayerDialog({
 }: EditPlayerDialogProps) {
   const { user } = useUser();
   const { toast } = useToast();
+  const [birthDateCalendarOpen, setBirthDateCalendarOpen] = useState(false);
+  const birthDateCalendarRef = useRef<HTMLDivElement>(null);
 
   const birthDate = player.birthDate instanceof Date
     ? player.birthDate
@@ -116,6 +113,23 @@ export function EditPlayerDialog({
       genero: player.genero ?? undefined,
     },
   });
+
+  // Cerrar calendario al cerrar el diálogo
+  useEffect(() => {
+    if (!isOpen) setBirthDateCalendarOpen(false);
+  }, [isOpen]);
+
+  // Cerrar calendario al hacer clic fuera
+  useEffect(() => {
+    if (!birthDateCalendarOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (birthDateCalendarRef.current && !birthDateCalendarRef.current.contains(e.target as Node)) {
+        setBirthDateCalendarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [birthDateCalendarOpen]);
 
   // Reset form when player changes or dialog opens
   useEffect(() => {
@@ -303,40 +317,47 @@ export function EditPlayerDialog({
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Fecha de Nacimiento</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP", { locale: es })
-                                ) : (
-                                  <span>Elige una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              captionLayout="dropdown"
-                              fromYear={2000}
-                              toYear={new Date().getFullYear()}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("2000-01-01")
-                              }
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <div ref={birthDateCalendarRef} className="relative">
+                          <FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setBirthDateCalendarOpen(!birthDateCalendarOpen)}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP", { locale: es })
+                              ) : (
+                                <span>Elige una fecha</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                          {birthDateCalendarOpen && (
+                            <div className="absolute left-0 top-full z-[200] mt-1 rounded-md border bg-popover p-3 shadow-md">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    field.onChange(date);
+                                    setBirthDateCalendarOpen(false);
+                                  }
+                                }}
+                                captionLayout="dropdown"
+                                startMonth={new Date(1985, 0)}
+                                endMonth={new Date(new Date().getFullYear(), 11)}
+                                defaultMonth={field.value}
+                                disabled={(date) =>
+                                  date > new Date() || date < new Date("1985-01-01")
+                                }
+                              />
+                            </div>
+                          )}
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
