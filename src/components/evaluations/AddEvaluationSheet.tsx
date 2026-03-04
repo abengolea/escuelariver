@@ -62,7 +62,7 @@ const evaluationSchema = z.object({
   coachComments: z.string().optional().default(""),
   /** Comentarios opcionales por rubro (key = nombre del campo, ej. control, pase). Valores pueden venir undefined si no se tocó el campo. */
   rubricComments: z.record(z.union([z.string(), z.undefined()]).transform((s) => (typeof s === "string" ? s : ""))).optional().default({}),
-  // Technical skills (básquet)
+  // Technical skills (fútbol)
   manejo: z.number().min(1).max(MAX_STARS).default(5),
   pase: z.number().min(1).max(MAX_STARS).default(5),
   tiro: z.number().min(1).max(MAX_STARS).default(5),
@@ -348,10 +348,10 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
                     const playerEmail = playerData?.email?.trim?.();
                     const firstName = playerData?.firstName ?? playerName ?? "jugador";
                     if (playerEmail) {
-                        const subject = "Nueva evaluación - Escuela Básquet";
+                        const subject = "Nueva evaluación - Escuelas River";
                         const contentHtml = `<p>Hola <strong>${escapeHtml(firstName)}</strong>,</p><p>Tu entrenador cargó una nueva evaluación. Entrá al panel para verla.</p><p><a href="${typeof window !== "undefined" ? window.location.origin : ""}/dashboard" style="color: hsl(var(--primary)); font-weight: bold;">Ver mi perfil</a></p>`;
                         const html = buildEmailHtml(contentHtml, {
-                            title: "Escuela Básquet",
+                            title: "Escuelas River",
                             greeting: "Tenés una novedad en tu perfil.",
                             baseUrl: typeof window !== "undefined" ? window.location.origin : "",
                         });

@@ -3,8 +3,8 @@ import { NotasFeed } from "@/components/notas/NotasFeed";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Notas | Escuela Básquet",
-  description: "Noticias, actividades y comunicados de Escuela Básquet",
+  title: "Notas | Escuelas River",
+  description: "Noticias, actividades y comunicados de Escuelas River",
 };
 
 const PAGE_SIZE = 12;

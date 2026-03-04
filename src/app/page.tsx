@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { AppLogo } from "@/components/icons/AppLogo";
+import { RiverPlateLogo } from "@/components/icons/RiverPlateLogo";
 import Image from "next/image";
 
 export default function LandingPage() {
@@ -8,10 +8,10 @@ export default function LandingPage() {
     <div className="flex flex-col min-h-screen bg-background overflow-x-hidden w-full max-w-full">
       <header className="px-4 lg:px-6 h-14 flex items-center min-w-0 gap-2 sm:gap-4">
         <Link href="/" className="flex items-center justify-center shrink-0 min-w-0">
-          <AppLogo className="h-8 w-8 shrink-0" />
+          <RiverPlateLogo className="h-8 w-8 shrink-0" />
           <span className="ml-2 text-base sm:text-lg font-bold font-headline uppercase truncate max-w-[50vw] sm:max-w-none">
             <span className="text-primary">ESCUELA</span>{" "}
-            <span className="text-foreground">BÁSQUET</span>
+            <span className="text-foreground">RIVER</span>
           </span>
         </Link>
         <nav className="ml-auto flex items-center gap-2 sm:gap-4 shrink-0">
@@ -37,7 +37,7 @@ export default function LandingPage() {
                 <div className="space-y-2">
                    <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm font-medium">Para Entrenadores y Admins</div>
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline text-primary">
-                    Gestiona el Futuro del Básquet
+                    Gestiona el Futuro del Fútbol
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
                     Nuestra plataforma integral te ayuda a seguir el desarrollo de cada jugador, desde sus primeros pasos hasta convertirse en un atleta de élite.
@@ -53,7 +53,7 @@ export default function LandingPage() {
                 src="/images/hero-chicos-futbol.png.jpeg"
                 width={600}
                 height={400}
-                alt="Jugadores de básquet en Escuela Básquet"
+                alt="Jugadores de fútbol en Escuelas River"
                 className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
               />
             </div>
@@ -67,7 +67,7 @@ export default function LandingPage() {
                 src="/images/river_foto2.jpeg"
                 width={550}
                 height={310}
-                alt="Jugadores de básquet en Escuela Básquet"
+                alt="Jugadores de fútbol en Escuelas River"
                 className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full lg:order-first"
               />
               <div className="flex flex-col justify-center space-y-4">
@@ -92,7 +92,7 @@ export default function LandingPage() {
       </main>
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
         <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} Escuela Básquet. Todos los derechos reservados.
+          &copy; {new Date().getFullYear()} Escuelas River. Todos los derechos reservados.
         </p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link href="#" className="text-xs hover:underline underline-offset-4">

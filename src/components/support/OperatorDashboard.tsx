@@ -127,7 +127,7 @@ export function OperatorDashboard() {
         try {
           const statusLabel = statusLabels[newStatus] ?? newStatus;
           const contentHtml = `<p>Tu ticket de soporte <strong>#${ticket.ticketNumber}</strong> fue marcado como <strong>${escapeHtml(statusLabel)}</strong>.</p><p>Resumen: ${escapeHtml(ticket.summary)}</p><p>Si tenés más dudas, podés abrir otro ticket desde el Centro de Soporte en la app.</p>`;
-          const subject = `Ticket #${ticket.ticketNumber} ${statusLabel} - Escuela Básquet`;
+          const subject = `Ticket #${ticket.ticketNumber} ${statusLabel} - Escuelas River`;
           const html = buildEmailHtml(contentHtml, {
             title: subject,
             greeting: `Hola${ticket.userDisplayName ? ` ${escapeHtml(ticket.userDisplayName)}` : ''},`,

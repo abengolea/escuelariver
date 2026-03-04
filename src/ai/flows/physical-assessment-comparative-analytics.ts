@@ -65,7 +65,7 @@ const analysisPrompt = ai.definePrompt({
   input: { schema: AnalysisPromptInputSchema },
   output: { schema: GenerateComparativeAnalysisOutputSchema },
   prompt: `
-    Actúa como un director deportivo y entrenador experto en básquet juvenil.
+    Actúa como un director deportivo y entrenador experto en fútbol juvenil.
     Tu tarea es redactar un análisis comparativo CONSTRUCTIVO y FORMATIVO para el jugador {{playerName}}.
 
     Analiza los datos de su última evaluación y compáralos con los datos de referencia proporcionados, que representan {{comparisonContext}}.
@@ -86,7 +86,7 @@ const analysisPrompt = ai.definePrompt({
     **4. Conclusión y Próximos Pasos:**
     Un párrafo final que ofrezca ánimo y sugiera un enfoque para los próximos entrenamientos.
 
-    Utiliza un tono profesional, alentador y alineado con los valores formativos en básquet.
+    Utiliza un tono profesional, alentador y alineado con los valores formativos en fútbol.
     NO uses jerga excesivamente técnica. El informe puede ser leído por entrenadores y, eventualmente, por los padres.
 
     **Datos del Jugador ({{playerName}}):**

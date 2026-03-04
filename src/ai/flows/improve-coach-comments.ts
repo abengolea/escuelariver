@@ -33,7 +33,7 @@ const improvePrompt = ai.definePrompt({
   input: { schema: ImproveCoachCommentsInputSchema },
   output: { schema: ImproveCoachCommentsOutputSchema },
   prompt: `
-Eres un entrenador experto de básquet. Tu tarea es redactar un único párrafo para la sección "Comentarios del Entrenador" de una evaluación del jugador {{playerName}}.
+Eres un entrenador experto de fútbol. Tu tarea es redactar un único párrafo para la sección "Comentarios del Entrenador" de una evaluación del jugador {{playerName}}.
 
 **Contexto:** Tienes acceso al historial de comentarios de evaluaciones anteriores de este jugador y al borrador actual que el entrenador escribió o dictó (puede tener errores de transcripción o estar en bruto).
 
@@ -47,7 +47,7 @@ Eres un entrenador experto de básquet. Tu tarea es redactar un único párrafo 
 - Genera UN solo párrafo (o dos cortos si es necesario), en español, que resuma de forma clara y profesional el rendimiento, actitud y áreas de mejora.
 - Incorpora la información del borrador actual y, si es útil, la continuidad con evaluaciones anteriores (evolución, consistencia).
 - Corrige errores de transcripción, une ideas sueltas y mejora la redacción sin inventar datos.
-- Tono: profesional, constructivo y alineado con la formación juvenil en básquet.
+- Tono: profesional, constructivo y alineado con la formación juvenil en fútbol.
 - No uses listas con viñetas; el resultado debe ser texto corrido para pegar en el campo "Comentarios del Entrenador".
 - Si el borrador está vacío o es muy breve, genera igualmente un comentario coherente basado solo en el historial si hay datos; si no hay nada, devuelve un párrafo genérico y alentador.
 
@@ -104,7 +104,7 @@ const improveRubricPrompt = ai.definePrompt({
   input: { schema: ImproveRubricCommentInputSchema },
   output: { schema: ImproveRubricCommentOutputSchema },
   prompt: `
-Eres un entrenador experto de básquet. Tu tarea es redactar UNA FRASE CORTA para el comentario opcional del rubro "{{rubricLabel}}" en la evaluación del jugador {{playerName}}.
+Eres un entrenador experto de fútbol. Tu tarea es redactar UNA FRASE CORTA para el comentario opcional del rubro "{{rubricLabel}}" en la evaluación del jugador {{playerName}}.
 
 **Borrador del entrenador (puede ser transcripción de voz o texto suelto):**
 {{currentDraft}}

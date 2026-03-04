@@ -136,7 +136,7 @@ export default function PaymentsPage() {
                 Mensualidad a la plataforma
               </h1>
               <p className="text-muted-foreground text-sm sm:text-base">
-                Cuota mensual que tu escuela paga a Escuela Básquet
+                Cuota mensual que tu escuela paga a Escuelas River
               </p>
             </>
           ) : (

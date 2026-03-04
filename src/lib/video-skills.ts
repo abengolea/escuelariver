@@ -5,7 +5,7 @@ export interface VideoSkillOption {
   group: "general";
 }
 
-/** Habilidades de básquet para la videoteca. */
+/** Habilidades de fútbol para la videoteca. */
 export const VIDEO_SKILLS_GENERAL: VideoSkillOption[] = [
   { id: "dribbling", label: "Dribbling", group: "general" },
   { id: "pase", label: "Pase", group: "general" },

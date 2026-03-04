@@ -117,7 +117,7 @@ export function EditSchoolDialog({ school, children }: EditSchoolDialogProps) {
                     <FormItem>
                     <FormLabel>Nombre de la Sede</FormLabel>
                     <FormControl>
-                        <Input placeholder="Ej: Club Básquet X - Córdoba" {...field} />
+                        <Input placeholder="Ej: Escuela de River - Córdoba" {...field} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>

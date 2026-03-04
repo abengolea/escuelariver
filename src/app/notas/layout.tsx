@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { AppLogo } from "@/components/icons/AppLogo";
+import { RiverPlateLogo } from "@/components/icons/RiverPlateLogo";
 
 export default function NotasLayout({
   children,
@@ -11,10 +11,10 @@ export default function NotasLayout({
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-10 border-b bg-card px-4 lg:px-6 h-14 flex items-center gap-4">
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <AppLogo className="h-8 w-8 shrink-0" />
+          <RiverPlateLogo className="h-8 w-8 shrink-0" />
           <span className="font-bold font-headline uppercase text-base sm:text-lg">
             <span className="text-primary">ESCUELA</span>{" "}
-            <span className="text-black dark:text-white">BÁSQUET</span>
+            <span className="text-black dark:text-white">RIVER</span>
           </span>
         </Link>
         <nav className="flex items-center gap-2 ml-auto">
@@ -32,7 +32,7 @@ export default function NotasLayout({
       <main className="flex-1">{children}</main>
       <footer className="border-t py-6 px-4 lg:px-6">
         <p className="text-xs text-muted-foreground text-center">
-          &copy; {new Date().getFullYear()} Escuela Básquet. Todos los derechos reservados.
+          &copy; {new Date().getFullYear()} Escuelas River. Todos los derechos reservados.
         </p>
       </footer>
     </div>

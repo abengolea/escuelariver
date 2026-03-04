@@ -37,10 +37,10 @@ export async function createMercadoPagoPreference(
 
   const title =
     params.period === 'inscripcion'
-      ? 'Derecho de inscripción - Escuela Básquet'
+      ? 'Derecho de inscripción - Escuelas River'
       : params.period.startsWith('ropa-')
-        ? `Pago de ropa (${params.period.replace('ropa-', '')}) - Escuela Básquet`
-        : `Cuota ${params.period} - Escuela Básquet`;
+        ? `Pago de ropa (${params.period.replace('ropa-', '')}) - Escuelas River`
+        : `Cuota ${params.period} - Escuelas River`;
 
   const notificationUrl = `${BASE_URL}/api/payments/webhook/mercadopago?schoolId=${encodeURIComponent(params.schoolId)}`;
   const externalReference = `${params.schoolId}|${params.playerId}|${params.period}`;

@@ -1,6 +1,6 @@
 # Migración a la base de datos de la app nueva
 
-Esta guía explica cómo usar el proyecto Firebase **BasquetAdmin** (`basquetadmin`) en lugar de `lexflow-consultas`.
+Esta guía explica cómo migrar a un proyecto Firebase nuevo en lugar de `lexflow-consultas` (usado por Escuelas River).
 
 ## 1. Crear / obtener el proyecto Firebase de la app nueva
 

@@ -233,10 +233,10 @@ export function RecordOrUploadVideoDialog({
         const playerEmail = playerData?.email?.trim?.();
         const firstName = playerData?.firstName ?? (playerName?.trim() || "jugador");
         if (playerEmail) {
-          const subject = "Nuevo video en tu videoteca - Escuela Básquet";
+          const subject = "Nuevo video en tu videoteca - Escuelas River";
           const contentHtml = `<p>Hola <strong>${escapeHtml(firstName)}</strong>,</p><p>Tu entrenador subió un nuevo video a tu videoteca. Entrá al panel para verlo.</p><p><a href="${typeof window !== "undefined" ? window.location.origin : ""}/dashboard" style="color: #f97316; font-weight: bold;">Ver mi videoteca</a></p>`;
           const html = buildEmailHtml(contentHtml, {
-            title: "Escuela Básquet",
+            title: "Escuelas River",
             greeting: "Tenés un nuevo video en tu perfil.",
             baseUrl: typeof window !== "undefined" ? window.location.origin : "",
           });

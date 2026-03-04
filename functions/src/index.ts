@@ -1,5 +1,5 @@
 /**
- * Cloud Functions para Escuela Básquet.
+ * Cloud Functions para Escuelas River.
  *
  * - enforceDelinquencyAndSuspensions: Job diario que:
  *   - Recorre jugadores activos por escuela
@@ -193,7 +193,7 @@ export const enforceDelinquencyAndSuspensions = onSchedule(
               .update({ status: 'suspended' });
             suspended++;
             if (toEmail && (await ensureEmailSent('suspension_30_days', playerId, schoolId, period))) {
-              const subject = `Suspensión por mora - Cuota ${period} - Escuela Básquet`;
+              const subject = `Suspensión por mora - Cuota ${period} - Escuelas River`;
               const content = `
                 <p>Hola ${playerName},</p>
                 <p>Informamos que por haber superado los 30 días de mora en la cuota del período <strong>${period}</strong> (${currency} ${periodAmount}), tu situación ha sido marcada como <strong>suspendido</strong>.</p>
@@ -204,7 +204,7 @@ export const enforceDelinquencyAndSuspensions = onSchedule(
             }
           } else if (daysOverdue >= daysEmail) {
             if (toEmail && (await ensureEmailSent('delinquency_10_days', playerId, schoolId, period))) {
-              const subject = `Aviso de mora - Cuota ${period} - Escuela Básquet`;
+              const subject = `Aviso de mora - Cuota ${period} - Escuelas River`;
               const content = `
                 <p>Hola ${playerName},</p>
                 <p>Te recordamos que la cuota correspondiente al período <strong>${period}</strong> (${currency} ${periodAmount}) se encuentra en mora.</p>

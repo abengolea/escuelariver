@@ -45,7 +45,7 @@ const supportSummarizePrompt = ai.definePrompt({
   input: { schema: SupportSummarizeInputSchema },
   output: { schema: SupportSummarizeOutputSchema },
   prompt: `
-Eres un asistente de clasificación de tickets de soporte para una app web multi-tenant de escuelas de básquet. El usuario describe un problema en texto libre.
+Eres un asistente de clasificación de tickets de soporte para una app web multi-tenant de escuelas de fútbol. El usuario describe un problema en texto libre.
 
 **Texto del usuario:**
 {{freeText}}

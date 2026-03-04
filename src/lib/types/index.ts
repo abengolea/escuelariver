@@ -91,7 +91,7 @@ export interface Player {
   peso_kg?: number;
   /** Envergadura en cm (distancia entre las puntas de los dedos con brazos extendidos). */
   envergadura_cm?: number;
-  /** Mano predominante (lateralidad en básquet). */
+  /** Mano predominante (lateralidad, opcional). */
   mano_dominante?: 'derecho' | 'izquierdo' | 'ambidiestro';
   /** Posición preferida en cancha. */
   posicion_preferida?: 'base' | 'escolta' | 'ala' | 'ala_pivot' | 'pivot';

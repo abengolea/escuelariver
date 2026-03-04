@@ -37,7 +37,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-import { AppLogo } from "../icons/AppLogo";
+import { RiverPlateLogo } from "../icons/RiverPlateLogo";
 import { useUserProfile, useCollection, useDoc, useFirebase } from "@/firebase";
 import { isPlayerProfileComplete } from "@/lib/utils";
 import type { Player } from "@/lib/types";
@@ -182,10 +182,10 @@ export function SidebarNav() {
     <>
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2 p-2" onClick={closeMobileSidebar}>
-          <AppLogo className="h-8 w-8" />
+          <RiverPlateLogo className="h-8 w-8" />
           <span className="text-xl font-bold font-headline uppercase">
             <span className="text-primary">ESCUELA</span>{" "}
-            <span className="text-black dark:text-white">BÁSQUET</span>
+            <span className="text-black dark:text-white">RIVER</span>
           </span>
         </Link>
       </SidebarHeader>

@@ -97,7 +97,7 @@ export async function sendEmailEvent(params: SendEmailEventParams): Promise<bool
 
   switch (type) {
     case 'payment_receipt':
-      subject = `Recibo de pago - Cuota ${period} - Escuela Básquet`;
+      subject = `Recibo de pago - Cuota ${period} - Escuelas River`;
       contentHtml = `
         <p>Hola ${escapeHtml(playerName)},</p>
         <p>Confirmamos la recepción del pago correspondiente al período <strong>${period}</strong>.</p>
@@ -107,7 +107,7 @@ export async function sendEmailEvent(params: SendEmailEventParams): Promise<bool
       `;
       break;
     case 'delinquency_10_days':
-      subject = `Aviso de mora - Cuota ${period} - Escuela Básquet`;
+      subject = `Aviso de mora - Cuota ${period} - Escuelas River`;
       contentHtml = `
         <p>Hola ${escapeHtml(playerName)},</p>
         <p>Te recordamos que la cuota correspondiente al período <strong>${period}</strong> (${amountStr}) se encuentra en mora.</p>
@@ -116,7 +116,7 @@ export async function sendEmailEvent(params: SendEmailEventParams): Promise<bool
       `;
       break;
     case 'suspension_30_days':
-      subject = `Suspensión por mora - Cuota ${period} - Escuela Básquet`;
+      subject = `Suspensión por mora - Cuota ${period} - Escuelas River`;
       contentHtml = `
         <p>Hola ${escapeHtml(playerName)},</p>
         <p>Informamos que por haber superado los 30 días de mora en la cuota del período <strong>${period}</strong> (${amountStr}), tu situación ha sido marcada como <strong>suspendido</strong>.</p>

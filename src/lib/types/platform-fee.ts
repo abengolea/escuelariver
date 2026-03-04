@@ -1,6 +1,6 @@
 /**
  * Tipos para el módulo de mensualidades de escuelas a la plataforma.
- * Las escuelas pagan una cuota mensual a Escuela Básquet; el super admin define tarifas y mora.
+ * Las escuelas pagan una cuota mensual a Escuelas River; el super admin define tarifas y mora.
  */
 
 export type SchoolFeePaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded';

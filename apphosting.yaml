@@ -1,6 +1,6 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
-# Proyecto: BasquetAdmin (basquetadmin)
+# Proyecto: Escuelas River (lexflow-consultas)
 
 runConfig:
   maxInstances: 1
@@ -12,35 +12,42 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     secret: firebase-api-key
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: basquetadmin.firebaseapp.com
+    value: lexflow-consultas.firebaseapp.com
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: basquetadmin
+    value: lexflow-consultas
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: basquetadmin.firebasestorage.app
+    value: lexflow-consultas.firebasestorage.app
     availability:
       - BUILD
       - RUNTIME
-  # De Firebase Console → basquetadmin → Configuración → Tus apps (agregar app web </> si no existe)
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: "253452648265"
+    value: "664196918383"
     availability:
       - BUILD
       - RUNTIME
-  # Firebase Console → basquetadmin → Configuración → agregar app web </> → copiar appId
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: "COPIAR-DE-FIREBASE-CONSOLE"
+    value: "1:664196918383:web:e58546257d0d98e9fdf19a"
     availability:
       - BUILD
       - RUNTIME
-  # Actualizar tras el deploy (Firebase muestra la URL en App Hosting)
+  # URL base de la app en producción
   - variable: NEXT_PUBLIC_APP_URL
-    value: "https://tu-url.hosted.app"
+    value: "https://escuelariver--lexflow-consultas.us-east4.hosted.app"
     availability:
       - BUILD
       - RUNTIME
+  # Mercado Pago OAuth (crear secrets: mercadopago-client-secret, mercadopago-platform-access-token)
+  - variable: MERCADOPAGO_CLIENT_ID
+    value: "5150882001064843"
+    availability:
+      - RUNTIME
+  - variable: MERCADOPAGO_CLIENT_SECRET
+    secret: mercadopago-client-secret
+  - variable: MERCADOPAGO_PLATFORM_ACCESS_TOKEN
+    secret: mercadopago-platform-access-token

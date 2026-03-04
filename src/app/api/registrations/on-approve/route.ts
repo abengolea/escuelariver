@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     }
 
     const to = (body.playerEmail as string).trim().toLowerCase();
-    const subject = "Fuiste aceptado - Escuela Básquet";
+    const subject = "Fuiste aceptado - Escuelas River";
     const contentHtml = `
       <p>Tu solicitud de registro fue <strong>aceptada</strong>.</p>
       <p>Ya podés ingresar al panel con tu email y la contraseña que elegiste al registrarte.</p>

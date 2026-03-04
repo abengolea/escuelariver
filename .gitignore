@@ -43,6 +43,10 @@ next-env.d.ts
 !.env.example
 env.local
 
+# Evitar que reglas de adaptación a básquet vuelvan al repo (proyecto es Escuelas River)
+PROMPT-MIGRACION-BASQUET.md
+.cursor/rules/basquet-adaptacion.mdc
+
 # firebase
 firebase-debug.log
 functions/lib

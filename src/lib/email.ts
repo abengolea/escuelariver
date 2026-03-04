@@ -23,7 +23,7 @@ export function buildEmailHtml(
   contentHtml: string,
   options?: { title?: string; greeting?: string; baseUrl?: string }
 ): string {
-  const title = options?.title ?? "Escuela Básquet";
+  const title = options?.title ?? "Escuelas River";
   const greeting = options?.greeting ?? "";
 
   const headerContent = `<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
@@ -32,7 +32,7 @@ export function buildEmailHtml(
             <img src="cid:${LOGO_CID}" alt="Logo" width="48" height="48" style="display: block; width: 48px; height: 48px; object-fit: contain;" />
           </td>
           <td style="vertical-align: middle;">
-            <span style="color: #ffffff; font-weight: 700; font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase;">ESCUELA BÁSQUET</span>
+            <span style="color: #ffffff; font-weight: 700; font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase;">ESCUELAS RIVER</span>
           </td>
         </tr>
       </table>`;
@@ -61,7 +61,7 @@ export function buildEmailHtml(
                 ${contentHtml}
               </div>
               <p style="margin: 24px 0 0 0; padding-top: 16px; border-top: 1px solid #eee; font-size: 13px; color: ${MUTED_COLOR};">
-                Este correo fue enviado por Escuela Básquet. No responder a este mensaje.
+                Este correo fue enviado por Escuelas River. No responder a este mensaje.
               </p>
             </td>
           </tr>

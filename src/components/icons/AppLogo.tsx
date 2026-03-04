@@ -37,7 +37,7 @@ export function AppLogo({ className }: { className?: string }) {
     };
   }, []);
 
-  // Sin logo personalizado: mostrar placeholder con emoji de básquet
+  // Sin logo personalizado: mostrar placeholder con emoji de fútbol
   if (!logoSrc) {
     return (
       <div
@@ -46,9 +46,9 @@ export function AppLogo({ className }: { className?: string }) {
           "h-10 w-10",
           className
         )}
-        aria-label="Logo Escuela Básquet"
+        aria-label="Logo Escuelas River"
       >
-        🏀
+        ⚽
       </div>
     );
   }
@@ -59,7 +59,7 @@ export function AppLogo({ className }: { className?: string }) {
     <Image
       key={logoSrc}
       src={logoSrc}
-      alt="Escuela Básquet Logo"
+      alt="Escuelas River Logo"
       width={40}
       height={40}
       className={cn("h-10 w-10", className)}

@@ -34,7 +34,7 @@ const improveMassMessagePrompt = ai.definePrompt({
   input: { schema: ImproveMassMessageInputSchema },
   output: { schema: ImproveMassMessageOutputSchema },
   prompt: `
-Eres un asistente de comunicación de una escuela de básquet. Tu tarea es redactar o mejorar un mensaje que el administrador de la escuela enviará por correo a los jugadores y sus familias.
+Eres un asistente de comunicación de una escuela de fútbol. Tu tarea es redactar o mejorar un mensaje que el administrador de la escuela enviará por correo a los jugadores y sus familias.
 
 **Asunto actual (puede estar vacío):**
 {{subject}}

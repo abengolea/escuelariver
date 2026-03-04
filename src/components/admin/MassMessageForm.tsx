@@ -156,7 +156,7 @@ export function MassMessageForm() {
     try {
       const contentHtml = content.replace(/\n/g, "<br>");
       const html = buildEmailHtml(contentHtml, {
-        title: "Escuela Básquet",
+        title: "Escuelas River",
         baseUrl: typeof window !== "undefined" ? window.location.origin : "",
         greeting: "Mensaje de tu escuela:",
       });

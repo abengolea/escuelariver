@@ -1,0 +1,26 @@
+---
+description: Identidad del proyecto Escuelas River - NO MODIFICAR
+alwaysApply: true
+---
+
+# Escuelas River - Identidad inalterable
+
+**Este proyecto es ESCUELAS RIVER** (escuelas de fútbol). La identidad es fija e inmutable.
+
+## PROHIBIDO
+
+- Cambiar branding a "Escuela Básquet", básquet, basketball o cualquier otro deporte
+- Reemplazar River por otro nombre o producto
+- Cambiar colores (primary debe ser rojo River: hsl 352)
+- Cambiar logo/escudo (RiverPlateLogo, LogoRiverNuevo_1_2.png)
+- Cambiar tipografía (Oswald + Inter)
+- Agregar reglas o prompts de migración a básquet u otro deporte
+
+## Branding correcto
+
+- Nombre: Escuelas River / Escuela River / River
+- Color: rojo (HSL ~352)
+- Logo: escudo River en public/LogoRiverNuevo_1_2.png
+- Deporte: fútbol
+
+Si necesitás una versión para básquet u otro deporte, creá un **proyecto separado** (ej. escuelabasquet) y copiá el código allí. Este repositorio es exclusivamente Escuelas River.

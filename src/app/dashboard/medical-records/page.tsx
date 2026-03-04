@@ -331,7 +331,7 @@ function PendingReviewRowActions({
         const safeReason = escapeHtml(reason).replace(/\n/g, "<br>");
         const contentHtml = `<p>Hola,</p><p>Tu ficha médica no fue aprobada. Motivo:</p><p><strong>${safeReason}</strong></p><p>Por favor subí una nueva ficha médica corregida desde tu perfil en el panel.</p>`;
         const html = buildEmailHtml(contentHtml, {
-          title: "Escuela Básquet",
+          title: "Escuelas River",
           baseUrl: typeof window !== "undefined" ? window.location.origin : "",
           greeting: "Mensaje de tu escuela:",
         });
