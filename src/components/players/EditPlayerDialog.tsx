@@ -32,7 +32,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { cn, getMissingProfileFieldLabels } from "@/lib/utils";
+import { cn, getMissingProfileFieldLabels, toDateSafe } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useUser } from "@/firebase";
@@ -86,11 +86,7 @@ export function EditPlayerDialog({
   const [birthDateCalendarOpen, setBirthDateCalendarOpen] = useState(false);
   const birthDateCalendarRef = useRef<HTMLDivElement>(null);
 
-  const birthDate = player.birthDate instanceof Date
-    ? player.birthDate
-    : player.birthDate
-    ? new Date(player.birthDate as unknown as string | number)
-    : new Date();
+  const birthDate = toDateSafe(player.birthDate);
 
   const form = useForm<z.infer<typeof playerSchema>>({
     resolver: zodResolver(playerSchema),
@@ -134,11 +130,7 @@ export function EditPlayerDialog({
   // Reset form when player changes or dialog opens
   useEffect(() => {
     if (isOpen && player) {
-      const bd = player.birthDate instanceof Date
-        ? player.birthDate
-        : player.birthDate
-        ? new Date(player.birthDate as unknown as string | number)
-        : new Date();
+      const bd = toDateSafe(player.birthDate);
       form.reset({
         firstName: player.firstName ?? "",
         lastName: player.lastName ?? "",

@@ -5,6 +5,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Convierte birthDate (o cualquier valor tipo timestamp) a Date válido.
+ * Soporta: Date, Firestore Timestamp, { seconds, nanoseconds }, string ISO, number (ms).
+ * Jugadores creados por migración/importación pueden tener birthDate como objeto plano.
+ */
+export function toDateSafe(val: unknown): Date {
+  if (!val) return new Date();
+  if (val instanceof Date) return isNaN(val.getTime()) ? new Date() : val;
+  const v = val as { toDate?: () => Date; seconds?: number; nanoseconds?: number };
+  if (typeof v.toDate === "function") return v.toDate();
+  if (typeof v === "object" && typeof v.seconds === "number") {
+    const ms = v.seconds * 1000 + (v.nanoseconds ?? 0) / 1e6;
+    return new Date(ms);
+  }
+  const parsed = new Date(val as string | number);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
 export function calculateAge(birthDate: Date): number {
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
