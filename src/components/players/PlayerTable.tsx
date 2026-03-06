@@ -82,6 +82,12 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
   }, [fetchPaymentStatus]);
 
   const posicionLabel: Record<string, string> = {
+    arquero: "Arquero",
+    defensor: "Defensor",
+    lateral: "Lateral",
+    mediocampista: "Mediocampista",
+    delantero: "Delantero",
+    extremo: "Extremo",
     base: "Base",
     escolta: "Escolta",
     ala: "Ala",

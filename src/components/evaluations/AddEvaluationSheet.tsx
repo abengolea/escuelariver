@@ -47,17 +47,23 @@ import { es } from "date-fns/locale";
 const POSITION_NONE = "__none__";
 
 const positionOptions: { value: PlayerPosition; label: string }[] = [
-  { value: "base", label: "Base" },
-  { value: "escolta", label: "Escolta" },
-  { value: "ala", label: "Ala" },
-  { value: "ala_pivot", label: "Ala-pívot" },
-  { value: "pivot", label: "Pívot" },
+  { value: "arquero", label: "Arquero" },
+  { value: "defensor", label: "Defensor" },
+  { value: "lateral", label: "Lateral" },
+  { value: "mediocampista", label: "Mediocampista" },
+  { value: "delantero", label: "Delantero" },
+  { value: "extremo", label: "Extremo" },
+  { value: "base", label: "Base (legacy)" },
+  { value: "escolta", label: "Escolta (legacy)" },
+  { value: "ala", label: "Ala (legacy)" },
+  { value: "ala_pivot", label: "Ala-pívot (legacy)" },
+  { value: "pivot", label: "Pívot (legacy)" },
 ];
 
 const MAX_STARS = 10;
 
 const evaluationSchema = z.object({
-  position: z.enum(["base", "escolta", "ala", "ala_pivot", "pivot"]).optional(),
+  position: z.enum(["arquero", "defensor", "lateral", "mediocampista", "delantero", "extremo", "base", "escolta", "ala", "ala_pivot", "pivot"]).optional(),
   // Validación de coachComments se hace manualmente en onSubmit (evita desincronía estado/DOM)
   coachComments: z.string().optional().default(""),
   /** Comentarios opcionales por rubro (key = nombre del campo, ej. control, pase). Valores pueden venir undefined si no se tocó el campo. */

@@ -9,6 +9,12 @@ import { EditCoachFeedbackDialog } from "@/components/players/EditCoachFeedbackD
 import type { Player } from "@/lib/types";
 
 const POSICION_LABELS: Record<string, string> = {
+  arquero: "Arquero",
+  defensor: "Defensor",
+  lateral: "Lateral",
+  mediocampista: "Mediocampista",
+  delantero: "Delantero",
+  extremo: "Extremo",
   base: "Base",
   escolta: "Escolta",
   ala: "Ala",

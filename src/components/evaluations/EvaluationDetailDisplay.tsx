@@ -30,6 +30,12 @@ interface EvaluationDetailDisplayProps {
 }
 
 const positionLabels: Record<string, string> = {
+  arquero: "Arquero",
+  defensor: "Defensor",
+  lateral: "Lateral",
+  mediocampista: "Mediocampista",
+  delantero: "Delantero",
+  extremo: "Extremo",
   base: "Base",
   escolta: "Escolta",
   ala: "Ala",

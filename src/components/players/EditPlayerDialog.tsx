@@ -59,7 +59,7 @@ const playerSchema = z.object({
   altura_cm: z.union([z.number().min(80, "Mín. 80 cm").max(220, "Máx. 220 cm"), z.undefined()]).optional(),
   peso_kg: z.union([z.number().min(15, "Mín. 15 kg").max(150, "Máx. 150 kg"), z.undefined()]).optional(),
   mano_dominante: z.enum(["derecho", "izquierdo", "ambidiestro"]).optional(),
-  posicion_preferida: z.enum(["base", "escolta", "ala", "ala_pivot", "pivot"]).optional(),
+  posicion_preferida: z.enum(["arquero", "defensor", "lateral", "mediocampista", "delantero", "extremo", "base", "escolta", "ala", "ala_pivot", "pivot"]).optional(),
   genero: z.enum(["masculino", "femenino"]).optional(),
 });
 
@@ -127,9 +127,15 @@ export function EditPlayerDialog({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [birthDateCalendarOpen]);
 
-  // Reset form when player changes or dialog opens
+  // Reset form solo al abrir o al cambiar de jugador (evita sobrescribir mientras edita)
+  const prevPlayerIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isOpen && player) {
+    if (!isOpen) {
+      prevPlayerIdRef.current = null;
+      return;
+    }
+    if (player && prevPlayerIdRef.current !== player.id) {
+      prevPlayerIdRef.current = player.id;
       const bd = toDateSafe(player.birthDate);
       form.reset({
         firstName: player.firstName ?? "",
@@ -150,15 +156,18 @@ export function EditPlayerDialog({
         genero: player.genero ?? undefined,
       });
     }
-  }, [isOpen, player, form]);
+  }, [isOpen, player]);
 
   const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof playerSchema>) {
+    const bd = values.birthDate && !isNaN(values.birthDate.getTime())
+      ? values.birthDate
+      : toDateSafe((player as { birthDate?: unknown }).birthDate);
     const updateData = {
       firstName: values.firstName,
       lastName: values.lastName,
-      birthDate: Timestamp.fromDate(values.birthDate),
+      birthDate: Timestamp.fromDate(bd),
       dni: values.dni || null,
       healthInsurance: values.healthInsurance || null,
       email: values.email?.trim() ? values.email.trim().toLowerCase() : null,
@@ -268,7 +277,17 @@ export function EditPlayerDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <form
+            onSubmit={form.handleSubmit(onSubmit, (errors) => {
+              const first = Object.entries(errors)[0];
+              if (first) {
+                const [, err] = first;
+                const msg = err?.message ?? "Revisá los campos marcados en rojo.";
+                toast({ variant: "destructive", title: "No se puede guardar", description: msg });
+              }
+            })}
+            className="flex flex-col flex-1 min-h-0 overflow-hidden"
+          >
             <Tabs defaultValue="personal" className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <TabsList className="grid w-full grid-cols-2 mb-4 flex-shrink-0">
                 <TabsTrigger value="personal">Datos personales</TabsTrigger>
@@ -320,7 +339,7 @@ export function EditPlayerDialog({
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value ? (
+                              {field.value && !isNaN(field.value.getTime()) ? (
                                 format(field.value, "PPP", { locale: es })
                               ) : (
                                 <span>Elige una fecha</span>
@@ -332,7 +351,7 @@ export function EditPlayerDialog({
                             <div className="absolute left-0 top-full z-[200] mt-1 rounded-md border bg-popover p-3 shadow-md">
                               <Calendar
                                 mode="single"
-                                selected={field.value}
+                                selected={field.value && !isNaN(field.value.getTime()) ? field.value : undefined}
                                 onSelect={(date) => {
                                   if (date) {
                                     field.onChange(date);
@@ -599,11 +618,17 @@ export function EditPlayerDialog({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="__none__">No especificado</SelectItem>
-                            <SelectItem value="base">Base</SelectItem>
-                            <SelectItem value="escolta">Escolta</SelectItem>
-                            <SelectItem value="ala">Ala</SelectItem>
-                            <SelectItem value="ala_pivot">Ala-pívot</SelectItem>
-                            <SelectItem value="pivot">Pívot</SelectItem>
+                            <SelectItem value="arquero">Arquero</SelectItem>
+                            <SelectItem value="defensor">Defensor</SelectItem>
+                            <SelectItem value="lateral">Lateral</SelectItem>
+                            <SelectItem value="mediocampista">Mediocampista</SelectItem>
+                            <SelectItem value="delantero">Delantero</SelectItem>
+                            <SelectItem value="extremo">Extremo</SelectItem>
+                            <SelectItem value="base" className="text-muted-foreground">Base (legacy)</SelectItem>
+                            <SelectItem value="escolta" className="text-muted-foreground">Escolta (legacy)</SelectItem>
+                            <SelectItem value="ala" className="text-muted-foreground">Ala (legacy)</SelectItem>
+                            <SelectItem value="ala_pivot" className="text-muted-foreground">Ala-pívot (legacy)</SelectItem>
+                            <SelectItem value="pivot" className="text-muted-foreground">Pívot (legacy)</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
