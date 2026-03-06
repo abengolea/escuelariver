@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { onSnapshot, collection, query, where, type Query, type QueryDocumentSnapshot, orderBy, limit, type FirestoreError } from 'firebase/firestore';
+import { onSnapshot, collection, query, where, type Query, type QueryDocumentSnapshot, orderBy, limit, type FirestoreError, type DocumentData } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useMemoFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';

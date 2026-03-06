@@ -125,7 +125,7 @@ export async function updatePost(
   const schoolId = String(data.schoolId ?? "");
 
   if (input.slug !== undefined) {
-    const slug = input.slug.trim() || slugify(input.title ?? data.title);
+    const slug = input.slug.trim() || slugify(input.title ?? String(data.title ?? ""));
     const unique = await checkSlugUnique(schoolId, slug, postId);
     if (!unique) {
       throw new Error("Ya existe una nota con ese slug en esta escuela.");
@@ -138,7 +138,7 @@ export async function updatePost(
     updatedByName: displayName,
   };
   if (input.title !== undefined) update.title = input.title;
-  if (input.slug !== undefined) update.slug = input.slug.trim() || slugify(input.title ?? data.title);
+  if (input.slug !== undefined) update.slug = input.slug.trim() || slugify(input.title ?? String(data.title ?? ""));
   if (input.excerpt !== undefined) update.excerpt = input.excerpt;
   if (input.content !== undefined) update.content = input.content;
   if (input.coverImageUrl !== undefined) update.coverImageUrl = input.coverImageUrl;
@@ -146,8 +146,8 @@ export async function updatePost(
   if (input.tags !== undefined) update.tags = input.tags;
 
   // Rebuild keywords
-  const title = (input.title ?? data.title) as string;
-  const excerpt = (input.excerpt ?? data.excerpt) as string;
+  const title = String(input.title ?? data.title ?? "");
+  const excerpt = String(input.excerpt ?? data.excerpt ?? "");
   const tags = (input.tags ?? data.tags) as string[] | undefined;
   update.searchKeywords = [title, excerpt, ...(tags ?? [])].filter(Boolean).join(" ").toLowerCase();
 

@@ -25,7 +25,7 @@ Para que **tu escuela cobre directamente en su cuenta de Mercado Pago** desde la
 
 Para que **cada escuela cobre directo** en su propia cuenta:
 
-1. **Una sola app en Mercado Pago Developers** (la de la plataforma Escuela River): crear aplicación, tipo “Pagos online” / OAuth.
+1. **Una sola app en Mercado Pago Developers** (la de la plataforma Escuelas River): crear aplicación, tipo “Pagos online” / OAuth.
 2. **OAuth (authorization code)** para que cada escuela autorice la app: el admin va a Administración → Pagos → Configuración → “Conectar Mercado Pago”, se redirige a `auth.mercadopago.com`, autoriza, y el callback intercambia el `code` por `access_token` y `refresh_token` y los guarda por `schoolId` en Firestore (`schools/{schoolId}/mercadopagoConnection/default`).
 3. **Cobrar con el token de la escuela**: al crear una intención de pago (el alumno toca “Pagar”), se crea una preferencia en Mercado Pago con ese `access_token` y se devuelve el `init_point` (Checkout Pro). El alumno paga en MP y vuelve a la app por `back_urls` (success/pending/failure).
 4. **Webhook de pagos**: cada preferencia tiene `notification_url` con `?schoolId=xxx`. Mercado Pago notifica a `POST/GET /api/payments/webhook/mercadopago?schoolId=xxx`; el backend consulta el pago en la API de MP, si está aprobado registra el pago en Firestore y envía el email de recibo.

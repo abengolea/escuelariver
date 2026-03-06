@@ -13,7 +13,7 @@ export default function EscuelasLayout({
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <RiverPlateLogo className="h-8 w-8 shrink-0" />
           <span className="font-bold font-headline uppercase text-base sm:text-lg">
-            <span className="text-primary">ESCUELA</span>{" "}
+            <span className="text-primary">ESCUELAS</span>{" "}
             <span className="text-black dark:text-white">RIVER</span>
           </span>
         </Link>

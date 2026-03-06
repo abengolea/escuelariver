@@ -13,13 +13,19 @@ import { getTrainingConfig, saveTrainingConfig } from "@/lib/training-config";
 import { verifyIdToken } from "@/lib/auth-server";
 
 const TrainingSlotSchema = z.object({
+  name: z.string().optional(),
   dayOfWeek: z.number().int().min(0).max(6),
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).optional(),
   time: z.string().optional().refine((v) => !v || /^\d{1,2}:\d{2}$/.test(v), "Formato HH:mm"),
   categoryFrom: z.string().min(1),
   categoryTo: z.string().min(1),
-  tipoCategoria: z.enum(["masculino", "femenino"]).optional(),
+  yearFrom: z.number().int().optional(),
+  yearTo: z.number().int().optional(),
+  tipoCategoria: z.enum(["masculino", "femenino", "arqueros"]).optional(),
   maxQuota: z.number().int().min(1).max(500),
   coachId: z.string().min(1),
+  coachIds: z.array(z.string()).optional(),
+  manualPlayerIds: z.array(z.string()).optional(),
 });
 
 const PutBodySchema = z.object({

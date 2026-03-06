@@ -43,10 +43,10 @@ function useFirebase() {
 
 function useMemoFirebase<T>(
   factory: () => T,
-  deps: React.DependencyList | undefined
+  deps?: React.DependencyList
 ) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemo<T>(factory, deps);
+  return useMemo<T>(factory, deps ?? []);
 }
 
 export { useFirebase, useMemoFirebase };

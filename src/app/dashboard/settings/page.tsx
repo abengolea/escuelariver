@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
 import { useUserProfile } from "@/firebase/auth/use-user-profile";
-import { useAuth, useFirestore } from "@/firebase/provider";
+import { useUser, useFirestore } from "@/firebase";
 import { buildEmailHtml, htmlToPlainText, sendMailDoc } from "@/lib/email";
 import { Upload, Moon, Sun, Mail } from "lucide-react";
 
@@ -24,7 +24,7 @@ const LOGO_STORAGE_KEY = "app-logo-data-url";
 export default function SettingsPage() {
   const { toast } = useToast();
   const { setTheme, resolvedTheme } = useTheme();
-  const { user } = useAuth();
+  const { user } = useUser();
   const firestore = useFirestore();
   const { isSuperAdmin, isPlayer } = useUserProfile();
   const [mounted, setMounted] = useState(false);

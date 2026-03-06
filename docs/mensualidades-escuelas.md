@@ -1,6 +1,6 @@
 # Mensualidades de Escuelas a la Plataforma
 
-Sistema de control de pagos mensuales que las escuelas adheridas realizan a Escuela River.
+Sistema de control de pagos mensuales que las escuelas adheridas realizan a Escuelas River.
 
 ## Resumen
 

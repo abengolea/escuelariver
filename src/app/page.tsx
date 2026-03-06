@@ -10,7 +10,7 @@ export default function LandingPage() {
         <Link href="/" className="flex items-center justify-center shrink-0 min-w-0">
           <RiverPlateLogo className="h-8 w-8 shrink-0" />
           <span className="ml-2 text-base sm:text-lg font-bold font-headline uppercase truncate max-w-[50vw] sm:max-w-none">
-            <span className="text-primary">ESCUELA</span>{" "}
+            <span className="text-primary">ESCUELAS</span>{" "}
             <span className="text-foreground">RIVER</span>
           </span>
         </Link>

@@ -41,10 +41,7 @@ const positionLabels: Record<string, string> = {
   ala: "Ala",
   ala_pivot: "Ala-pívot",
   pivot: "Pívot",
-  delantero: "Delantero",
   mediocampo: "Mediocampo",
-  defensor: "Defensor",
-  arquero: "Arquero",
 };
 
 const skillLabels: Record<string, string> = {

@@ -22,7 +22,13 @@ import { Button } from "@/components/ui/button";
 import type { Player } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { calculateAge, getCategoryLabel, compareCategory, CATEGORY_ORDER } from "@/lib/utils";
+import {
+  calculateAge,
+  getBirthYearLabel,
+  compareBirthYearLabel,
+  BIRTH_YEAR_LABELS,
+  parseBirthYearLabel,
+} from "@/lib/utils";
 import { useCollection, useUserProfile } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
 import React, { useMemo, useState, useEffect, useCallback } from "react";
@@ -112,7 +118,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
     const withCategory = activePlayers.map((p) => ({
       player: p,
       category: p.birthDate
-        ? getCategoryLabel(p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate))
+        ? getBirthYearLabel(p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate))
         : "-",
     }));
     let filtered = withCategory;
@@ -122,15 +128,28 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
     if (categoryFilter !== "") {
       filtered = filtered.filter((x) => x.category === categoryFilter);
     } else {
-      if (categoryFrom !== "") {
-        filtered = filtered.filter((x) => compareCategory(x.category, categoryFrom) >= 0);
-      }
-      if (categoryTo !== "") {
-        filtered = filtered.filter((x) => compareCategory(x.category, categoryTo) <= 0);
+      if (categoryFrom !== "" && categoryTo !== "") {
+        const y1 = parseBirthYearLabel(categoryFrom);
+        const y2 = parseBirthYearLabel(categoryTo);
+        const yearMin = Math.min(y1, y2);
+        const yearMax = Math.max(y1, y2);
+        filtered = filtered.filter((x) => {
+          if (x.category === "-") return false;
+          const py = parseBirthYearLabel(x.category);
+          return py >= yearMin && py <= yearMax;
+        });
+      } else if (categoryFrom !== "") {
+        filtered = filtered.filter((x) =>
+          x.category !== "-" ? compareBirthYearLabel(x.category, categoryFrom) <= 0 : false
+        );
+      } else if (categoryTo !== "") {
+        filtered = filtered.filter((x) =>
+          x.category !== "-" ? compareBirthYearLabel(categoryTo, x.category) <= 0 : false
+        );
       }
     }
     return filtered.sort((a, b) => {
-      const cmp = compareCategory(a.category, b.category);
+      const cmp = compareBirthYearLabel(a.category, b.category);
       if (cmp !== 0) return cmp;
       const lnA = (a.player.lastName ?? "").toLowerCase();
       const lnB = (b.player.lastName ?? "").toLowerCase();
@@ -144,7 +163,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
       "Apellido",
       "Fecha de nacimiento",
       "Edad",
-      "Categoría",
+      "Cat. año nac.",
       "Género",
       "DNI",
       "Obra social",
@@ -197,7 +216,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                         <TableHead>Nombre</TableHead>
                         <TableHead>Edad</TableHead>
                         <TableHead>Posición</TableHead>
-                        <TableHead>Categoría</TableHead>
+                        <TableHead>Cat. año nac.</TableHead>
                         <TableHead>Estado</TableHead>
                         {canSeePaymentStatus && <TableHead>Pagos</TableHead>}
                     </TableRow>
@@ -244,14 +263,14 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
           </Select>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-sm text-muted-foreground shrink-0">Categoría</Label>
+          <Label className="text-sm text-muted-foreground shrink-0">Cat. año nac.</Label>
           <Select value={categoryFilter || "all"} onValueChange={(v) => setCategoryFilter(v === "all" ? "" : v)}>
             <SelectTrigger className="w-[140px] sm:w-[160px]">
               <SelectValue placeholder="Todas" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
-              {CATEGORY_ORDER.map((cat) => (
+              {BIRTH_YEAR_LABELS.map((cat) => (
                 <SelectItem key={cat} value={cat}>
                   {cat}
                 </SelectItem>
@@ -269,7 +288,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Cualquiera</SelectItem>
-                  {CATEGORY_ORDER.map((cat) => (
+                  {BIRTH_YEAR_LABELS.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>
@@ -285,7 +304,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Cualquiera</SelectItem>
-                  {CATEGORY_ORDER.map((cat) => (
+                  {BIRTH_YEAR_LABELS.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>
@@ -320,7 +339,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
               <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
               <TableHead className="text-xs sm:text-sm whitespace-nowrap">Edad</TableHead>
               <TableHead className="text-xs sm:text-sm whitespace-nowrap">Posición</TableHead>
-              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Categoría</TableHead>
+              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Cat. año nac.</TableHead>
               <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
               {canSeePaymentStatus && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Pagos</TableHead>}
             </TableRow>
@@ -329,7 +348,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
             {sortedAndFilteredPlayers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={colCount} className="text-center text-muted-foreground py-6">
-                  {categoryFrom || categoryTo ? "Ningún jugador en el rango de categorías seleccionado." : "Ningún jugador en la categoría seleccionada."}
+                  {categoryFrom || categoryTo ? "Ningún jugador en el rango de años seleccionado." : "Ningún jugador en la cat. año nac. seleccionada."}
                 </TableCell>
               </TableRow>
             ) : (

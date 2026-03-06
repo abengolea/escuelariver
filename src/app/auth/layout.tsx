@@ -12,7 +12,7 @@ export default function AuthLayout({
        <Link href="/" className="mb-8 flex items-center gap-3 text-2xl font-bold shrink-0">
           <RiverPlateLogo className="h-10 w-10 shrink-0" />
           <h1 className="font-headline text-2xl sm:text-3xl uppercase truncate max-w-[90vw]">
-          <span className="text-primary">ESCUELA</span>{" "}
+          <span className="text-primary">ESCUELAS</span>{" "}
           <span className="text-black dark:text-white">RIVER</span>
         </h1>
         </Link>

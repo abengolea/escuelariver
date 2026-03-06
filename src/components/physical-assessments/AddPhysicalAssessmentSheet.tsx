@@ -30,7 +30,7 @@ import { collection, addDoc, doc, updateDoc, Timestamp } from "firebase/firestor
 import type { PhysicalAssessment, PhysicalAgeGroup, PhysicalAssessmentTemplate } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getAgeGroup, FIELDS_BY_AGE_GROUP, getFieldsForAgeGroup } from "@/lib/physical-assessments";
+import { getAgeGroup, FIELDS_BY_AGE_GROUP, getFieldsForAgeGroup, type PhysicalAssessmentConfigPartial } from "@/lib/physical-assessments";
 import { useDoc } from "@/firebase";
 import { getAgeInMonths, calculateIMC } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -118,7 +118,7 @@ export function AddPhysicalAssessmentSheet({
   }>(
     schoolId ? `schools/${schoolId}/physicalAssessmentConfig/default` : ""
   );
-  const { data: globalTemplate } = useDoc<PhysicalAssessmentTemplate>(
+  const { data: globalTemplate } = useDoc<PhysicalAssessmentTemplate & { id: string }>(
     "platformConfig/physicalAssessmentTemplate"
   );
 
@@ -131,7 +131,7 @@ export function AddPhysicalAssessmentSheet({
     if (!ageGroup) return [];
     return getFieldsForAgeGroup(
       ageGroup,
-      config ?? undefined,
+      (config ?? undefined) as PhysicalAssessmentConfigPartial | undefined,
       globalTemplate?.acceptedFieldsByAgeGroup ?? undefined
     );
   }, [ageGroup, config, globalTemplate?.acceptedFieldsByAgeGroup]);

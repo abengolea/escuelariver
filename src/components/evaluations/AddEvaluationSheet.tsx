@@ -1,5 +1,6 @@
 "use client";
 
+/// <reference path="@/types/speech-recognition.d.ts" />
 import React, { useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type Control } from "react-hook-form";
@@ -188,7 +189,7 @@ function RubricCommentField({
                 <div className="mt-2 space-y-1.5">
                     <Textarea
                         placeholder={`Comentario opcional para ${skillLabel}… Escribí o usá "Hablar" y después "Mejorar con IA".`}
-                        value={field.value ?? ""}
+                        value={typeof field.value === "string" ? field.value : ""}
                         onChange={(e) => field.onChange(e.target.value)}
                         className="min-h-[56px] text-sm resize-none"
                     />
@@ -198,7 +199,7 @@ function RubricCommentField({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => onToggleVoice(field.value ?? "", field.onChange)}
+                                onClick={() => onToggleVoice(typeof field.value === "string" ? field.value : "", field.onChange)}
                             >
                                 {isRecording ? <MicOff className="h-3 w-3 mr-1" /> : <Mic className="h-3 w-3 mr-1" />}
                                 {isRecording ? "Detener" : "Hablar"}
@@ -209,7 +210,7 @@ function RubricCommentField({
                             variant="outline"
                             size="sm"
                             disabled={improvingKey !== null}
-                            onClick={() => onImproveWithAI(skillName, skillLabel, field.value ?? "")}
+                            onClick={() => onImproveWithAI(skillName, skillLabel, typeof field.value === "string" ? field.value : "")}
                         >
                             {improvingKey === skillName ? (
                                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -563,7 +564,7 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
                                                         <FormLabel>{skill.label}</FormLabel>
                                                         <FormControl>
                                                             <StarRating
-                                                                value={field.value}
+                                                                value={typeof field.value === "number" ? field.value : 5}
                                                                 max={MAX_STARS}
                                                                 size={22}
                                                                 onValueChange={field.onChange}
@@ -596,7 +597,7 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
                                                         <FormLabel>{skill.label}</FormLabel>
                                                         <FormControl>
                                                             <StarRating
-                                                                value={field.value}
+                                                                value={typeof field.value === "number" ? field.value : 5}
                                                                 max={MAX_STARS}
                                                                 size={22}
                                                                 onValueChange={field.onChange}
@@ -631,16 +632,16 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
                                                 <FormLabel>{skill.label}</FormLabel>
                                                 <FormControl>
                                                     <StarRating
-                                                        value={field.value}
+                                                        value={typeof field.value === "number" ? field.value : 5}
                                                         max={MAX_STARS}
                                                         size={22}
                                                         onValueChange={field.onChange}
                                                     />
                                                 </FormControl>
-                                                <RubricCommentField
-                                                control={form.control}
-                                                skillName={skill.name}
-                                                skillLabel={skill.label}
+                                                        <RubricCommentField
+                                                        control={form.control}
+                                                        skillName={skill.name}
+                                                        skillLabel={skill.label}
                                                 canUseVoice={canUseVoice}
                                                 isRecording={isRecording}
                                                 onToggleVoice={toggleVoice}

@@ -13,7 +13,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCollection, useUserProfile, useDoc } from "@/firebase";
 import type { Player, School as SchoolType } from "@/lib/types";
-import { getCategoryLabel } from "@/lib/utils";
+import { getBirthYearLabel } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useMemo } from "react";
 
@@ -39,7 +39,7 @@ export function SchoolAdminDashboard() {
       .map((p) => ({
         player: p,
         category: p.birthDate
-          ? getCategoryLabel(p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate))
+          ? getBirthYearLabel(p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate))
           : "-",
       }));
   }, [activePlayers]);

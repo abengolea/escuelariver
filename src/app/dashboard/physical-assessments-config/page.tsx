@@ -61,7 +61,7 @@ export default function PhysicalAssessmentsConfigPage() {
   const { data: config, loading: configLoading } = useDoc<PhysicalAssessmentConfig>(
     schoolId ? `schools/${schoolId}/physicalAssessmentConfig/default` : ""
   );
-  const { data: globalTemplate } = useDoc<PhysicalAssessmentTemplate>(
+  const { data: globalTemplate } = useDoc<PhysicalAssessmentTemplate & { id: string }>(
     `platformConfig/${TEMPLATE_DOC_ID}`
   );
   const firestore = useFirestore();

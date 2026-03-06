@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -43,11 +44,11 @@ import {
   Dumbbell,
 } from "lucide-react";
 import {
-  CATEGORY_ORDER,
-  getCategoryLabel,
-  isCategoryInRange,
-  compareCategory,
+  BIRTH_YEAR_LABELS,
+  parseBirthYearLabel,
+  getCategoryLabelFromBirthYear,
 } from "@/lib/utils";
+import { getPlayersInSlot as getPlayersInSlotUtil } from "@/lib/training-slot-utils";
 import type { TrainingSlot, TrainingConfig } from "@/lib/types";
 import type { Player } from "@/lib/types";
 import type { SchoolUser } from "@/lib/types";
@@ -176,13 +177,20 @@ export function TrainingSchedulesPanel({
         <DeleteSlotDialog
           slot={deleteSlot}
           onConfirm={async () => {
+            const delDays = [...(deleteSlot.daysOfWeek ?? [deleteSlot.dayOfWeek])].sort().join(",");
+            const slotDays = (s: TrainingSlot) =>
+              [...(s.daysOfWeek ?? [s.dayOfWeek])].sort().join(",");
+            const yearsMatch = (s: TrainingSlot) =>
+              s.yearFrom != null && s.yearTo != null && deleteSlot.yearFrom != null && deleteSlot.yearTo != null
+                ? s.yearFrom === deleteSlot.yearFrom && s.yearTo === deleteSlot.yearTo
+                : s.categoryFrom === deleteSlot.categoryFrom && s.categoryTo === deleteSlot.categoryTo;
             const newSlots = (config?.slots ?? []).filter(
               (s) =>
                 !(
-                  s.dayOfWeek === deleteSlot.dayOfWeek &&
+                  slotDays(s) === delDays &&
                   s.time === deleteSlot.time &&
-                  s.categoryFrom === deleteSlot.categoryFrom &&
-                  s.categoryTo === deleteSlot.categoryTo
+                  yearsMatch(s) &&
+                  (s.name ?? "") === (deleteSlot.name ?? "")
                 )
             );
             await handleSave(newSlots);
@@ -219,30 +227,20 @@ function SlotList({ schoolId, slots, onEdit, onDelete, onAdd }: SlotListProps) {
   const getCoachName = (coachId: string) =>
     coachList.find((c) => c.id === coachId)?.displayName ?? coachId;
 
-  const getPlayersInSlot = (slot: TrainingSlot) => {
-    if (slot.tipoCategoria === "masculino" || slot.tipoCategoria === "femenino") {
-      return activePlayers.filter((p) => {
-        if (p.genero !== slot.tipoCategoria) return false;
-        if (!p.birthDate) return false;
-        const cat = getCategoryLabel(
-          p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate)
-        );
-        return isCategoryInRange(cat, slot.categoryFrom, slot.categoryTo);
-      });
-    }
-    // Retrocompatibilidad: slot sin tipoCategoria incluye todos los géneros
-    return activePlayers.filter((p) => {
-      if (!p.birthDate) return false;
-      const cat = getCategoryLabel(
-        p.birthDate instanceof Date ? p.birthDate : new Date(p.birthDate)
-      );
-      return isCategoryInRange(cat, slot.categoryFrom, slot.categoryTo);
-    });
+  const getCoachNames = (slot: TrainingSlot) => {
+    const ids = slot.coachIds?.length ? slot.coachIds : [slot.coachId];
+    return ids.map((id) => getCoachName(id)).filter(Boolean);
   };
 
+  const getPlayersInSlot = (slot: TrainingSlot) =>
+    getPlayersInSlotUtil(slot, activePlayers);
+
   const slotsByDay = slots.reduce<Record<number, TrainingSlot[]>>((acc, s) => {
-    if (!acc[s.dayOfWeek]) acc[s.dayOfWeek] = [];
-    acc[s.dayOfWeek].push(s);
+    const days = s.daysOfWeek?.length ? s.daysOfWeek : [s.dayOfWeek];
+    for (const d of days) {
+      if (!acc[d]) acc[d] = [];
+      acc[d].push(s);
+    }
     return acc;
   }, {});
 
@@ -301,9 +299,13 @@ function SlotList({ schoolId, slots, onEdit, onDelete, onAdd }: SlotListProps) {
                           </span>
                         )}
                         <span className="font-medium">
-                          {`${slot.categoryFrom} a ${slot.categoryTo}`}
+                          {slot.name ||
+                            (slot.yearFrom != null && slot.yearTo != null
+                              ? `Año ${String(slot.yearFrom).slice(-2)} a ${String(slot.yearTo).slice(-2)}`
+                              : `${slot.categoryFrom} a ${slot.categoryTo}`)}
                           {slot.tipoCategoria === "masculino" && " (M)"}
                           {slot.tipoCategoria === "femenino" && " (F)"}
+                          {slot.tipoCategoria === "arqueros" && " (Arqueros)"}
                         </span>
                         <span className="text-muted-foreground text-sm">
                           Cupo: {slot.maxQuota}
@@ -316,7 +318,7 @@ function SlotList({ schoolId, slots, onEdit, onDelete, onAdd }: SlotListProps) {
                       </div>
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <UserPlus className="h-4 w-4" />
-                        {getCoachName(slot.coachId)}
+                        {getCoachNames(slot).join(", ")}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -382,68 +384,123 @@ function SlotFormDialog({
     schoolId ? `schools/${schoolId}/users` : "",
     {}
   );
-  const coachList = coaches?.filter((u) => u.role === "coach" || u.role === "school_admin") ?? [];
+  const coachList = useMemo(
+    () => coaches?.filter((u) => u.role === "coach" || u.role === "school_admin") ?? [],
+    [coaches]
+  );
 
-  const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [name, setName] = useState("");
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1]);
   const [time, setTime] = useState("17:00");
-  const [tipoCategoria, setTipoCategoria] = useState<"masculino" | "femenino" | "">("");
-  const [categoryFrom, setCategoryFrom] = useState("SUB-5");
-  const [categoryTo, setCategoryTo] = useState("SUB-10");
+  const [tipoCategoria, setTipoCategoria] = useState<"masculino" | "femenino" | "arqueros" | "">("");
+  const [yearFromLabel, setYearFromLabel] = useState("15");
+  const [yearToLabel, setYearToLabel] = useState("10");
   const [maxQuota, setMaxQuota] = useState("25");
-  const [coachId, setCoachId] = useState("");
+  const [coachIds, setCoachIds] = useState<string[]>([]);
+
+  const firstCoachId = coachList[0]?.id ?? "";
 
   useEffect(() => {
+    if (!open) return;
     if (editingSlot) {
-      setDayOfWeek(editingSlot.dayOfWeek);
+      setName(editingSlot.name ?? "");
+      setDaysOfWeek(
+        editingSlot.daysOfWeek?.length
+          ? [...editingSlot.daysOfWeek]
+          : [editingSlot.dayOfWeek]
+      );
       setTime(editingSlot.time ?? "17:00");
-      setTipoCategoria(editingSlot.tipoCategoria ?? "");
-      setCategoryFrom(editingSlot.categoryFrom);
-      setCategoryTo(editingSlot.categoryTo);
+      setTipoCategoria((editingSlot.tipoCategoria as "masculino" | "femenino" | "arqueros") ?? "");
+      if (editingSlot.yearFrom != null && editingSlot.yearTo != null) {
+        setYearFromLabel(String(editingSlot.yearFrom).slice(-2));
+        setYearToLabel(String(editingSlot.yearTo).slice(-2));
+      } else {
+        const curYear = new Date().getFullYear();
+        const ageFrom = parseInt(editingSlot.categoryFrom.replace("SUB-", ""), 10) || 5;
+        const ageTo = parseInt(editingSlot.categoryTo.replace("SUB-", ""), 10) || 18;
+        setYearFromLabel(String(curYear - ageFrom).slice(-2));
+        setYearToLabel(String(curYear - ageTo).slice(-2));
+      }
       setMaxQuota(String(editingSlot.maxQuota));
-      setCoachId(editingSlot.coachId);
+      setCoachIds(
+        editingSlot.coachIds?.length
+          ? [...editingSlot.coachIds]
+          : [editingSlot.coachId].filter(Boolean)
+      );
     } else {
-      setDayOfWeek(1);
+      setName("");
+      setDaysOfWeek([1]);
       setTime("17:00");
       setTipoCategoria("");
-      setCategoryFrom("SUB-5");
-      setCategoryTo("SUB-10");
+      setYearFromLabel("15");
+      setYearToLabel("10");
       setMaxQuota("25");
-      setCoachId(coachList[0]?.id ?? "");
+      setCoachIds(firstCoachId ? [firstCoachId] : []);
     }
-  }, [editingSlot, coachList]);
+  }, [open, editingSlot, firstCoachId]);
 
-  const categoryFromIdx = CATEGORY_ORDER.indexOf(categoryFrom as (typeof CATEGORY_ORDER)[number]);
-  const categoryToIdx = CATEGORY_ORDER.indexOf(categoryTo as (typeof CATEGORY_ORDER)[number]);
-  const validCategoryTo = categoryFromIdx >= 0 ? CATEGORY_ORDER.slice(categoryFromIdx) : CATEGORY_ORDER;
+  const toggleCoach = (id: string) => {
+    setCoachIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    );
+  };
+
+  const toggleDay = (day: number) => {
+    setDaysOfWeek((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)
+    );
+  };
+
+  const yearFromIdx = BIRTH_YEAR_LABELS.indexOf(yearFromLabel);
+  const validYearToLabels =
+    yearFromIdx >= 0 ? BIRTH_YEAR_LABELS.slice(yearFromIdx) : BIRTH_YEAR_LABELS;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const quota = parseInt(maxQuota, 10);
     if (isNaN(quota) || quota < 1) return;
-    if (!coachId) return;
-    if (compareCategory(categoryFrom, categoryTo) > 0) return;
+    if (coachIds.length === 0) return;
+    if (daysOfWeek.length === 0) return;
+
+    const yFrom = parseBirthYearLabel(yearFromLabel);
+    const yTo = parseBirthYearLabel(yearToLabel);
+    const yearMin = Math.min(yFrom, yTo);
+    const yearMax = Math.max(yFrom, yTo);
 
     const newSlot: TrainingSlot = {
-      dayOfWeek,
+      name: name.trim() || undefined,
+      dayOfWeek: daysOfWeek[0],
+      daysOfWeek: daysOfWeek.length > 1 ? daysOfWeek : undefined,
       time: time || undefined,
-      categoryFrom,
-      categoryTo,
+      yearFrom: yearMin,
+      yearTo: yearMax,
+      categoryFrom: getCategoryLabelFromBirthYear(yearMin),
+      categoryTo: getCategoryLabelFromBirthYear(yearMax),
       tipoCategoria: tipoCategoria || undefined,
       maxQuota: quota,
-      coachId,
+      coachId: coachIds[0],
+      coachIds: coachIds.length > 0 ? coachIds : undefined,
+      manualPlayerIds: editingSlot?.manualPlayerIds,
     };
 
-    const matchSlot = (s: TrainingSlot) =>
-      s.dayOfWeek === editingSlot!.dayOfWeek &&
-      s.time === editingSlot!.time &&
-      s.categoryFrom === editingSlot!.categoryFrom &&
-      s.categoryTo === editingSlot!.categoryTo;
-
     let slots: TrainingSlot[];
-    if (editingSlot) {
-      slots = currentSlots.map((s) => (matchSlot(s) ? newSlot : s));
-    } else {
+    if (!editingSlot) {
       slots = [...currentSlots, newSlot];
+    } else {
+      const slotDays = (s: TrainingSlot) =>
+        s.daysOfWeek?.length ? [...s.daysOfWeek].sort().join(",") : String(s.dayOfWeek);
+      const editDays = [...(editingSlot.daysOfWeek ?? [editingSlot.dayOfWeek])].sort().join(",");
+      const slotMatch = (s: TrainingSlot) => {
+        const daysMatch = slotDays(s) === editDays;
+        const timeMatch = s.time === editingSlot.time;
+        const yearsMatch =
+          (s.yearFrom != null && s.yearTo != null && editingSlot.yearFrom != null && editingSlot.yearTo != null
+            ? s.yearFrom === editingSlot.yearFrom && s.yearTo === editingSlot.yearTo
+            : s.categoryFrom === editingSlot.categoryFrom && s.categoryTo === editingSlot.categoryTo);
+        const nameMatch = (s.name ?? "") === (editingSlot.name ?? "");
+        return daysMatch && timeMatch && yearsMatch && nameMatch;
+      };
+      slots = currentSlots.map((s) => (slotMatch(s) ? newSlot : s));
     }
 
     await onSave(slots);
@@ -451,38 +508,54 @@ function SlotFormDialog({
 
   const content = (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Día</Label>
-          <Select value={String(dayOfWeek)} onValueChange={(v) => setDayOfWeek(parseInt(v, 10))}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DAY_NAMES.map((name, i) => (
-                <SelectItem key={i} value={String(i)}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="space-y-2">
+        <Label>Nombre del grupo</Label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder='Ej: "Lunes 16:00", "Arqueros", "Femenino"'
+        />
+        <p className="text-xs text-muted-foreground">
+          Nombre que define la escuela para identificar este turno.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label>Días de la semana</Label>
+        <p className="text-xs text-muted-foreground">
+          Marcá los días en que se realiza este entrenamiento.
+        </p>
+        <div className="flex flex-wrap gap-4 pt-2">
+          {DAY_NAMES.map((dayName, i) => (
+            <label
+              key={i}
+              className="flex items-center gap-2 cursor-pointer rounded-md border px-3 py-2 hover:bg-muted/50 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+            >
+              <Checkbox
+                checked={daysOfWeek.includes(i)}
+                onCheckedChange={() => toggleDay(i)}
+              />
+              <span className="text-sm font-medium">{dayName}</span>
+            </label>
+          ))}
         </div>
-        <div className="space-y-2">
-          <Label>Hora (opcional)</Label>
+      </div>
+      <div className="space-y-2">
+        <Label>Hora (opcional)</Label>
           <Input
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
             placeholder="17:00"
           />
-        </div>
       </div>
 
       <div className="space-y-2">
         <Label>Tipo de categoría</Label>
         <Select
           value={tipoCategoria || "all"}
-          onValueChange={(v) => setTipoCategoria(v === "all" ? "" : (v as "masculino" | "femenino"))}
+          onValueChange={(v) =>
+            setTipoCategoria(v === "all" ? "" : (v as "masculino" | "femenino" | "arqueros"))
+          }
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Todos (sin filtro)" />
@@ -491,40 +564,41 @@ function SlotFormDialog({
             <SelectItem value="all">Todos (sin filtro)</SelectItem>
             <SelectItem value="masculino">Masculino</SelectItem>
             <SelectItem value="femenino">Femenino</SelectItem>
+            <SelectItem value="arqueros">Arqueros</SelectItem>
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Masculino o femenino para filtrar por género. Sin filtro: todos los jugadores del rango.
+          Masculino, femenino, arqueros (solo pos. arquero) o sin filtro.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label>Rango de categorías</Label>
+        <Label>Rango de años de nacimiento</Label>
         <p className="text-xs text-muted-foreground">
-          De una categoría a otra: todos los jugadores en ese rango practican en este horario.
+          Desde un año hasta otro: todos los jugadores nacidos en ese rango practican en este horario.
         </p>
         <div className="flex gap-2 items-center">
-          <Select value={categoryFrom} onValueChange={setCategoryFrom}>
-            <SelectTrigger className="w-[120px]">
+          <Select value={yearFromLabel} onValueChange={setYearFromLabel}>
+            <SelectTrigger className="w-[100px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORY_ORDER.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
+              {BIRTH_YEAR_LABELS.map((label) => (
+                <SelectItem key={label} value={label}>
+                  {label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <span className="text-muted-foreground">a</span>
-          <Select value={categoryTo} onValueChange={setCategoryTo}>
-            <SelectTrigger className="w-[120px]">
+          <Select value={yearToLabel} onValueChange={setYearToLabel}>
+            <SelectTrigger className="w-[100px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {validCategoryTo.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
+              {validYearToLabels.map((label) => (
+                <SelectItem key={label} value={label}>
+                  {label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -541,22 +615,32 @@ function SlotFormDialog({
           value={maxQuota}
           onChange={(e) => setMaxQuota(e.target.value)}
         />
+        <p className="text-xs text-muted-foreground">
+          Cantidad máxima de jugadores en este turno.
+        </p>
       </div>
 
       <div className="space-y-2">
-        <Label>Entrenador asignado</Label>
-        <Select value={coachId} onValueChange={setCoachId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Seleccionar entrenador" />
-          </SelectTrigger>
-          <SelectContent>
-            {coachList.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
+        <Label>Entrenadores asignados</Label>
+        <p className="text-xs text-muted-foreground">
+          Marcá uno o más entrenadores para este turno.
+        </p>
+        <div className="flex flex-col gap-2 pt-2 max-h-48 overflow-y-auto rounded-md border p-2">
+          {coachList.map((c) => (
+            <label
+              key={c.id}
+              className="flex items-center gap-2 cursor-pointer rounded-md px-3 py-2 hover:bg-muted/50 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:border"
+            >
+              <Checkbox
+                checked={coachIds.includes(c.id)}
+                onCheckedChange={() => toggleCoach(c.id)}
+              />
+              <span className="text-sm">
                 {c.displayName} ({c.role === "school_admin" ? "Admin" : "Entrenador"})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
 
       <DialogFooter>
@@ -609,9 +693,11 @@ function DeleteSlotDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>¿Eliminar este horario?</AlertDialogTitle>
           <AlertDialogDescription>
-            {DAY_NAMES[slot.dayOfWeek]} {slot.time && `a las ${slot.time}`} -{" "}
-            {`${slot.categoryFrom} a ${slot.categoryTo}`}
-            . Esta acción no se puede deshacer.
+            {slot.name || `${slot.categoryFrom} a ${slot.categoryTo}`} —{" "}
+            {(slot.daysOfWeek ?? [slot.dayOfWeek])
+              .map((d) => DAY_NAMES[d])
+              .join(", ")}
+            {slot.time && ` ${slot.time}`}. Esta acción no se puede deshacer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

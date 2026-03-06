@@ -8,7 +8,7 @@ Guía para encontrar en el panel de Mercado Pago las configuraciones de **URLs d
 
 1. Abrí **[https://www.mercadopago.com.ar/developers/panel/app](https://www.mercadopago.com.ar/developers/panel/app)**
 2. Iniciá sesión con la cuenta de **Notificassrl** (o la que use tu app)
-3. En la lista de aplicaciones, hacé clic en la **tarjeta de tu aplicación** (Escuela River, Client ID `3983794964230965`)
+3. En la lista de aplicaciones, hacé clic en la **tarjeta de tu aplicación** (Escuelas River, Client ID `3983794964230965`)
 
 ---
 
@@ -51,7 +51,7 @@ Para que Mercado Pago avise cuando un pago se aprueba.
 
 ---
 
-## Resumen de URLs para Escuela River
+## Resumen de URLs para Escuelas River
 
 | Uso | URL |
 |-----|-----|
@@ -71,7 +71,7 @@ Para que Mercado Pago avise cuando un pago se aprueba.
 
 Si tenés **dos apps** en Mercado Pago:
 
-1. **OAuth (jugador → escuela)**: App Escuela River (Client ID `3983794964230965`) – configurá URLs de redireccionamiento ahí.
+1. **OAuth (jugador → escuela)**: App Escuelas River (Client ID `3983794964230965`) – configurá URLs de redireccionamiento ahí.
 2. **Plataforma (escuela → Notificassrl)**: app de Notificassrl – configurá el webhook `mercadopago-platform` ahí.
 
 Si usás **una sola app** para ambos flujos, configurá todo en esa app.

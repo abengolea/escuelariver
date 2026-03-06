@@ -79,7 +79,7 @@ export function SuperAdminPhysicalTemplateTab({ schools }: SuperAdminPhysicalTem
   const firestore = useFirestore();
   const { user } = useUserProfile();
   const { toast } = useToast();
-  const { data: template, loading: templateLoading } = useDoc<PhysicalAssessmentTemplate>(
+  const { data: template, loading: templateLoading } = useDoc<PhysicalAssessmentTemplate & { id: string }>(
     `platformConfig/${TEMPLATE_DOC_ID}`
   );
   const [schoolConfigs, setSchoolConfigs] = useState<Record<string, PhysicalAssessmentConfig & { id: string }>>({});

@@ -47,7 +47,7 @@ type UserAction = {
 }
 
 type UserRoleInfo = {
-    role: 'school_admin' | 'coach' | 'player';
+    role: 'school_admin' | 'coach' | 'editor' | 'viewer' | 'player';
     displayName?: string;
     schoolId: string;
     playerId?: string;

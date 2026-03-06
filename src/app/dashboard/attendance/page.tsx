@@ -1,11 +1,22 @@
 "use client";
 
-import { useUserProfile } from "@/firebase";
+import { useUserProfile, useFirebase } from "@/firebase";
+import { getAuth } from "firebase/auth";
+import { useCallback } from "react";
 import { AttendanceSheet } from "@/components/attendance/AttendanceSheet";
 import { ClipboardCheck } from "lucide-react";
 
 export default function AttendancePage() {
   const { activeSchoolId, isReady } = useUserProfile();
+  const { app } = useFirebase();
+
+  const getToken = useCallback(async () => {
+    if (!app) return null;
+    const auth = getAuth(app);
+    const user = auth.currentUser;
+    if (!user) return null;
+    return user.getIdToken();
+  }, [app]);
 
   if (!isReady) {
     return (
@@ -44,7 +55,7 @@ export default function AttendancePage() {
           </p>
         </div>
       </div>
-      <AttendanceSheet schoolId={activeSchoolId} />
+      <AttendanceSheet schoolId={activeSchoolId} getToken={getToken} />
     </div>
   );
 }

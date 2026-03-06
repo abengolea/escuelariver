@@ -142,6 +142,7 @@ export function useUserProfile() {
     // Handle super admin case
     if (isSuperAdmin) {
       return {
+        id: user.uid,
         uid: user.uid,
         displayName: user.displayName || user.email || 'Super Admin',
         email: user.email!,
@@ -163,6 +164,7 @@ export function useUserProfile() {
 
     return {
       ...schoolUserData,
+      id: user.uid,
       uid: user.uid,
       isSuperAdmin: false,
       activeSchoolId: schoolId,

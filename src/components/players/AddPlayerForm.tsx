@@ -429,7 +429,7 @@ export function AddPlayerForm() {
                                 <SelectItem value="femenino">Femenino</SelectItem>
                             </SelectContent>
                         </Select>
-                        <FormDescription>Masculino y femenino usan SUB-5 a SUB-18 para categorías de edad.</FormDescription>
+                        <FormDescription>Masculino y femenino. La cat. año nac. se calcula automáticamente.</FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}

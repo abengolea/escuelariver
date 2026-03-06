@@ -450,11 +450,12 @@ export function PendingRegistrations() {
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={!!actionState}
-              onClick={() =>
-                playerToConfirm?.action === "approve"
+              onClick={() => {
+                if (!playerToConfirm) return;
+                playerToConfirm.action === "approve"
                   ? handleApprove(playerToConfirm.player)
-                  : handleReject(playerToConfirm.player)
-              }
+                  : handleReject(playerToConfirm.player);
+              }}
                className={playerToConfirm?.action === 'reject' ? "bg-destructive hover:bg-destructive/90" : ""}
             >
               {actionState ? <Loader2 className="mr-2 animate-spin"/> : (playerToConfirm?.action === 'approve' ? 'Sí, Aprobar' : 'Sí, Rechazar')}

@@ -39,7 +39,7 @@ import type { SchoolUser } from "@/lib/types";
 
 const editUserSchema = z.object({
   displayName: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
-  role: z.enum(["school_admin", "coach"], { required_error: "El rol es requerido."}),
+  role: z.enum(["school_admin", "coach", "editor", "viewer", "player"], { required_error: "El rol es requerido."}),
 });
 
 interface EditSchoolUserDialogProps {
@@ -141,6 +141,9 @@ export function EditSchoolUserDialog({ schoolId, user, children }: EditSchoolUse
                     <SelectContent>
                       <SelectItem value="school_admin">Administrador de Escuela</SelectItem>
                       <SelectItem value="coach">Entrenador</SelectItem>
+                      <SelectItem value="editor">Editor</SelectItem>
+                      <SelectItem value="viewer">Visor</SelectItem>
+                      <SelectItem value="player">Jugador</SelectItem>
                     </SelectContent>
                   </Select>
                   {isEditingSelf && <FormDescription>No puedes cambiar tu propio rol.</FormDescription>}

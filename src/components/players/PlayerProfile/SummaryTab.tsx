@@ -20,10 +20,7 @@ const POSICION_LABELS: Record<string, string> = {
   ala: "Ala",
   ala_pivot: "Ala-pívot",
   pivot: "Pívot",
-  // Legacy (fútbol) - para datos existentes
-  delantero: "Delantero",
   mediocampo: "Mediocampo",
-  defensor: "Defensor",
 };
 
 const MANO_LABELS: Record<string, string> = {

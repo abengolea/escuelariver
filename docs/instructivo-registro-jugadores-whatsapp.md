@@ -1,4 +1,4 @@
-# Instructivo: Registro de Jugadores — Escuela River SA
+# Instructivo: Registro de Jugadores — Escuelas River
 
 **Uso:** Copiá el texto de abajo y enviálo por WhatsApp a jugadores o padres/tutores.
 
@@ -7,7 +7,7 @@
 ## Versión para WhatsApp (copiar y pegar)
 
 ```
-⚽ *ESCUELA RIVER SA*
+⚽ *ESCUELAS RIVER*
 _Cómo registrarte y acceder al panel de jugador_
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -76,7 +76,7 @@ Es obligatoria para participar. Subí tu ficha médica en PDF:
 
 ❓ Dudas: contactá a tu entrenador o a la escuela.
 
-⚽ _Escuela River SA_
+⚽ _Escuelas River_
 ```
 
 ---
@@ -84,7 +84,7 @@ Es obligatoria para participar. Subí tu ficha médica en PDF:
 ## Versión corta (para mensaje rápido)
 
 ```
-⚽ *Escuela River SA* — Registro de jugadores
+⚽ *Escuelas River* — Registro de jugadores
 
 1️⃣ Registrate: [TU_URL_APP]/auth/registro
 2️⃣ Esperá la aprobación del entrenador/admin

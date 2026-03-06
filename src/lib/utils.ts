@@ -41,16 +41,46 @@ export function getCategoryAge(birthDate: Date): number {
   return new Date().getFullYear() - bd.getFullYear();
 }
 
-/** Etiqueta de categoría SUB-9, SUB-10, SUB-11... según edad que cumple en el año en curso. */
+/** Etiqueta de categoría SUB-9, SUB-10... (legacy). Usar getBirthYearLabel para UI. */
 export function getCategoryLabel(birthDate: Date): string {
   const age = getCategoryAge(birthDate);
   return `SUB-${Math.max(5, Math.min(18, age))}`;
 }
 
-/** Orden de categorías para ordenar listas (SUB-5, SUB-6, ... SUB-18). */
+/** Etiqueta Cat. año nac.: "09", "15" (últimos 2 dígitos del año de nacimiento). */
+export function getBirthYearLabel(birthDate: Date): string {
+  const bd = birthDate instanceof Date ? birthDate : new Date(birthDate);
+  return String(bd.getFullYear()).slice(-2);
+}
+
+/** Año de nacimiento (2008, 2009, ...). */
+export function getBirthYear(birthDate: Date): number {
+  const bd = birthDate instanceof Date ? birthDate : new Date(birthDate);
+  return bd.getFullYear();
+}
+
+/** Orden de categorías para ordenar listas (SUB-5, SUB-6, ... SUB-18). Legacy. */
 export const CATEGORY_ORDER = ["SUB-5", "SUB-6", "SUB-7", "SUB-8", "SUB-9", "SUB-10", "SUB-11", "SUB-12", "SUB-13", "SUB-14", "SUB-15", "SUB-16", "SUB-17", "SUB-18"] as const;
 
-/** Compara dos etiquetas de categoría para ordenar (SUB-5 < SUB-6 < ... < SUB-18). */
+/** Años de nacimiento típicos para escuelas (2005–2022). Orden: más reciente primero. */
+export const BIRTH_YEAR_ORDER = [2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009, 2008, 2007, 2006, 2005] as const;
+
+/** Etiquetas "22", "21", ... "05" para filtros (Cat. año nac.). */
+export const BIRTH_YEAR_LABELS = BIRTH_YEAR_ORDER.map((y) => String(y).slice(-2));
+
+/** Convierte etiqueta "09" en año 2009. Asume 2000s para escuelas. */
+export function parseBirthYearLabel(label: string): number {
+  const n = parseInt(label, 10);
+  if (isNaN(n) || n < 0 || n > 99) return 0;
+  return 2000 + (n % 100);
+}
+
+/** Dado un año de nacimiento, devuelve SUB-X equivalente (para compatibilidad con pagos). */
+export function getCategoryLabelFromBirthYear(year: number): string {
+  return getCategoryLabel(new Date(year, 0, 1));
+}
+
+/** Compara dos etiquetas de categoría para ordenar (SUB-5 < SUB-6 < ...). Legacy. */
 export function compareCategory(a: string, b: string): number {
   const i = CATEGORY_ORDER.indexOf(a as (typeof CATEGORY_ORDER)[number]);
   const j = CATEGORY_ORDER.indexOf(b as (typeof CATEGORY_ORDER)[number]);
@@ -60,7 +90,22 @@ export function compareCategory(a: string, b: string): number {
   return i - j;
 }
 
-/** Indica si la categoría del jugador está dentro del rango [categoryFrom, categoryTo] (inclusive). */
+/** Compara años de nacimiento: mayor año = más chico. 2021 < 2015. */
+export function compareBirthYear(a: number, b: number): number {
+  return b - a; // 2021 antes que 2015
+}
+
+/** Compara etiquetas "09", "15" (cat. año nac.). */
+export function compareBirthYearLabel(a: string, b: string): number {
+  const yearA = parseInt(a, 10);
+  const yearB = parseInt(b, 10);
+  if (isNaN(yearA) && isNaN(yearB)) return 0;
+  if (isNaN(yearA)) return 1;
+  if (isNaN(yearB)) return -1;
+  return yearB - yearA; // más reciente primero
+}
+
+/** Indica si la categoría del jugador está dentro del rango [categoryFrom, categoryTo] (inclusive). Legacy. */
 export function isCategoryInRange(
   playerCategory: string,
   categoryFrom: string,
@@ -70,6 +115,11 @@ export function isCategoryInRange(
   if (cmp < 0) return false;
   const cmpTo = compareCategory(playerCategory, categoryTo);
   return cmpTo <= 0;
+}
+
+/** Indica si el año de nacimiento del jugador está en [yearFrom, yearTo] (inclusive). yearFrom/yearTo: 2008, 2015, etc. */
+export function isBirthYearInRange(playerBirthYear: number, yearFrom: number, yearTo: number): boolean {
+  return playerBirthYear >= Math.min(yearFrom, yearTo) && playerBirthYear <= Math.max(yearFrom, yearTo);
 }
 
 /** Indica si la fecha de nacimiento corresponde al día de hoy (mes y día). */

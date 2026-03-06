@@ -183,30 +183,44 @@ export interface AccessRequest {
 
 
 export interface Training {
-    id: string;
-    date: Date;
-    /** Formato YYYY-MM-DD para consultas por fecha */
-    dateStr?: string;
-    createdAt: Date;
-    createdBy: string; // uid
+  id: string;
+  date: Date;
+  /** Formato YYYY-MM-DD para consultas por fecha */
+  dateStr?: string;
+  /** Identificador del slot (cuando hay asistencia por turno) */
+  slotKey?: string;
+  createdAt: Date;
+  createdBy: string; // uid
 }
 
-/** Slot de entrenamiento recurrente: día, horario, rango de categorías, cupo y entrenador asignado. */
+/** Slot de entrenamiento recurrente: día(s), horario, rango de categorías, cupo y entrenador asignado. */
 export interface TrainingSlot {
-  /** Día de la semana: 0=domingo, 1=lunes, ..., 6=sábado */
+  /** Nombre del grupo definido por la escuela (ej. "Lunes 16:00", "Arqueros", "Femenino") */
+  name?: string;
+  /** Día de la semana: 0=domingo, 1=lunes, ..., 6=sábado. Legacy; preferir daysOfWeek. */
   dayOfWeek: number;
+  /** Días de la semana (0–6). Si está definido, reemplaza dayOfWeek y permite varios días. */
+  daysOfWeek?: number[];
   /** Hora en formato "HH:mm" (ej. "17:00") */
   time?: string;
-  /** Categoría inicial del rango (ej. "SUB-5"). */
+  /** Categoría inicial del rango (ej. "SUB-5"). Legacy; preferir yearFrom cuando esté definido. */
   categoryFrom: string;
-  /** Categoría final del rango (ej. "SUB-10"). */
+  /** Categoría final del rango (ej. "SUB-10"). Legacy; preferir yearTo. */
   categoryTo: string;
-  /** Tipo de categoría: masculino o femenino. Si no se define, el slot incluye todos los géneros (retrocompatibilidad). */
-  tipoCategoria?: 'masculino' | 'femenino';
+  /** Año nacimiento mínimo (ej. 2015). Si está definido, reemplaza categoryFrom para filtrado. */
+  yearFrom?: number;
+  /** Año nacimiento máximo (ej. 2018). Si está definido, reemplaza categoryTo. */
+  yearTo?: number;
+  /** Tipo: masculino, femenino, arqueros. Arqueros = solo posicion_preferida "arquero". Vacío = mixto. */
+  tipoCategoria?: 'masculino' | 'femenino' | 'arqueros';
   /** Cupo máximo de jugadores en este slot */
   maxQuota: number;
-  /** UID del entrenador asignado (SchoolUser con role coach) */
+  /** UID del entrenador asignado. Legacy; preferir coachIds cuando esté definido. */
   coachId: string;
+  /** IDs de entrenadores asignados (pueden ser varios por turno) */
+  coachIds?: string[];
+  /** IDs de jugadores agregados manualmente (fuera de reglas de año/género) */
+  manualPlayerIds?: string[];
 }
 
 /** Configuración de horarios de entrenamiento por escuela. Almacenada en schools/{schoolId}/trainingConfig/default */

@@ -76,7 +76,7 @@ export function EvaluationEvolutionCharts({ evaluations, emptyStateRefTab = "Eva
   const socioKeys = new Set<string>();
   evaluations.forEach((e) => e.socioEmotional && Object.keys(e.socioEmotional).forEach((k) => socioKeys.add(k)));
   socioKeys.forEach((key) => {
-    const data = seriesFromEvaluations(evaluations, (e) => e.socioEmotional?.[key]);
+    const data = seriesFromEvaluations(evaluations, (e) => (e.socioEmotional as Record<string, number> | undefined)?.[key]);
     if (data.length >= 2)
       flatSeries.push({ key, label: skillLabels[key] || key, data });
   });

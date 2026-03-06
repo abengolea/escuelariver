@@ -18,7 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CreditCard, CheckCircle2, AlertTriangle, Layers, Shirt } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CATEGORY_ORDER } from "@/lib/utils";
+import { BIRTH_YEAR_ORDER, getCategoryLabelFromBirthYear } from "@/lib/utils";
 
 interface PaymentConfigTabProps {
   schoolId: string;
@@ -409,10 +409,10 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5" />
-            Valores por categoría
+            Valores por cat. año nac.
           </CardTitle>
           <CardDescription>
-            Podés definir cuota mensual e inscripción distintas por categoría (SUB-5, SUB-6, … SUB-18). Si dejás vacío, se usa el valor por defecto de arriba.
+            Podés definir cuota mensual e inscripción distintas por año de nacimiento (09, 15, 22…). Si dejás vacío, se usa el valor por defecto de arriba.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -420,15 +420,18 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left">
-                  <th className="pb-2 pr-4 font-medium">Categoría</th>
+                  <th className="pb-2 pr-4 font-medium">Cat. año nac.</th>
                   <th className="pb-2 pr-4 font-medium">Cuota mensual (ARS)</th>
                   <th className="pb-2 font-medium">Inscripción (ARS)</th>
                 </tr>
               </thead>
               <tbody>
-                {CATEGORY_ORDER.map((cat) => (
-                  <tr key={cat} className="border-b last:border-0">
-                    <td className="py-2 pr-4 font-medium">{cat}</td>
+                {BIRTH_YEAR_ORDER.map((year) => {
+                  const cat = getCategoryLabelFromBirthYear(year);
+                  const label = String(year).slice(-2);
+                  return (
+                  <tr key={year} className="border-b last:border-0">
+                    <td className="py-2 pr-4 font-medium">{label}</td>
                     <td className="py-2 pr-4">
                       <Input
                         type="number"
@@ -460,7 +463,7 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
                       />
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

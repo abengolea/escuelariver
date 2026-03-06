@@ -184,7 +184,7 @@ export function SidebarNav() {
         <Link href="/dashboard" className="flex items-center gap-2 p-2" onClick={closeMobileSidebar}>
           <RiverPlateLogo className="h-8 w-8" />
           <span className="text-xl font-bold font-headline uppercase">
-            <span className="text-primary">ESCUELA</span>{" "}
+            <span className="text-primary">ESCUELAS</span>{" "}
             <span className="text-black dark:text-white">RIVER</span>
           </span>
         </Link>

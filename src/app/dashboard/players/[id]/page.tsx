@@ -490,7 +490,7 @@ export default function PlayerProfilePage() {
             <EvaluationsTab
               playerId={id}
               schoolId={schoolId!}
-              evaluations={evaluations}
+              evaluations={evaluations ?? undefined}
               loading={evalsLoading}
               error={evalsError}
               onOpenCreate={() => setEvalSheetOpen(true)}
