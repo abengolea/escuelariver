@@ -73,6 +73,9 @@ const playerSchema = z.object({
   observations: z.string().optional(),
   photoUrl: z.string().optional().or(z.literal("")),
   genero: z.enum(["masculino", "femenino"]).optional(),
+  posicion_preferida: z
+    .enum(["arquero", "defensor", "lateral", "mediocampista", "delantero", "extremo"])
+    .optional(),
 });
 
 export function AddPlayerForm() {
@@ -96,6 +99,7 @@ export function AddPlayerForm() {
             photoUrl: "",
             observations: "",
             genero: undefined,
+            posicion_preferida: undefined,
             dni: "",
             healthInsurance: "",
         },
@@ -148,6 +152,7 @@ export function AddPlayerForm() {
                 photoUrl: values.photoUrl,
                 observations: values.observations,
                 ...(values.genero?.trim() && { genero: values.genero.trim() }),
+                ...(values.posicion_preferida && { posicion_preferida: values.posicion_preferida }),
                 createdAt: Timestamp.now(),
                 createdBy: profile.uid,
             };
@@ -430,6 +435,38 @@ export function AddPlayerForm() {
                             </SelectContent>
                         </Select>
                         <FormDescription>Masculino y femenino. La cat. año nac. se calcula automáticamente.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="posicion_preferida"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Posición preferida</FormLabel>
+                        <Select
+                            onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)}
+                            value={field.value ?? "__none__"}
+                        >
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Opcional" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="__none__">No especificado</SelectItem>
+                                <SelectItem value="arquero">Arquero</SelectItem>
+                                <SelectItem value="defensor">Defensor</SelectItem>
+                                <SelectItem value="lateral">Lateral</SelectItem>
+                                <SelectItem value="mediocampista">Mediocampista</SelectItem>
+                                <SelectItem value="delantero">Delantero</SelectItem>
+                                <SelectItem value="extremo">Extremo</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormDescription>
+                            Si elegís Arquero, el jugador podrá asignarse a los turnos de práctica marcados como Arqueros.
+                        </FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}

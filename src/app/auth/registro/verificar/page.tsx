@@ -40,6 +40,7 @@ function VerificarContent() {
       birthDate: { toDate: () => Date };
       schoolId: string;
       tutorPhone: string;
+      posicion_preferida?: "arquero" | "defensor" | "lateral" | "mediocampista" | "delantero" | "extremo";
     };
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -185,6 +186,9 @@ function VerificarContent() {
         },
         submittedAt: Timestamp.now(),
         submittedBy: user.uid,
+        ...(attemptData.playerData.posicion_preferida && {
+          posicion_preferida: attemptData.playerData.posicion_preferida,
+        }),
       });
 
       await setDoc(doc(firestore, "pendingPlayerByEmail", emailNorm), {

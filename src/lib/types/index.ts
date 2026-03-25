@@ -147,6 +147,8 @@ export interface PendingPlayer {
   submittedAt: Date;
   /** UID del usuario Auth que completó el registro. */
   submittedBy?: string;
+  /** Declarada al registrarse; si es arquero, entra en turnos tipo "Arqueros". */
+  posicion_preferida?: Player["posicion_preferida"];
 }
 
 /** Intentos temporales de verificación de email en registro web. Se eliminan tras verificar o expirar. */
@@ -160,6 +162,7 @@ export interface EmailVerificationAttempt {
     schoolId: string;
     tutorPhone: string;
     category?: string;
+    posicion_preferida?: Player["posicion_preferida"];
   };
   status: 'pending' | 'verified' | 'expired';
   expiresAt: Date;
