@@ -608,7 +608,7 @@ export async function listPayments(
     .orderBy('createdAt', 'desc') as admin.firestore.Query;
 
   if (opts.playerId) q = q.where('playerId', '==', opts.playerId);
-  if (opts.status) q = q.where('status', '==', opts.status);
+  // status: se filtra post-query para no exigir índice compuesto (schoolId + status + createdAt).
   if (opts.provider) q = q.where('provider', '==', opts.provider);
 
   // Period: para inscripción usamos period exacto; para monthly usamos period YYYY-MM
@@ -621,12 +621,18 @@ export async function listPayments(
 
   const limitVal = opts.limit ?? 50;
   const offsetVal = opts.offset ?? 0;
-  // Limitar lectura en Firestore para evitar cargar miles de docs (muy lento)
-  const firestoreLimit = Math.min(limitVal + offsetVal + 100, 5000);
+  // Limitar lectura en Firestore para evitar cargar miles de docs (muy lento).
+  // Con filtro de status en memoria, leer más filas mejora la chance de llenar la página si hay pocos docs con ese estado entre los más recientes.
+  const baseLimit = limitVal + offsetVal + 100;
+  const firestoreLimit = Math.min(opts.status ? baseLimit * 15 : baseLimit, 5000);
   q = q.limit(firestoreLimit) as admin.firestore.Query;
 
   const snap = await q.get();
   let docs = snap.docs;
+
+  if (opts.status) {
+    docs = docs.filter((d) => (d.data().status as string) === opts.status);
+  }
 
   // Filtro por concepto ropa (post-query)
   if (opts.concept === 'clothing') {

@@ -17,6 +17,7 @@
     {"collectionGroup":"supportTickets","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
     {"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"schoolId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
     {"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"schoolId","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"}]},
+    {"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"schoolId","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
     {"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"schoolId","order":"ASCENDING"},{"fieldPath":"period","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
     {"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"schoolId","order":"ASCENDING"},{"fieldPath":"playerId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
     {"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"playerId","order":"ASCENDING"},{"fieldPath":"schoolId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},{"collectionGroup":"payments","queryScope":"COLLECTION","fields":[{"fieldPath":"playerId","order":"ASCENDING"},{"fieldPath":"period","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"}]},
