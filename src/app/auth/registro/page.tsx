@@ -10,7 +10,7 @@ export default function RegistroPage() {
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Registro de Jugador</CardTitle>
         <CardDescription>
-          Elegí tu escuela, ingresá tu email dos veces y una contraseña. Un administrador o entrenador revisará tu solicitud y te avisará cuando te aprueben.
+          Elegí tu escuela, completá tus datos y fecha de nacimiento, ingresá tu email dos veces y una contraseña. Un administrador o entrenador revisará tu solicitud y te avisará cuando te aprueben.
         </CardDescription>
       </CardHeader>
       <CardContent>

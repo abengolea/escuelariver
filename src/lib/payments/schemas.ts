@@ -60,6 +60,22 @@ export const listPaymentsSchema = z.object({
   offset: z.number().int().min(0).default(0),
 });
 
+/** Lista global de pagos jugador→escuela (solo superadmin en API). */
+export const listPaymentsGlobalSchema = z.object({
+  schoolId: z.string().min(1).optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  status: z.enum(['pending', 'approved', 'rejected', 'refunded']).optional(),
+  provider: z.enum(['mercadopago', 'dlocal', 'manual']).optional(),
+  /** Texto para filtrar por nombre de jugador (post-consulta, insensible a mayúsculas) */
+  playerSearch: z.string().optional(),
+  limit: z.number().int().min(1).max(200).default(80),
+  offset: z.number().int().min(0).default(0),
+  /** Incluir últimas intenciones de pago (checkout Mercado Pago, etc.) */
+  includeIntents: z.coerce.boolean().default(false),
+  intentsLimit: z.number().int().min(1).max(100).default(40),
+});
+
 export const listDelinquentsSchema = z.object({
   schoolId: z.string().min(1),
   /** Filtro por concepto: inscripción, cuota mensual, ropa */

@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Headphones,
   Banknote,
+  CreditCard,
   FileText,
   FileHeart,
   Sliders,
@@ -58,8 +59,9 @@ const schoolUserMenuItems = [
 ];
 
 const superAdminMenuItems = [
-    { href: "/dashboard", label: "Escuelas", icon: Building },
+    { href: "/dashboard/platform", label: "Escuelas", icon: Building },
     { href: "/dashboard/admin/mensualidades", label: "Mensualidades", icon: Banknote },
+    { href: "/dashboard/admin/pagos-jugadores", label: "Pagos jugadores", icon: CreditCard },
     { href: "/dashboard/admin/physical-template", label: "Evaluaciones físicas (plantilla)", icon: Activity },
     { href: "/dashboard/support/operator", label: "Tickets de Soporte", icon: Headphones },
     { href: "/dashboard/admin/config", label: "Configuración global", icon: Sliders },
@@ -120,7 +122,7 @@ export function SidebarNav() {
 
   let menuItems;
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin && !activeSchoolId) {
     menuItems = superAdminMenuItems;
   } else if (profile?.role === 'player' && profile.activeSchoolId && profile.playerId) {
     // Jugador: si perfil incompleto "Mi perfil" + "Pagos"; si completo, panel, perfil, pagos y soporte
@@ -146,8 +148,16 @@ export function SidebarNav() {
       ];
     }
   } else {
-    // Start with the base items for any school user (coach / school_admin)
-    menuItems = [...schoolUserMenuItems];
+    // Start with the base items for any school user (coach / school_admin).
+    // Superadmin con escuela activa: mismo acceso a herramientas globales (Mensualidades, Pagos jugadores, etc.):
+    // sin esto solo vería "Todas las escuelas" + menú de escuela y desaparecían esas rutas.
+    menuItems = isSuperAdmin
+      ? [
+          { href: "/dashboard/platform", label: "Todas las escuelas", icon: Building },
+          ...superAdminMenuItems.slice(1),
+          ...schoolUserMenuItems,
+        ]
+      : [...schoolUserMenuItems];
     // Add Pagos, Mensajes y Gestionar Escuela solo para school_admin, en orden de importancia
     if (profile?.role === 'school_admin' && profile.activeSchoolId) {
       const pagos = { href: "/dashboard/payments", label: "Pagos", icon: Banknote };

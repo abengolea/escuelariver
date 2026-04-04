@@ -44,6 +44,15 @@ import { calculateAge } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
+const POSICION_LABEL: Record<string, string> = {
+  arquero: "Arquero",
+  defensor: "Defensor",
+  lateral: "Lateral",
+  mediocampista: "Mediocampista",
+  delantero: "Delantero",
+  extremo: "Extremo",
+};
+
 type ActionState = {
   type: "approving" | "rejecting";
   playerId: string;
@@ -109,6 +118,9 @@ export function PendingRegistrations() {
       photoUrl: "",
       createdAt: Timestamp.now(),
       createdBy: profile.uid,
+      ...(pendingPlayer.posicion_preferida && {
+        posicion_preferida: pendingPlayer.posicion_preferida,
+      }),
     };
     batch.set(newPlayerRef, newPlayerData);
 
@@ -253,6 +265,7 @@ export function PendingRegistrations() {
           photoUrl: "",
           createdAt: Timestamp.now(),
           createdBy: profile.uid,
+          ...(player.posicion_preferida && { posicion_preferida: player.posicion_preferida }),
         });
         if (emailNorm) {
           batch.set(doc(firestore, "playerLogins", emailNorm), {
@@ -397,6 +410,12 @@ export function PendingRegistrations() {
                   <p><strong>Email:</strong> {(player as { email?: string }).email}</p>
                 )}
                 {player.dni && <p><strong>DNI:</strong> {player.dni}</p>}
+                {player.posicion_preferida && (
+                  <p>
+                    <strong>Posición:</strong>{" "}
+                    {POSICION_LABEL[player.posicion_preferida] ?? player.posicion_preferida}
+                  </p>
+                )}
                 <p><strong>Tutor:</strong> {player.tutorContact.name}</p>
                 <p><strong>Tel. Tutor:</strong> {player.tutorContact.phone}</p>
             </CardContent>

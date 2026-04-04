@@ -45,8 +45,8 @@ export default function DashboardPage() {
     );
   }
   
-  if (isSuperAdmin) {
-      return <SuperAdminDashboard />;
+  if (isSuperAdmin && !profile?.activeSchoolId) {
+    return <SuperAdminDashboard />;
   }
 
   return <SchoolAdminDashboard />;

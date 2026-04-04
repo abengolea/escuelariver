@@ -12,6 +12,21 @@ import { collectionGroup, query, where, getDocs, getDoc, doc, type FirestoreErro
 // as the collection group query returns the whole document.
 type FullSchoolMembership = SchoolMembership & Omit<SchoolUser, 'id'> & { playerId?: string };
 
+const MEMBERSHIP_ROLE_ORDER: Record<string, number> = {
+  school_admin: 0,
+  coach: 1,
+  editor: 2,
+  viewer: 3,
+  player: 4,
+};
+
+function sortMembershipsByRole(memberships: FullSchoolMembership[]): FullSchoolMembership[] {
+  return [...memberships].sort(
+    (a, b) =>
+      (MEMBERSHIP_ROLE_ORDER[a.role] ?? 99) - (MEMBERSHIP_ROLE_ORDER[b.role] ?? 99)
+  );
+}
+
 /**
  * A hook to get the complete profile for the current user, including global
  * and school-specific roles by searching across all schools.
@@ -42,21 +57,12 @@ export function useUserProfile() {
         return;
     }
 
-    // 3. Check for Super Admin status FIRST. This is the critical change.
-    // The super admin is identified by email OR a flag in the database.
+    // 3. Super admin (email o platformUsers.super_admin). Sigue pudiendo tener doc en schools/.../users
+    // para usar el panel de escuela (jugadores, asistencia, etc.) como un admin de escuela.
     const superAdminByEmail = user.email === 'abengolea1@gmail.com';
     const superAdminByDB = platformUser?.super_admin === true;
+    setIsSuperAdmin(superAdminByEmail || superAdminByDB);
 
-    if (superAdminByEmail || superAdminByDB) {
-        setIsSuperAdmin(true);
-        setMemberships([]); // Super admin doesn't need school-specific memberships
-        setProfileLoading(false);
-        return; // Exit early, no need to fetch memberships
-    }
-    
-    // 4. If not super admin, it must be a regular user. Fetch their school roles (coach/admin).
-    setIsSuperAdmin(false);
-    
     // Normalizar email a minúsculas: Firestore es case-sensitive y Auth puede devolver mayúsculas.
     const emailNorm = (user.email ?? '').trim().toLowerCase();
     if (!emailNorm) {
@@ -81,11 +87,11 @@ export function useUserProfile() {
             email: schoolUserData.email,
           };
         });
-        setMemberships(userMemberships);
+        setMemberships(sortMembershipsByRole(userMemberships));
         setProfileLoading(false);
         return;
       }
-      // 5. No membership in users: check playerLogins (email -> schoolId + playerId) para que el jugador inicie sesión.
+      // 4. No membership in users: check playerLogins (email -> schoolId + playerId) para que el jugador inicie sesión.
       const loginRef = doc(firestore, 'playerLogins', emailNorm);
       getDoc(loginRef).then(loginSnap => {
         if (!loginSnap.exists()) {
@@ -139,26 +145,25 @@ export function useUserProfile() {
       return null;
     }
 
-    // Handle super admin case
-    if (isSuperAdmin) {
+    // Super admin sin escuela vinculada: solo panel de plataforma.
+    if (isSuperAdmin && (!memberships || memberships.length === 0)) {
       return {
         id: user.uid,
         uid: user.uid,
         displayName: user.displayName || user.email || 'Super Admin',
         email: user.email!,
-        role: 'school_admin', // Super admin has effectively the highest school role
+        role: 'school_admin',
         isSuperAdmin: true,
-        activeSchoolId: undefined, // Super admin is not tied to one school
+        activeSchoolId: undefined,
         memberships: [],
       };
     }
 
-    // Handle regular user. They need at least one membership to have a profile.
+    // Usuario normal (o super admin con doc en schools/.../users): requiere al menos una membresía.
     if (!memberships || memberships.length === 0) {
-      return null; // This is what triggers the "pending approval" page
+      return null;
     }
 
-    // If they have memberships, build their profile from the first one.
     const activeMembership = memberships[0];
     const { schoolId, playerId, ...schoolUserData } = activeMembership;
 
@@ -166,7 +171,7 @@ export function useUserProfile() {
       ...schoolUserData,
       id: user.uid,
       uid: user.uid,
-      isSuperAdmin: false,
+      isSuperAdmin: isSuperAdmin,
       activeSchoolId: schoolId,
       memberships: memberships,
       ...(playerId && { playerId }),

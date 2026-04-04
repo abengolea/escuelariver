@@ -3,7 +3,7 @@
 import { useUserProfile, useFirebase } from "@/firebase";
 import { getAuth } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,12 +83,12 @@ export default function PaymentsPage() {
     }
   }, [schoolFeeResult, toast]);
 
-  const getToken = async () => {
+  const getToken = useCallback(async () => {
     const auth = getAuth(app);
     const user = auth.currentUser;
     if (!user) return null;
     return user.getIdToken();
-  };
+  }, [app]);
 
   useEffect(() => {
     if (!isReady) return;

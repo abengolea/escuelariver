@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { Building, MoreHorizontal, Power, PowerOff, Loader2, Users, ShieldCheck, Edit, BarChart3 } from "lucide-react";
+import { Building, MoreHorizontal, Power, PowerOff, Loader2, Users, ShieldCheck, Edit, BarChart3, CreditCard } from "lucide-react";
 import { useCollection, useFirestore, useUserProfile } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { writeAuditLog } from "@/lib/audit";
@@ -40,6 +40,7 @@ import { EditSchoolDialog } from "./EditSchoolDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlatformUsersList } from "./PlatformUsersList";
 import { SuperAdminReportsTab } from "./SuperAdminReportsTab";
+import { SuperAdminPlayerPaymentsTab } from "./SuperAdminPlayerPaymentsTab";
 
 export function SuperAdminDashboard() {
     const { data: schools, loading: schoolsLoading } = useCollection<School>('schools', { orderBy: ['createdAt', 'desc']});
@@ -135,7 +136,7 @@ export function SuperAdminDashboard() {
             </div>
 
              <Tabs defaultValue="schools" className="w-full">
-                <TabsList className="w-full grid grid-cols-3 gap-1 p-1 h-auto md:h-10 bg-card">
+                <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 h-auto md:h-10 bg-card">
                     <TabsTrigger value="schools" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
                         <Building className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
                         <span className="truncate">Escuelas</span>
@@ -143,6 +144,10 @@ export function SuperAdminDashboard() {
                     <TabsTrigger value="users" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
                         <Users className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
                         <span className="truncate">Usuarios</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="payments" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
+                        <CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                        <span className="truncate">Pagos jug.</span>
                     </TabsTrigger>
                     <TabsTrigger value="reports" className="text-xs px-2 py-2 gap-1 md:text-sm md:px-3 md:py-1.5 md:gap-2">
                         <BarChart3 className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
@@ -241,6 +246,9 @@ export function SuperAdminDashboard() {
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+                <TabsContent value="payments">
+                    <SuperAdminPlayerPaymentsTab schools={schools ?? null} />
                 </TabsContent>
                 <TabsContent value="reports">
                     <SuperAdminReportsTab
