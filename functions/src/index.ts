@@ -8,8 +8,10 @@
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { ensureAuthForPlayerEmail, normalizePlayerEmail } from './playerAuthSync';
 
 // Inicializar Admin si no está inicializado (en emulador puede estar)
 if (!admin.apps.length) {
@@ -17,6 +19,67 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+
+/**
+ * Tras cualquier creación/actualización/borrado de un jugador, alinea Firebase Auth y playerLogins
+ * con el campo email (import manual, consola, batch desde la app, etc.).
+ */
+export const syncPlayerAuthOnWrite = onDocumentWritten(
+  'schools/{schoolId}/players/{playerId}',
+  async (event) => {
+    const schoolId = event.params.schoolId as string;
+    const playerId = event.params.playerId as string;
+    const beforeSnap = event.data?.before;
+    const afterSnap = event.data?.after;
+
+    const oldEmail = beforeSnap?.exists ? normalizePlayerEmail(beforeSnap.data()?.email) : null;
+    const newEmail = afterSnap?.exists ? normalizePlayerEmail(afterSnap.data()?.email) : null;
+
+    if (!afterSnap?.exists) {
+      if (oldEmail) {
+        try {
+          await db.doc(`playerLogins/${oldEmail}`).delete();
+        } catch (e) {
+          logger.warn('syncPlayerAuthOnWrite: no se pudo borrar playerLogins', { oldEmail, e });
+        }
+      }
+      return;
+    }
+
+    if (!newEmail) {
+      if (oldEmail) {
+        try {
+          await db.doc(`playerLogins/${oldEmail}`).delete();
+        } catch (e) {
+          logger.warn('syncPlayerAuthOnWrite: no se pudo borrar playerLogins', { oldEmail, e });
+        }
+      }
+      return;
+    }
+
+    const auth = admin.auth();
+    const sync = await ensureAuthForPlayerEmail(auth, db, schoolId, playerId, oldEmail, newEmail);
+    if ('error' in sync) {
+      logger.warn('syncPlayerAuthOnWrite: sincronización de Auth omitida (conflicto o datos inconsistentes)', {
+        schoolId,
+        playerId,
+        newEmail,
+        oldEmail,
+        detail: sync.error,
+      });
+      return;
+    }
+
+    try {
+      if (oldEmail && oldEmail !== newEmail) {
+        await db.doc(`playerLogins/${oldEmail}`).delete();
+      }
+      await db.doc(`playerLogins/${newEmail}`).set({ schoolId, playerId });
+    } catch (e) {
+      logger.error('syncPlayerAuthOnWrite: error al actualizar playerLogins', { schoolId, playerId, e });
+    }
+  }
+);
 
 /** Día de vencimiento por defecto */
 const DEFAULT_DUE_DAY = 10;

@@ -5,9 +5,10 @@
  */
 
 import { NextResponse } from "next/server";
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 import { verifyIdToken } from "@/lib/auth-server";
 import { Timestamp } from "firebase-admin/firestore";
+import { ensureAuthForPlayerEmail } from "@/lib/player-auth-sync";
 
 type UpdatePayload = {
   schoolId: string;
@@ -88,11 +89,26 @@ export async function POST(request: Request) {
       birthDate,
     };
 
-    const playerRef = db.doc(`schools/${schoolId}/players/${playerId}`);
-    await playerRef.update(updateData);
-
     const newEmailNorm = raw.email?.trim().toLowerCase() || null;
     const oldEmailNorm = oldEmail?.trim().toLowerCase() || null;
+
+    if (newEmailNorm) {
+      const adminAuth = getAdminAuth();
+      const sync = await ensureAuthForPlayerEmail(
+        adminAuth,
+        db,
+        schoolId,
+        playerId,
+        oldEmailNorm,
+        newEmailNorm
+      );
+      if ("error" in sync) {
+        return NextResponse.json({ error: sync.error }, { status: sync.status });
+      }
+    }
+
+    const playerRef = db.doc(`schools/${schoolId}/players/${playerId}`);
+    await playerRef.update(updateData);
 
     if (newEmailNorm) {
       await db.doc(`playerLogins/${newEmailNorm}`).set({ schoolId, playerId });

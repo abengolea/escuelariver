@@ -11,7 +11,7 @@ import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Shield } from "lucide-react";
+import { Eye, EyeOff, Loader2, Shield } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
@@ -199,14 +200,33 @@ export default function LoginPage() {
                 ¿Olvidaste tu contraseña?
               </Button>
             </div>
-            <Input 
-              id="password" 
-              type="password" 
-              required 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoggingIn}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                className="pr-10"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoggingIn}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowPassword((v) => !v)}
+                disabled={isLoggingIn}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden />
+                )}
+              </Button>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={isLoggingIn}>
             {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

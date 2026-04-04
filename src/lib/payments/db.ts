@@ -7,7 +7,13 @@ import type admin from 'firebase-admin';
 import { getAdminFirestore, getAdminAuth } from '@/lib/firebase-admin';
 import { COLLECTIONS, REGISTRATION_PERIOD, CLOTHING_PERIOD_PREFIX, MERCADOPAGO_CONNECTION_DOC } from './constants';
 import { getDueDate, isRegistrationPeriod, isClothingPeriod } from './schemas';
-import type { Payment, PaymentIntent, PaymentConfig, DelinquentInfo, MercadoPagoConnection } from '@/lib/types/payments';
+import type {
+  Payment,
+  PaymentIntent,
+  PaymentConfig,
+  DelinquentInfo,
+  MercadoPagoConnection,
+} from '@/lib/types/payments';
 import type { Player } from '@/lib/types';
 import { getCategoryLabel } from '@/lib/utils';
 
@@ -653,6 +659,137 @@ export async function listPayments(
   const paginated = docs.slice(offsetVal, offsetVal + limitVal);
   const payments = paginated.map((d) => toPayment(d));
   return { payments, total };
+}
+
+/**
+ * Lista pagos de jugadores en todas las escuelas (superadmin).
+ * Sin schoolId: orden global por createdAt; con schoolId: delega en listPayments.
+ */
+export async function listPaymentsGlobal(
+  db: Firestore,
+  opts: {
+    schoolId?: string;
+    provider?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<{ payments: Payment[]; total: number }> {
+  const limitVal = opts.limit ?? 50;
+  const offsetVal = opts.offset ?? 0;
+
+  if (opts.schoolId) {
+    return listPayments(db, opts.schoolId, {
+      dateFrom: opts.dateFrom,
+      dateTo: opts.dateTo,
+      status: opts.status,
+      provider: opts.provider,
+      limit: limitVal,
+      offset: offsetVal,
+    });
+  }
+
+  const multiplier = opts.status ? 15 : 1;
+  const readLimit = Math.min(5000, (limitVal + offsetVal + 80) * multiplier);
+
+  /** Índice compuesto: provider + createdAt (ver firestore.indexes.json). */
+  let q = db.collection(COLLECTIONS.payments) as admin.firestore.Query;
+  if (opts.provider) {
+    q = q.where('provider', '==', opts.provider);
+  }
+  q = q.orderBy('createdAt', 'desc').limit(readLimit) as admin.firestore.Query;
+
+  let filteredDocs = (await q.get()).docs;
+  if (opts.status) {
+    filteredDocs = filteredDocs.filter((d) => (d.data().status as string) === opts.status);
+  }
+  if (opts.dateFrom || opts.dateTo) {
+    const from = opts.dateFrom ? new Date(opts.dateFrom).getTime() : 0;
+    const to = opts.dateTo ? new Date(opts.dateTo).getTime() : Infinity;
+    filteredDocs = filteredDocs.filter((docSnap) => {
+      const created =
+        docSnap.data().createdAt?.toMillis?.() ?? new Date(docSnap.data().createdAt).getTime();
+      return created >= from && created <= to;
+    });
+  }
+
+  const total = filteredDocs.length;
+  const paginated = filteredDocs.slice(offsetVal, offsetVal + limitVal);
+  return { payments: paginated.map((d) => toPayment(d)), total };
+}
+
+function toPaymentIntent(docSnap: DocumentSnapshot): PaymentIntent {
+  const d = docSnap.data()!;
+  return {
+    id: docSnap.id,
+    playerId: d.playerId,
+    schoolId: d.schoolId,
+    period: d.period,
+    amount: d.amount,
+    currency: d.currency ?? 'ARS',
+    provider: d.provider,
+    providerPreferenceId: d.providerPreferenceId,
+    checkoutUrl: d.checkoutUrl,
+    status: (d.status ?? 'pending') as PaymentIntent['status'],
+    createdAt: toDate(d.createdAt),
+    updatedAt: toDate(d.updatedAt),
+  };
+}
+
+/** Intenciones de pago recientes (checkout); útil para ver cobros no acreditados. */
+export async function listPaymentIntentsForSuperAdmin(
+  db: Firestore,
+  opts: { schoolId?: string; limit?: number; status?: string }
+): Promise<PaymentIntent[]> {
+  const want = Math.min(opts.limit ?? 30, 100);
+  let q = db.collection(COLLECTIONS.paymentIntents) as admin.firestore.Query;
+  if (opts.schoolId) {
+    q = q.where('schoolId', '==', opts.schoolId);
+  }
+  q = q.orderBy('createdAt', 'desc').limit(opts.status ? want * 8 : want) as admin.firestore.Query;
+  let docs: admin.firestore.QueryDocumentSnapshot[];
+  try {
+    docs = (await q.get()).docs;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const indexErr = /index/i.test(msg) || /FAILED_PRECONDITION/i.test(msg);
+    if (!opts.schoolId || !indexErr) throw err;
+    const broad = await db
+      .collection(COLLECTIONS.paymentIntents)
+      .orderBy('createdAt', 'desc')
+      .limit(Math.min(500, want * 15))
+      .get();
+    docs = broad.docs.filter((d) => (d.data().schoolId as string) === opts.schoolId);
+  }
+  if (opts.status) {
+    docs = docs.filter((d) => (d.data().status as string) === opts.status);
+  }
+  return docs.slice(0, want).map((d) => toPaymentIntent(d));
+}
+
+/** Nombres cortos de escuelas por id (batch). */
+export async function getSchoolNamesByIds(db: Firestore, schoolIds: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(schoolIds)].filter(Boolean);
+  const map = new Map<string, string>();
+  if (unique.length === 0) return map;
+  const dbAdmin = db;
+  const batchSize = 10;
+  for (let i = 0; i < unique.length; i += batchSize) {
+    const batch = unique.slice(i, i + batchSize);
+    const snaps = await Promise.all(batch.map((id) => dbAdmin.collection('schools').doc(id).get()));
+    snaps.forEach((snap, idx) => {
+      const id = batch[idx];
+      if (snap.exists) {
+        const name = (snap.data() as { name?: string }).name ?? id;
+        map.set(id, name);
+      } else {
+        map.set(id, id);
+      }
+    });
+  }
+  return map;
 }
 
 /** Obtiene jugadores activos de una escuela (no archivados) con su configuración de pago */

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "seed:support": "tsx scripts/seed-support-flows.ts",
     "seed:super-admin": "tsx scripts/create-super-admin.ts",
+    "add-school-staff": "tsx scripts/add-school-staff.ts",
     "simulate:payment": "tsx scripts/simulate-electronic-payment.ts"
   },
   "dependencies": {
