@@ -408,7 +408,7 @@ export interface PlayerVideo {
   title?: string;
   /** Descripción o notas del entrenador */
   description?: string;
-  /** Habilidades/categorías: dribling, pegada, definicion, estirada, etc. */
+  /** Fundamentos (ids de rúbrica de evaluación: controlPase, tomaBaja, …). */
   skills?: string[];
   createdAt: Date;
   createdBy: string;
