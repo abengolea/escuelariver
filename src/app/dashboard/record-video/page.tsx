@@ -3,14 +3,16 @@
 import { useUserProfile } from "@/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video } from "lucide-react";
+import { Video, Upload } from "lucide-react";
 import { useState } from "react";
 import { RecordOrUploadVideoDialog } from "@/components/videos/RecordOrUploadVideoDialog";
+import { SchoolVideotecaGallery } from "@/components/videos/SchoolVideotecaGallery";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RecordVideoPage() {
   const { activeSchoolId, isReady } = useUserProfile();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"upload" | "record">("upload");
 
   if (!isReady) {
     return (
@@ -48,13 +50,32 @@ export default function RecordVideoPage() {
             Elige un jugador y graba o sube un video para documentar habilidades y entrenamientos.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button onClick={() => setDialogOpen(true)} size="lg">
+        <CardContent className="flex flex-wrap gap-3">
+          <Button
+            size="lg"
+            onClick={() => {
+              setDialogMode("upload");
+              setDialogOpen(true);
+            }}
+          >
+            <Upload className="mr-2 h-5 w-5" />
+            Subir video
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => {
+              setDialogMode("record");
+              setDialogOpen(true);
+            }}
+          >
             <Video className="mr-2 h-5 w-5" />
-            Grabar o subir video
+            Grabar con cámara
           </Button>
         </CardContent>
       </Card>
+
+      <SchoolVideotecaGallery schoolId={activeSchoolId} />
 
       <RecordOrUploadVideoDialog
         open={dialogOpen}
@@ -63,6 +84,7 @@ export default function RecordVideoPage() {
         initialPlayerId={null}
         initialPlayerName=""
         embedded={false}
+        defaultModeOnOpen={dialogMode}
         onSuccess={() => setDialogOpen(false)}
       />
     </div>

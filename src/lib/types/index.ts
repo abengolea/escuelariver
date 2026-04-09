@@ -255,7 +255,7 @@ export interface Evaluation {
   /** Posición que el entrenador califica como la más adecuada para el jugador. */
   position?: PlayerPosition;
   coachComments: string;
-  /** Comentarios opcionales por rubro (ej. control, pase, respect). */
+  /** Comentarios opcionales por rubro: campo (controlPase, … dominioBalon) o arquero (posicionInicial, pasesManoPie, tomas, caídas, saltos, salidaPunos). */
   rubricComments?: Record<string, string>;
   physical?: {
     height?: { value: number, unit: 'cm' };
@@ -408,7 +408,7 @@ export interface PlayerVideo {
   title?: string;
   /** Descripción o notas del entrenador */
   description?: string;
-  /** Habilidades/categorías: dribling, pegada, definicion, estirada, etc. */
+  /** Fundamentos (ids de rúbrica de evaluación: controlPase, tomaBaja, …). */
   skills?: string[];
   createdAt: Date;
   createdBy: string;

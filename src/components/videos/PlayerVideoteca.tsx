@@ -5,16 +5,18 @@ import type { PlayerVideo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Video, Plus, Trash2, Film, Filter, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
-import { getVideoSkillLabel, VIDEO_SKILLS_ALL } from "@/lib/video-skills";
+import { Video, Trash2, Film, Filter, ArrowUpDown, ArrowDown, ArrowUp, Upload } from "lucide-react";
+import { getVideoSkillLabel, VIDEO_SKILL_GROUPS } from "@/lib/video-skills";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { useState, useMemo } from "react";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -51,6 +53,7 @@ export function PlayerVideoteca({
   isViewingAsPlayer = false,
 }: PlayerVideotecaProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [videoDialogMode, setVideoDialogMode] = useState<"upload" | "record">("upload");
   const [videoToDelete, setVideoToDelete] = useState<PlayerVideo | null>(null);
   const [filterSkill, setFilterSkill] = useState<string | "all">("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
@@ -79,6 +82,33 @@ export function PlayerVideoteca({
     });
     return list;
   }, [videos, filterSkill, sortOrder]);
+
+  const videosByMonth = useMemo(() => {
+    const groups = new Map<string, PlayerVideo[]>();
+    for (const v of filteredAndSortedVideos) {
+      let key: string;
+      if (v.createdAt) {
+        const d = new Date(v.createdAt as unknown as number | Date);
+        key = format(startOfMonth(d), "yyyy-MM");
+      } else {
+        key = "_sin_fecha";
+      }
+      const bucket = groups.get(key) ?? [];
+      bucket.push(v);
+      groups.set(key, bucket);
+    }
+    return [...groups.entries()].sort(([a], [b]) => {
+      if (a === "_sin_fecha") return 1;
+      if (b === "_sin_fecha") return -1;
+      return b.localeCompare(a);
+    });
+  }, [filteredAndSortedVideos]);
+
+  const monthSectionTitle = (key: string) => {
+    if (key === "_sin_fecha") return "Sin fecha";
+    const [y, m] = key.split("-").map(Number);
+    return format(new Date(y, m - 1, 1), "MMMM yyyy", { locale: es });
+  };
 
   const handleDelete = async () => {
     if (!videoToDelete || !schoolId) return;
@@ -126,10 +156,27 @@ export function PlayerVideoteca({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h3 className="text-lg font-semibold font-headline">Videoteca</h3>
           {!isViewingAsPlayer && (
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Grabar / Subir video
-            </Button>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+              <Button
+                onClick={() => {
+                  setVideoDialogMode("upload");
+                  setDialogOpen(true);
+                }}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Subir video
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setVideoDialogMode("record");
+                  setDialogOpen(true);
+                }}
+              >
+                <Video className="mr-2 h-4 w-4" />
+                Grabar con cámara
+              </Button>
+            </div>
           )}
         </div>
 
@@ -145,10 +192,15 @@ export function PlayerVideoteca({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    {VIDEO_SKILLS_ALL.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
+                    {VIDEO_SKILL_GROUPS.map(({ heading, skills }) => (
+                      <SelectGroup key={heading}>
+                        <SelectLabel className="text-muted-foreground">{heading}</SelectLabel>
+                        {skills.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>
@@ -210,57 +262,90 @@ export function PlayerVideoteca({
                   : `Aún no hay videos de ${playerName}. Graba o sube un video para documentar habilidades y entrenamientos.`}
               </p>
               {!isViewingAsPlayer && (
-                <Button onClick={() => setDialogOpen(true)}>
-                  <Video className="mr-2 h-4 w-4" />
-                  Grabar o subir primer video
-                </Button>
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 justify-center">
+                  <Button
+                    onClick={() => {
+                      setVideoDialogMode("upload");
+                      setDialogOpen(true);
+                    }}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Subir primer video
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setVideoDialogMode("record");
+                      setDialogOpen(true);
+                    }}
+                  >
+                    <Video className="mr-2 h-4 w-4" />
+                    Grabar con cámara
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredAndSortedVideos.map((video) => (
-              <Card key={video.id} className="overflow-hidden">
-                <div className="aspect-video bg-black relative group">
-                  <video
-                    src={video.url}
-                    controls
-                    className="w-full h-full object-contain"
-                    preload="metadata"
-                    playsInline
-                  />
-                  {!isViewingAsPlayer && (
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
-                      onClick={() => setVideoToDelete(video)}
-                      aria-label="Eliminar video"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+          <div className="space-y-8">
+            {videosByMonth.map(([monthKey, monthVideos]) => (
+              <section key={monthKey} className="space-y-3">
+                <h4 className="text-sm font-semibold font-headline border-b border-border pb-2 capitalize">
+                  {monthSectionTitle(monthKey)}
+                </h4>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {monthVideos.map((video) => (
+                    <Card key={video.id} className="overflow-hidden">
+                      <div className="aspect-video bg-black relative group">
+                        <video
+                          src={video.url}
+                          controls
+                          className="w-full h-full object-contain"
+                          preload="metadata"
+                          playsInline
+                        />
+                        {!isViewingAsPlayer && (
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity h-8 w-8"
+                            onClick={() => setVideoToDelete(video)}
+                            aria-label="Eliminar video"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <CardHeader className="py-3 space-y-2">
+                        <p className="font-medium truncate" title={video.title || undefined}>
+                          {video.title || "Sin título"}
+                        </p>
+                        {video.description?.trim() && (
+                          <p className="text-xs text-muted-foreground line-clamp-2" title={video.description}>
+                            {video.description}
+                          </p>
+                        )}
+                        {video.skills && video.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {video.skills.map((skillId) => (
+                              <Badge key={skillId} variant="secondary" className="text-[10px] font-normal">
+                                {getVideoSkillLabel(skillId)}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {video.createdAt
+                            ? format(new Date(video.createdAt as unknown as number | Date), "EEEE d MMM yyyy", {
+                                locale: es,
+                              })
+                            : ""}
+                        </p>
+                      </CardHeader>
+                    </Card>
+                  ))}
                 </div>
-                <CardHeader className="py-3 space-y-2">
-                  <p className="font-medium truncate">
-                    {video.title || "Sin título"}
-                  </p>
-                  {video.skills && video.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {video.skills.map((skillId) => (
-                        <Badge key={skillId} variant="secondary" className="text-[10px] font-normal">
-                          {getVideoSkillLabel(skillId)}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {video.createdAt
-                      ? format(new Date(video.createdAt as unknown as number | Date), "d MMM yyyy", { locale: es })
-                      : ""}
-                  </p>
-                </CardHeader>
-              </Card>
+              </section>
             ))}
           </div>
         )}
@@ -273,6 +358,7 @@ export function PlayerVideoteca({
         initialPlayerId={playerId}
         initialPlayerName={playerName}
         embedded={embedded}
+        defaultModeOnOpen={videoDialogMode}
         onSuccess={() => setDialogOpen(false)}
       />
 

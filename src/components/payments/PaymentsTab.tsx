@@ -108,7 +108,7 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   const [manualPaymentType, setManualPaymentType] = useState<"monthly" | "registration" | "clothing">("monthly");
   const [manualPeriod, setManualPeriod] = useState(currentPeriod());
   const [manualClothingInstallment, setManualClothingInstallment] = useState("1");
-  const [manualAmount, setManualAmount] = useState("15000");
+  const [manualAmount, setManualAmount] = useState("");
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentWithPlayerName | null>(null);
@@ -242,6 +242,50 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
     fetchClothingPending();
   }, [fetchClothingPending]);
 
+  // Cuota mensual: monto según config + jugador (género, categoría, prorrata del mes de alta)
+  useEffect(() => {
+    if (
+      !manualOpen ||
+      manualPaymentType !== "monthly" ||
+      !manualPlayerId ||
+      !manualPeriod ||
+      !schoolId
+    ) {
+      return;
+    }
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(manualPeriod)) return;
+
+    let cancelled = false;
+    void (async () => {
+      const token = await getToken();
+      if (!token || cancelled) return;
+      try {
+        const res = await fetch(
+          `/api/payments/expected-amount?schoolId=${encodeURIComponent(schoolId)}&playerId=${encodeURIComponent(manualPlayerId)}&period=${encodeURIComponent(manualPeriod)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { amount?: number };
+        if (typeof data.amount === "number" && !Number.isNaN(data.amount) && !cancelled) {
+          setManualAmount(String(data.amount));
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    manualOpen,
+    manualPaymentType,
+    manualPlayerId,
+    manualPeriod,
+    schoolId,
+    getToken,
+  ]);
+
   // Al cargar cuotas pendientes, seleccionar la primera y su monto
   useEffect(() => {
     if (manualPaymentType === "clothing" && clothingPendingForPlayer.length > 0) {
@@ -299,7 +343,7 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
       setManualPaymentType("monthly");
       setManualPeriod(currentPeriod());
       setManualClothingInstallment("1");
-      setManualAmount("15000");
+      setManualAmount("");
       fetchPayments();
     } catch (e) {
       toast({
@@ -476,7 +520,14 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
           {exportingCsv ? "Exportando…" : "Exportar CSV"}
         </Button>
         <Button
-          onClick={() => setManualOpen(true)}
+          onClick={() => {
+            setManualPlayerId("");
+            setManualPaymentType("monthly");
+            setManualPeriod(currentPeriod());
+            setManualClothingInstallment("1");
+            setManualAmount("");
+            setManualOpen(true);
+          }}
           className="bg-red-600 hover:bg-red-700 text-white"
         >
           <Banknote className="mr-2 h-4 w-4" />
@@ -758,12 +809,15 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
                 value={manualPaymentType}
                 onValueChange={(v: "monthly" | "registration" | "clothing") => {
                   setManualPaymentType(v);
-                  if (v === "registration") setManualAmount(String(configRegistrationAmount || ""));
-                  if (v === "clothing" && configClothingInstallments > 0) {
+                  if (v === "registration") {
+                    setManualAmount(String(configRegistrationAmount || ""));
+                  } else if (v === "clothing" && configClothingInstallments > 0) {
                     const perCuota = Math.floor(configClothingAmount / configClothingInstallments);
                     const remainder = configClothingAmount - perCuota * configClothingInstallments;
                     const firstCuota = perCuota + (remainder > 0 ? 1 : 0);
                     setManualAmount(String(firstCuota));
+                  } else if (v === "monthly") {
+                    setManualAmount("");
                   }
                 }}
               >
@@ -860,7 +914,7 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
                     ? String(configRegistrationAmount || "0")
                     : manualPaymentType === "clothing"
                       ? String(configClothingAmount ? Math.floor(configClothingAmount / configClothingInstallments) : "0")
-                      : "15000"
+                      : "Elegí jugador y período"
                 }
                 className="mt-1"
               />

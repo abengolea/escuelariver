@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useLayoutEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +28,10 @@ import { uploadPlayerVideoWithProgress } from "@/lib/player-videos";
 import { buildEmailHtml, escapeHtml, htmlToPlainText, sendMailDoc } from "@/lib/email";
 import { useToast } from "@/hooks/use-toast";
 import { Video, Upload, Loader2, Circle, Square } from "lucide-react";
-import { VIDEO_SKILLS_ALL } from "@/lib/video-skills";
+import { VIDEO_SKILL_GROUPS } from "@/lib/video-skills";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+type Mode = "record" | "upload";
 
 interface RecordOrUploadVideoDialogProps {
   open: boolean;
@@ -39,10 +41,10 @@ interface RecordOrUploadVideoDialogProps {
   initialPlayerName: string;
   /** Si true, no mostrar selector de jugador (estamos en la página del jugador) */
   embedded?: boolean;
+  /** Modo inicial cada vez que se abre el diálogo (subir archivo vs grabar con cámara). */
+  defaultModeOnOpen?: Mode;
   onSuccess?: () => void;
 }
-
-type Mode = "record" | "upload";
 
 export function RecordOrUploadVideoDialog({
   open,
@@ -51,6 +53,7 @@ export function RecordOrUploadVideoDialog({
   initialPlayerId,
   initialPlayerName,
   embedded = true,
+  defaultModeOnOpen = "upload",
   onSuccess,
 }: RecordOrUploadVideoDialogProps) {
   const { user } = useUser();
@@ -75,7 +78,6 @@ export function RecordOrUploadVideoDialog({
   const streamRef = useRef<MediaStream | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const { data: players } = useCollection<Player>(
     schoolId && !embedded ? `schools/${schoolId}/players` : ""
   );
@@ -115,6 +117,34 @@ export function RecordOrUploadVideoDialog({
       mediaRecorderRef.current.stop();
     }
   }, []);
+
+  const prevOpenRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      prevOpenRef.current = false;
+      return;
+    }
+    if (prevOpenRef.current) return;
+    prevOpenRef.current = true;
+    resetForm();
+    setMode(defaultModeOnOpen);
+    if (!embedded) {
+      setPlayerId(initialPlayerId ?? "");
+      setPlayerName(initialPlayerName);
+    }
+    if (defaultModeOnOpen === "upload") {
+      const t = window.setTimeout(() => fileInputRef.current?.click(), 80);
+      return () => window.clearTimeout(t);
+    }
+  }, [
+    open,
+    defaultModeOnOpen,
+    embedded,
+    initialPlayerId,
+    initialPlayerName,
+    resetForm,
+  ]);
 
   const startRecording = async () => {
     try {
@@ -268,7 +298,9 @@ export function RecordOrUploadVideoDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg flex max-h-[90vh] flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="font-headline">Grabar o subir video</DialogTitle>
+          <DialogTitle className="font-headline">
+            {mode === "upload" ? "Subir video a la videoteca" : "Grabar video en la videoteca"}
+          </DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="flex-1 min-h-0 -mx-1 px-1">
@@ -437,24 +469,32 @@ export function RecordOrUploadVideoDialog({
         )}
 
         <div className="space-y-2">
-          <Label>Habilidades (opcional)</Label>
-          <ScrollArea className="h-[140px] rounded-md border p-2">
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                {VIDEO_SKILLS_ALL.map((s) => (
-                  <Button
-                    key={s.id}
-                    type="button"
-                    variant={selectedSkills.includes(s.id) ? "default" : "outline"}
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => toggleSkill(s.id)}
-                    disabled={uploading}
-                  >
-                    {s.label}
-                  </Button>
-                ))}
-              </div>
+          <Label>Fundamentos (opcional)</Label>
+          <p className="text-xs text-muted-foreground">
+            Mismos rubros que en la evaluación deportiva: jugador de campo o arquero.
+          </p>
+          <ScrollArea className="h-[220px] rounded-md border p-2">
+            <div className="space-y-4 pr-2">
+              {VIDEO_SKILL_GROUPS.map(({ heading, skills }) => (
+                <div key={heading} className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground">{heading}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {skills.map((s) => (
+                      <Button
+                        key={s.id}
+                        type="button"
+                        variant={selectedSkills.includes(s.id) ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => toggleSkill(s.id)}
+                        disabled={uploading}
+                      >
+                        {s.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </ScrollArea>
         </div>

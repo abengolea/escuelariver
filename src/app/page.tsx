@@ -72,10 +72,10 @@ export default function LandingPage() {
               />
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
-                  <div className="inline-block rounded-lg bg-primary/10 text-primary px-3 py-1 text-sm font-medium">Para Jugadores y Familias</div>
-                  <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">¿Sos parte de la Escuela?</h2>
+                  <div className="inline-block rounded-lg bg-primary/10 text-primary px-3 py-1 text-sm font-medium">Jugadores / Familias</div>
+                  <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">¿Sos parte de Escuelas River SN?</h2>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                    Creá tu cuenta como jugador. Un administrador de la escuela te aprobará para acceder al panel.
+                    Creá tu cuenta como jugador. Desde el panel de control podrás actualizar tus datos, abonar las cuotas y hacer un seguimiento de tu progreso en River.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -83,7 +83,6 @@ export default function LandingPage() {
                     <Link href="/auth/registro">Registrarme como jugador</Link>
                   </Button>
                 </div>
-                 <p className="text-xs text-muted-foreground">Completá el registro, verificá tu email y un administrador te aprobará para acceder al panel.</p>
               </div>
             </div>
           </div>
