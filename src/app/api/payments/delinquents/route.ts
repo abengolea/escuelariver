@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server';
 import { listDelinquentsSchema } from '@/lib/payments/schemas';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { computeDelinquents } from '@/lib/payments/db';
+import { computeDelinquents, listPlayersCurrentOnMonthlyQuota } from '@/lib/payments/db';
 import { getReminderCountsForDelinquents } from '@/lib/payments/email-events';
 import { verifyIdToken } from '@/lib/auth-server';
 
@@ -32,6 +32,11 @@ export async function GET(request: Request) {
 
     const db = getAdminFirestore();
     let delinquents = await computeDelinquents(db, parsed.data.schoolId);
+    const currentOnMonthlyQuota = await listPlayersCurrentOnMonthlyQuota(
+      db,
+      parsed.data.schoolId,
+      delinquents
+    );
 
     // Filtrar por concepto
     const conceptFilter = parsed.data.concept;
@@ -63,6 +68,7 @@ export async function GET(request: Request) {
           ...(reminder?.lastSentAt && { lastReminderSentAt: reminder.lastSentAt.toISOString() }),
         };
       }),
+      currentOnMonthlyQuota,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

@@ -34,9 +34,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertCircle, ExternalLink, Download, Mail } from "lucide-react";
+import { AlertCircle, ExternalLink, Download, Mail, CheckCircle2, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { DelinquentInfo } from "@/lib/types";
+import type { DelinquentInfo, PlayerCurrentOnMonthlyQuota } from "@/lib/types";
 
 function delinquentKey(d: DelinquentInfo): string {
   return `${d.playerId}:${d.period}`;
@@ -77,6 +78,8 @@ interface DelinquentsTabProps {
 
 export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
   const [delinquents, setDelinquents] = useState<DelinquentInfo[]>([]);
+  /** Jugadores al día solo en cuota mensual (misma lógica que morosos; no incluye inscripción ni ropa). */
+  const [currentOnMonthly, setCurrentOnMonthly] = useState<PlayerCurrentOnMonthlyQuota[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   /** Concepto: "all" | "inscripcion" | "monthly" | "clothing" */
@@ -121,6 +124,34 @@ export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
     toast({ title: "Exportación completada", description: `${delinquents.length} registros exportados.` });
   };
 
+  const handleExportCurrentMonthlyCsv = () => {
+    const escape = (v: string | number | undefined) => {
+      if (v == null || v === "") return "";
+      const s = String(v);
+      return s.includes(",") || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const cols = ["Jugador", "Email", "Estado"];
+    const statusLabel = (s: string) =>
+      s === "suspended" ? "Suspendido" : s === "inactive" ? "Inactivo" : "Activo";
+    const rows = currentOnMonthly.map((p) => [
+      escape(p.playerName),
+      escape(p.playerEmail),
+      escape(statusLabel(p.status)),
+    ]);
+    const csv = [cols.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `al-dia-cuota-mensual-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Exportación completada",
+      description: `${currentOnMonthly.length} jugador${currentOnMonthly.length !== 1 ? "es" : ""} en la lista.`,
+    });
+  };
+
   const fetchDelinquents = useCallback(async () => {
     if (!schoolId) return;
     setLoading(true);
@@ -129,6 +160,7 @@ export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
     if (!token) {
       setLoading(false);
       setFetchError("Sesión expirada. Volvé a iniciar sesión.");
+      setCurrentOnMonthly([]);
       return;
     }
     try {
@@ -149,6 +181,7 @@ export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
           (res.status === 503 ? "Los índices se están creando. Volvé a intentar en unos minutos." : null) ??
           `Error al cargar morosos (${res.status})`;
         setFetchError(msg);
+        setCurrentOnMonthly([]);
         toast({ title: "Error", description: msg, variant: "destructive" });
         return;
       }
@@ -159,9 +192,11 @@ export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
           dueDate: new Date(d.dueDate),
         }))
       );
+      setCurrentOnMonthly(data.currentOnMonthlyQuota ?? []);
     } catch (e) {
       const message = e instanceof Error ? e.message : "No se pudieron cargar los morosos";
       setFetchError(message);
+      setCurrentOnMonthly([]);
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -349,6 +384,66 @@ export function DelinquentsTab({ schoolId, getToken }: DelinquentsTabProps) {
 
   return (
     <div className="space-y-4">
+      <Collapsible defaultOpen className="rounded-lg border bg-card text-card-foreground shadow-sm">
+        <CollapsibleTrigger className="flex w-full items-center gap-2 p-4 text-left font-medium hover:bg-muted/40 [&[data-state=open]>svg:last-child]:rotate-180">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+          <span className="min-w-0 flex-1">
+            Al día en cuota mensual
+            <span className="ml-2 text-sm font-normal text-muted-foreground">({currentOnMonthly.length})</span>
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" aria-hidden />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-3 border-t px-4 pb-4 pt-3">
+            <p className="text-sm text-muted-foreground">
+              Lista de jugadores con cuota mensual configurada y sin meses vencidos impagos.{" "}
+              <strong className="font-medium text-foreground">No</strong> tiene en cuenta inscripción ni ropa: pueden
+              aparecer aquí y aun figurar como morosos por otros conceptos.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportCurrentMonthlyCsv}
+              disabled={loading || currentOnMonthly.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
+            {loading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : fetchError ? null : currentOnMonthly.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">Nadie cumple este criterio o no hay cuotas mensuales configuradas.</p>
+            ) : (
+              <div className="max-h-72 overflow-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">Jugador</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Email</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentOnMonthly.map((p) => (
+                      <TableRow key={p.playerId}>
+                        <TableCell className="font-medium">{p.playerName}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{p.playerEmail ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={p.status === "suspended" ? "destructive" : "secondary"}>
+                            {p.status === "suspended" ? "Suspendido" : p.status === "inactive" ? "Inactivo" : "Activo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
