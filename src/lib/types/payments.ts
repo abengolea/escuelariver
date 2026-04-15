@@ -138,3 +138,11 @@ export interface DelinquentInfo {
   /** Fecha del último recordatorio enviado (ISO string) */
   lastReminderSentAt?: string;
 }
+
+/** Jugador con cuota mensual al día (sin períodos YYYY-MM vencidos pendientes; no evalúa inscripción ni ropa). */
+export interface PlayerCurrentOnMonthlyQuota {
+  playerId: string;
+  playerName: string;
+  playerEmail?: string;
+  status: PlayerStatus;
+}

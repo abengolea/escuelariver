@@ -7,7 +7,11 @@
 import { NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyIdToken } from '@/lib/auth-server';
-import { computeDelinquents, getClothingPendingByPlayerMap } from '@/lib/payments/db';
+import {
+  computeDelinquents,
+  getClothingPendingByPlayerMap,
+  listPlayersCurrentOnMonthlyQuota,
+} from '@/lib/payments/db';
 
 export async function GET(request: Request) {
   try {
@@ -45,6 +49,7 @@ export async function GET(request: Request) {
       computeDelinquents(db, schoolId),
       getClothingPendingByPlayerMap(db, schoolId),
     ]);
+    const currentOnMonthlyQuota = await listPlayersCurrentOnMonthlyQuota(db, schoolId, delinquents);
 
     return NextResponse.json({
       delinquents: delinquents.map((d) => ({
@@ -52,6 +57,7 @@ export async function GET(request: Request) {
         dueDate: d.dueDate.toISOString(),
       })),
       clothingPendingByPlayer,
+      currentOnMonthlyQuota,
     });
   } catch (e) {
     console.error('[payments/players-status]', e);

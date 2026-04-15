@@ -13,6 +13,7 @@ import type {
   PaymentConfig,
   DelinquentInfo,
   MercadoPagoConnection,
+  PlayerCurrentOnMonthlyQuota,
 } from '@/lib/types/payments';
 import type { Player } from '@/lib/types';
 import { getCategoryLabel } from '@/lib/utils';
@@ -1053,6 +1054,41 @@ export async function computeDelinquents(
   }
 
   return delinquents.sort((a, b) => b.daysOverdue - a.daysOverdue);
+}
+
+/**
+ * Jugadores activos con cuota mensual configurada (> 0) que no tienen ningún período mensual vencido impago.
+ * Ignora inscripción y ropa: un jugador puede figurar aquí y aun así adeudar inscripción o cuotas de ropa.
+ */
+export async function listPlayersCurrentOnMonthlyQuota(
+  db: Firestore,
+  schoolId: string,
+  allDelinquents: DelinquentInfo[]
+): Promise<PlayerCurrentOnMonthlyQuota[]> {
+  const monthlyDelinquentIds = new Set(
+    allDelinquents
+      .filter(
+        (d) => d.period !== REGISTRATION_PERIOD && !d.period.startsWith(CLOTHING_PERIOD_PREFIX)
+      )
+      .map((d) => d.playerId)
+  );
+  const playersWithConfig = await getActivePlayersWithConfig(db, schoolId);
+  const result: PlayerCurrentOnMonthlyQuota[] = [];
+  for (const { player, config } of playersWithConfig) {
+    const birthDate = player.birthDate instanceof Date ? player.birthDate : new Date(player.birthDate);
+    const category = getCategoryLabel(birthDate);
+    const monthlyAmount = getAmountForPlayer(config, category, { genero: player.genero });
+    if (monthlyAmount <= 0) continue;
+    if (monthlyDelinquentIds.has(player.id)) continue;
+    result.push({
+      playerId: player.id,
+      playerName: `${player.firstName} ${player.lastName}`.trim(),
+      playerEmail: player.email,
+      status: player.status as PlayerCurrentOnMonthlyQuota['status'],
+    });
+  }
+  result.sort((a, b) => a.playerName.localeCompare(b.playerName, 'es', { sensitivity: 'base' }));
+  return result;
 }
 
 /** Actualiza status del jugador (ej. a suspended). Si el documento no existe, no hace nada (evita 500 en webhook). */
