@@ -9,6 +9,7 @@ const skillLabels: Record<string, string> = {
   recepcionPecho: "Recepción de pecho",
   cabezazo: "Cabezazo",
   remateArco: "Remate al arco",
+  controlYRemate: "Control y remate",
   dribbling: "Dribbling",
   defensa: "Defensa",
   dominioBalon: "Dominio de balón (jueguitos)",

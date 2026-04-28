@@ -35,12 +35,12 @@ export default function LandingPage() {
             <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
-                   <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm font-medium">Para Entrenadores y Admins</div>
+                   <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm font-medium">Coordinadores / Entrenadores / Profesores</div>
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline text-primary">
                     Gestiona el Futuro del Fútbol
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Nuestra plataforma integral te ayuda a seguir el desarrollo de cada jugador, desde sus primeros pasos hasta convertirse en un atleta de élite.
+                    Nuestra plataforma integral te ayuda a seguir el desarrollo de cada jugador, desde sus primeros pasos hasta convertirse en un jugador profesional.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -50,10 +50,10 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="/images/hero-chicos-futbol.png.jpeg"
+                src="/images/foto_escuela.jpeg"
                 width={600}
                 height={400}
-                alt="Jugadores de fútbol en Escuelas River"
+                alt="Escuela Escuelas River"
                 className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
               />
             </div>
@@ -64,10 +64,10 @@ export default function LandingPage() {
           <div className="container px-4 md:px-6">
             <div className="grid items-center gap-6 lg:grid-cols-[1fr_500px] lg:gap-12 xl:grid-cols-[1fr_550px]">
               <Image
-                src="/images/river_foto2.jpeg"
+                src="/images/foto_burrito.jpeg"
                 width={550}
                 height={310}
-                alt="Jugadores de fútbol en Escuelas River"
+                alt="Escuelas River"
                 className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full lg:order-first"
               />
               <div className="flex flex-col justify-center space-y-4">
