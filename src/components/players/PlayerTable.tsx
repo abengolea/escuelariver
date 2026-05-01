@@ -32,7 +32,7 @@ import {
 import { useCollection, useUserProfile } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { FileDown, CreditCard, CheckCircle, Search } from "lucide-react";
+import { FileDown, CreditCard, CheckCircle, Search, Archive, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 type DelinquentInfo = {
@@ -108,12 +108,21 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
   const [categoryFrom, setCategoryFrom] = useState<string>("");
   const [categoryTo, setCategoryTo] = useState<string>("");
   const [generoFilter, setGeneroFilter] = useState<string>("");
+  const [showArchivedOnly, setShowArchivedOnly] = useState(false);
 
-  const activePlayers = useMemo(() => (players ?? []).filter((p) => !p.archived), [players]);
+  const canViewArchivedList = isAdmin;
+
+  const listedPlayers = useMemo(() => {
+    const list = players ?? [];
+    if (canViewArchivedList && showArchivedOnly) {
+      return list.filter((p) => p.archived === true);
+    }
+    return list.filter((p) => !p.archived);
+  }, [players, canViewArchivedList, showArchivedOnly]);
 
   const sortedAndFilteredPlayers = useMemo(() => {
-    if (!activePlayers.length) return [];
-    let base = activePlayers;
+    if (!listedPlayers.length) return [];
+    let base = listedPlayers;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       base = base.filter(
@@ -164,7 +173,7 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
       const lnB = (b.player.lastName ?? "").toLowerCase();
       return lnA.localeCompare(lnB);
     });
-  }, [activePlayers, categoryFilter, categoryFrom, categoryTo, generoFilter, searchQuery]);
+  }, [listedPlayers, categoryFilter, categoryFrom, categoryTo, generoFilter, searchQuery]);
 
   const handleExportCsv = () => {
     const cols = [
@@ -250,14 +259,35 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
   if (error) {
     return <div className="text-destructive p-4">Error al cargar los jugadores. Es posible que no tengas permisos para verlos.</div>
   }
-  
-  if (!players || activePlayers.length === 0) {
-      return <div className="text-center text-muted-foreground p-4">No hay jugadores para mostrar en esta escuela.</div>
+
+  if (!players || players.length === 0) {
+    return <div className="text-center text-muted-foreground p-4">No hay jugadores para mostrar en esta escuela.</div>
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        {canViewArchivedList && (
+          <Button
+            type="button"
+            variant={showArchivedOnly ? "secondary" : "outline"}
+            size="sm"
+            className="shrink-0"
+            onClick={() => setShowArchivedOnly((v) => !v)}
+          >
+            {showArchivedOnly ? (
+              <>
+                <Users className="h-4 w-4 mr-2" />
+                Ver jugadores activos
+              </>
+            ) : (
+              <>
+                <Archive className="h-4 w-4 mr-2" />
+                Ver archivados
+              </>
+            )}
+          </Button>
+        )}
         <div className="relative flex-1 min-w-[180px] max-w-[280px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -372,6 +402,12 @@ export function PlayerTable({ schoolId: propSchoolId }: { schoolId?: string }) {
                     ? "No se encontraron jugadores con ese nombre o apellido."
                     : categoryFrom || categoryTo
                     ? "Ningún jugador en el rango de años seleccionado."
+                    : canViewArchivedList && showArchivedOnly
+                    ? "No hay jugadores archivados."
+                    : canViewArchivedList && !showArchivedOnly && listedPlayers.length === 0
+                    ? "No hay jugadores activos. Usá «Ver archivados» para ver los archivados."
+                    : !canViewArchivedList && listedPlayers.length === 0
+                    ? "No hay jugadores activos en esta escuela."
                     : "Ningún jugador en la cat. año nac. seleccionada."}
                 </TableCell>
               </TableRow>
