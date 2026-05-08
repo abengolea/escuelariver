@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -28,12 +28,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useCollection } from "@/firebase";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Banknote, Pencil, Download } from "lucide-react";
+import { Banknote, Pencil, Download, ChevronDown, Search, Check } from "lucide-react";
 import type { Payment, Player } from "@/lib/types";
 
 /** Pago con nombre de jugador enriquecido por la API */
@@ -98,6 +100,7 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
+    playerId: "",
     concept: "" as "" | "inscripcion" | "monthly" | "clothing",
     period: "",
     status: "",
@@ -123,13 +126,44 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   const [clothingConfigured, setClothingConfigured] = useState(false);
   const [clothingPendingLoading, setClothingPendingLoading] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [playerFilterPopoverOpen, setPlayerFilterPopoverOpen] = useState(false);
+  const [playerFilterSearch, setPlayerFilterSearch] = useState("");
   const { toast } = useToast();
 
   const { data: players } = useCollection<Player>(
     schoolId ? `schools/${schoolId}/players` : "",
     { orderBy: ["lastName", "asc"] }
   );
-  const activePlayers = (players ?? []).filter((p) => !p.archived);
+  const activePlayers = useMemo(
+    () => (players ?? []).filter((p) => !p.archived),
+    [players]
+  );
+
+  const playersSortedByName = useMemo(
+    () =>
+      [...activePlayers].sort((a, b) => {
+        const ln = (a.lastName ?? "").localeCompare(b.lastName ?? "", "es", { sensitivity: "base" });
+        if (ln !== 0) return ln;
+        return (a.firstName ?? "").localeCompare(b.firstName ?? "", "es", { sensitivity: "base" });
+      }),
+    [activePlayers]
+  );
+
+  const filteredPlayersForFilter = useMemo(() => {
+    const q = playerFilterSearch.trim().toLowerCase();
+    if (!q) return playersSortedByName;
+    return playersSortedByName.filter((p) => {
+      const fn = (p.firstName ?? "").toLowerCase();
+      const ln = (p.lastName ?? "").toLowerCase();
+      const full = `${fn} ${ln}`;
+      const fullInv = `${ln} ${fn}`;
+      return (
+        full.includes(q) ||
+        fullInv.includes(q) ||
+        full.split(/\s+/).some((w) => w.startsWith(q))
+      );
+    });
+  }, [playersSortedByName, playerFilterSearch]);
 
   const fetchConfig = useCallback(async () => {
     const token = await getToken();
@@ -154,6 +188,11 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
     const token = await getToken();
     if (!token) return;
     const params = new URLSearchParams({ schoolId });
+    if (filters.playerId) {
+      params.set("playerId", filters.playerId);
+      /** Un solo jugador: traer suficientes filas para ver historial completo en pantalla */
+      params.set("limit", "500");
+    }
     if (filters.concept === "inscripcion") {
       params.set("concept", "inscripcion");
     } else if (filters.concept === "monthly" && filters.period) {
@@ -193,7 +232,15 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [schoolId, filters.concept, filters.period, filters.status, filters.provider, getToken]);
+  }, [
+    schoolId,
+    filters.playerId,
+    filters.concept,
+    filters.period,
+    filters.status,
+    filters.provider,
+    getToken,
+  ]);
 
   useEffect(() => {
     fetchPayments();
@@ -440,6 +487,7 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
     setExportingCsv(true);
     try {
       const params = new URLSearchParams({ schoolId, limit: "10000", offset: "0" });
+      if (filters.playerId) params.set("playerId", filters.playerId);
       if (filters.period) params.set("period", filters.period);
       if (filters.status) params.set("status", filters.status);
       if (filters.provider) params.set("provider", filters.provider);
@@ -555,6 +603,86 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <Popover
+          open={playerFilterPopoverOpen}
+          onOpenChange={(open) => {
+            setPlayerFilterPopoverOpen(open);
+            if (!open) setPlayerFilterSearch("");
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={playerFilterPopoverOpen}
+              className="w-[280px] min-w-[160px] max-w-full justify-between font-normal"
+            >
+              <span className="truncate text-left">
+                {(() => {
+                  if (!filters.playerId) return "Todos los jugadores";
+                  const sel = playersSortedByName.find((p) => p.id === filters.playerId);
+                  return sel ? `${sel.lastName}, ${sel.firstName}` : "Jugador…";
+                })()}
+              </span>
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <div className="flex items-center gap-2 border-b px-2">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <Input
+                placeholder="Nombre o apellido…"
+                autoFocus
+                value={playerFilterSearch}
+                onChange={(e) => setPlayerFilterSearch(e.target.value)}
+                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none px-2"
+              />
+            </div>
+            <ScrollArea className="max-h-[260px]">
+              <div className="p-1">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, playerId: "" }));
+                    setPlayerFilterPopoverOpen(false);
+                  }}
+                >
+                  {!filters.playerId ? <Check className="h-4 w-4 shrink-0" /> : (
+                    <span className="h-4 w-4 shrink-0" aria-hidden />
+                  )}
+                  <span>Todos los jugadores</span>
+                </button>
+                {filteredPlayersForFilter.length > 0
+                  ? filteredPlayersForFilter.map((pl) => (
+                      <button
+                        key={pl.id}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent text-left"
+                        onClick={() => {
+                          setFilters((f) => ({ ...f, playerId: pl.id }));
+                          setPlayerFilterPopoverOpen(false);
+                        }}
+                      >
+                        {filters.playerId === pl.id ? (
+                          <Check className="h-4 w-4 shrink-0 text-primary" />
+                        ) : (
+                          <span className="h-4 w-4 shrink-0" aria-hidden />
+                        )}
+                        <span className="truncate">
+                          {pl.lastName}, {pl.firstName}
+                        </span>
+                      </button>
+                    ))
+                  : (
+                      <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                        No hay jugadores que coincidan.
+                      </p>
+                    )}
+              </div>
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
         <Select
           value={filters.concept || "all"}
           onValueChange={(v) =>
