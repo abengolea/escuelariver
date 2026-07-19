@@ -102,23 +102,31 @@
         },
         "technical": { 
           "type": "object", 
-          "description": "Habilidades técnicas, con claves dinámicas y valores de 1 a 5.",
-          "additionalProperties": { "type": "number", "minimum": 1, "maximum": 5 }
+          "description": "Calificaciones 1–5. Rúbrica actual: tecnica, coordinacion, comprension, comportamiento, companerismo. Puede incluir claves legacy.",
+          "additionalProperties": { "type": "number", "minimum": 1, "maximum": 5 },
+          "properties": {
+            "tecnica": { "type": "number", "minimum": 1, "maximum": 5 },
+            "coordinacion": { "type": "number", "minimum": 1, "maximum": 5 },
+            "comprension": { "type": "number", "minimum": 1, "maximum": 5 },
+            "comportamiento": { "type": "number", "minimum": 1, "maximum": 5 },
+            "companerismo": { "type": "number", "minimum": 1, "maximum": 5 }
+          }
         },
         "tactical": { 
           "type": "object", 
-          "description": "Habilidades tácticas, con claves dinámicas y valores de 1 a 5.",
+          "description": "Historial: rúbrica táctica anterior (ya no se escribe en evaluaciones nuevas).",
           "additionalProperties": { "type": "number", "minimum": 1, "maximum": 5 }
         },
         "socioEmotional": {
           "type": "object",
+          "description": "Historial: socio-emocional anterior (ya no se escribe en evaluaciones nuevas).",
           "properties": {
-            "respect": { "type": "number", "minimum": 1, "maximum": 4 },
-            "responsibility": { "type": "number", "minimum": 1, "maximum": 4 },
-            "teamwork": { "type": "number", "minimum": 1, "maximum": 4 },
-            "empathy": { "type": "number", "minimum": 1, "maximum": 4 },
-            "resilience": { "type": "number", "minimum": 1, "maximum": 4 },
-            "learningAttitude": { "type": "number", "minimum": 1, "maximum": 4 }
+            "respect": { "type": "number", "minimum": 1, "maximum": 5 },
+            "responsibility": { "type": "number", "minimum": 1, "maximum": 5 },
+            "teamwork": { "type": "number", "minimum": 1, "maximum": 5 },
+            "empathy": { "type": "number", "minimum": 1, "maximum": 5 },
+            "resilience": { "type": "number", "minimum": 1, "maximum": 5 },
+            "learningAttitude": { "type": "number", "minimum": 1, "maximum": 5 }
           }
         },
         "criticalIncident": {

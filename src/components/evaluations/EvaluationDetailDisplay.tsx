@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { Evaluation } from "@/lib/types";
+import { EVALUATION_SKILL_LABELS } from "@/lib/evaluation-rubric";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Pencil, Trash2, Loader2 } from "lucide-react";
@@ -39,39 +40,7 @@ const positionLabels: Record<string, string> = {
   extremo: "Extremo",
 };
 
-const skillLabels: Record<string, string> = {
-    controlPase: "Control y pase",
-    recepcionPecho: "Recepción de pecho",
-    cabezazo: "Cabezazo",
-    remateArco: "Remate al arco",
-    controlYRemate: "Control y remate",
-    dribbling: "Dribbling",
-    defensa: "Defensa",
-    dominioBalon: "Dominio de balón (jueguitos)",
-    posicionInicial: "Posición inicial",
-    pasesManoPie: "Pases de mano y pie",
-    tomaBaja: "Toma baja",
-    tomaMedia: "Toma media",
-    tomaAlta: "Toma alta",
-    tomaBajaConCaida: "Toma baja con caída",
-    caidaDerecha: "Caída derecha",
-    caidaIzquierda: "Caída izquierda",
-    saltos: "Saltos",
-    salidaPunos: "Salidas de puños",
-    manejo: "Manejo de balón",
-    control: "Control de Balón",
-    pase: "Pase",
-    tiro: "Tiro / Finalización",
-    definicion: "Definición",
-    posicionamiento: "Posicionamiento",
-    tomaDeDecision: "Toma de Decisión",
-    presion: "Presión y Recuperación",
-    respect: "Respeto",
-    responsibility: "Responsabilidad",
-    teamwork: "Compañerismo",
-    resilience: "Resiliencia",
-    learningAttitude: "Actitud de aprendizaje",
-};
+const skillLabels = EVALUATION_SKILL_LABELS;
 
 export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEditClick }: EvaluationDetailDisplayProps) {
     const firestore = useFirestore();
@@ -179,11 +148,11 @@ export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEdi
                 </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-1 gap-4">
                 {evaluation.technical && Object.keys(evaluation.technical).length > 0 && (
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Técnica</CardTitle>
+                            <CardTitle className="text-base">Calificaciones</CardTitle>
                         </CardHeader>
                         <CardContent>
                            {Object.entries(evaluation.technical).map(([key, value]) =>
@@ -195,7 +164,7 @@ export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEdi
                 {evaluation.tactical && Object.keys(evaluation.tactical).length > 0 && (
                      <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Táctica</CardTitle>
+                            <CardTitle className="text-base">Táctica (historial)</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {Object.entries(evaluation.tactical).map(([key, value]) =>
@@ -207,7 +176,7 @@ export function EvaluationDetailDisplay({ evaluation, schoolId, onDeleted, onEdi
                 {evaluation.socioEmotional && Object.keys(evaluation.socioEmotional).length > 0 && (
                      <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Socio-emocional</CardTitle>
+                            <CardTitle className="text-base">Socio-emocional (historial)</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {Object.entries(evaluation.socioEmotional).map(([key, value]) =>
