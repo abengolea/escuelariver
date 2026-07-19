@@ -22,13 +22,11 @@ const comparisonDataExample = {
     resistanceBeepTest: { value: 8, unit: 'level' },
   },
   technical: {
-    controlPase: 4,
-    recepcionPecho: 3,
-    cabezazo: 4,
-    remateArco: 4,
-    dribbling: 5,
-    defensa: 3,
-    dominioBalon: 4,
+    tecnica: 4,
+    coordinacion: 3,
+    comprension: 4,
+    comportamiento: 4,
+    companerismo: 5,
   },
   tactical: {}
 };

@@ -3,7 +3,7 @@
 /// <reference path="@/types/speech-recognition.d.ts" />
 import React, { useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useWatch, type Control } from "react-hook-form";
+import { useForm, type Control } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,14 @@ import { useFirestore, useUserProfile, errorEmitter, FirestorePermissionError } 
 import { collection, addDoc, doc, updateDoc, getDoc, Timestamp, deleteField } from "firebase/firestore";
 import { buildEmailHtml, escapeHtml, htmlToPlainText, sendMailDoc } from "@/lib/email";
 import type { Evaluation, PlayerPosition } from "@/lib/types";
+import {
+  DEFAULT_STAR_VALUE,
+  EVALUATION_RUBRIC_KEYS,
+  EVALUATION_RUBRIC_SKILLS,
+  MAX_STARS,
+  resolveRubricScore,
+  type EvaluationRubricKey,
+} from "@/lib/evaluation-rubric";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "../ui/scroll-area";
 import { improveCoachCommentsWithAI, improveRubricCommentWithAI } from "@/ai/flows/improve-coach-comments";
@@ -56,45 +64,7 @@ const positionOptions: { value: PlayerPosition; label: string }[] = [
   { value: "extremo", label: "Extremo" },
 ];
 
-/** Solo posiciones fútbol válidas. Legacy (básquet, mediocampo) se excluye al guardar. */
-function normalizePositionForEvaluation(p: string | undefined): PlayerPosition | undefined {
-  if (!p) return undefined;
-  if (p === "mediocampo") return "mediocampista";
-  if (["base", "escolta", "ala", "ala_pivot", "pivot"].includes(p)) return undefined;
-  return p as PlayerPosition;
-}
-
-const MAX_STARS = 10;
-
-/** Rúbrica de jugadores de campo (se guarda en `technical` si la posición no es arquero). */
-const OUTFIELD_RUBRIC_KEYS = [
-  "controlPase",
-  "recepcionPecho",
-  "cabezazo",
-  "remateArco",
-  "controlYRemate",
-  "dribbling",
-  "defensa",
-  "dominioBalon",
-] as const;
-
-/** Rúbrica de arqueros (se guarda en `technical` si la posición es arquero). */
-const GOALKEEPER_RUBRIC_KEYS = [
-  "posicionInicial",
-  "pasesManoPie",
-  "tomaBaja",
-  "tomaMedia",
-  "tomaAlta",
-  "tomaBajaConCaida",
-  "caidaDerecha",
-  "caidaIzquierda",
-  "saltos",
-  "salidaPunos",
-] as const;
-
-const ALL_RUBRIC_KEYS = [...OUTFIELD_RUBRIC_KEYS, ...GOALKEEPER_RUBRIC_KEYS] as const;
-
-type OutfieldRubricKey = (typeof OUTFIELD_RUBRIC_KEYS)[number];
+const starField = z.number().min(1).max(MAX_STARS).default(DEFAULT_STAR_VALUE);
 
 const evaluationSchema = z.object({
   // Solo fútbol en UI. Aceptamos legacy (básquet, mediocampo) para cargar evaluaciones existentes.
@@ -108,51 +78,14 @@ const evaluationSchema = z.object({
   coachComments: z.string().optional().default(""),
   /** Comentarios opcionales por rubro (key = nombre del campo). Valores pueden venir undefined si no se tocó el campo. */
   rubricComments: z.record(z.union([z.string(), z.undefined()]).transform((s) => (typeof s === "string" ? s : ""))).optional().default({}),
-  controlPase: z.number().min(1).max(MAX_STARS).default(5),
-  recepcionPecho: z.number().min(1).max(MAX_STARS).default(5),
-  cabezazo: z.number().min(1).max(MAX_STARS).default(5),
-  remateArco: z.number().min(1).max(MAX_STARS).default(5),
-  controlYRemate: z.number().min(1).max(MAX_STARS).default(5),
-  dribbling: z.number().min(1).max(MAX_STARS).default(5),
-  defensa: z.number().min(1).max(MAX_STARS).default(5),
-  dominioBalon: z.number().min(1).max(MAX_STARS).default(5),
-  posicionInicial: z.number().min(1).max(MAX_STARS).default(5),
-  pasesManoPie: z.number().min(1).max(MAX_STARS).default(5),
-  tomaBaja: z.number().min(1).max(MAX_STARS).default(5),
-  tomaMedia: z.number().min(1).max(MAX_STARS).default(5),
-  tomaAlta: z.number().min(1).max(MAX_STARS).default(5),
-  tomaBajaConCaida: z.number().min(1).max(MAX_STARS).default(5),
-  caidaDerecha: z.number().min(1).max(MAX_STARS).default(5),
-  caidaIzquierda: z.number().min(1).max(MAX_STARS).default(5),
-  saltos: z.number().min(1).max(MAX_STARS).default(5),
-  salidaPunos: z.number().min(1).max(MAX_STARS).default(5),
+  tecnica: starField,
+  coordinacion: starField,
+  comprension: starField,
+  comportamiento: starField,
+  companerismo: starField,
 });
 
 type EvaluationFormValues = z.infer<typeof evaluationSchema>;
-
-const rubricSkillsOutfield: { name: OutfieldRubricKey; label: string }[] = [
-  { name: "controlPase", label: "Control y pase" },
-  { name: "recepcionPecho", label: "Recepción de pecho" },
-  { name: "cabezazo", label: "Cabezazo" },
-  { name: "remateArco", label: "Remate al arco" },
-  { name: "controlYRemate", label: "Control y remate" },
-  { name: "dribbling", label: "Dribbling" },
-  { name: "defensa", label: "Defensa" },
-  { name: "dominioBalon", label: "Dominio de balón (jueguitos)" },
-];
-
-const rubricSkillsGoalkeeper: { name: (typeof GOALKEEPER_RUBRIC_KEYS)[number]; label: string }[] = [
-  { name: "posicionInicial", label: "Posición inicial" },
-  { name: "pasesManoPie", label: "Pases de mano y pie" },
-  { name: "tomaBaja", label: "Toma baja" },
-  { name: "tomaMedia", label: "Toma media" },
-  { name: "tomaAlta", label: "Toma alta" },
-  { name: "tomaBajaConCaida", label: "Toma baja con caída" },
-  { name: "caidaDerecha", label: "Caída derecha" },
-  { name: "caidaIzquierda", label: "Caída izquierda" },
-  { name: "saltos", label: "Saltos" },
-  { name: "salidaPunos", label: "Salidas de puños" },
-];
 
 /** Evaluación mínima para contexto de IA (fecha + comentarios). */
 export type EvaluationSummaryForAI = { date: Date; coachComments: string };
@@ -174,30 +107,17 @@ const defaultFormValues: EvaluationFormValues = {
     position: undefined,
     coachComments: "",
     rubricComments: {},
-    controlPase: 5,
-    recepcionPecho: 5,
-    cabezazo: 5,
-    remateArco: 5,
-    controlYRemate: 5,
-    dribbling: 5,
-    defensa: 5,
-    dominioBalon: 5,
-    posicionInicial: 5,
-    pasesManoPie: 5,
-    tomaBaja: 5,
-    tomaMedia: 5,
-    tomaAlta: 5,
-    tomaBajaConCaida: 5,
-    caidaDerecha: 5,
-    caidaIzquierda: 5,
-    saltos: 5,
-    salidaPunos: 5,
+    tecnica: DEFAULT_STAR_VALUE,
+    coordinacion: DEFAULT_STAR_VALUE,
+    comprension: DEFAULT_STAR_VALUE,
+    comportamiento: DEFAULT_STAR_VALUE,
+    companerismo: DEFAULT_STAR_VALUE,
 };
 
 function pickRubricComments(raw: Record<string, string> | undefined): Record<string, string> {
     if (!raw) return {};
     const next: Record<string, string> = {};
-    for (const key of ALL_RUBRIC_KEYS) {
+    for (const key of EVALUATION_RUBRIC_KEYS) {
         const v = raw[key];
         if (typeof v === "string" && v.length) next[key] = v;
     }
@@ -208,54 +128,40 @@ function pickRubricComments(raw: Record<string, string> | undefined): Record<str
 function mergeLegacyRubricComments(raw: Record<string, string> | undefined): Record<string, string> {
     const r = raw ?? {};
     const out = pickRubricComments(r);
-    const setIfEmpty = (key: OutfieldRubricKey, legacyVal: string | undefined) => {
-        const v = legacyVal?.trim();
-        if (v && !out[key]?.trim()) out[key] = v;
+    const setIfEmpty = (key: EvaluationRubricKey, ...legacyVals: Array<string | undefined>) => {
+        if (out[key]?.trim()) return;
+        for (const legacyVal of legacyVals) {
+            const v = legacyVal?.trim();
+            if (v) {
+                out[key] = v;
+                return;
+            }
+        }
     };
-    setIfEmpty("controlPase", r.pase ?? r.control ?? r.manejo);
-    setIfEmpty("dominioBalon", r.manejo ?? r.control);
-    setIfEmpty("remateArco", r.tiro ?? r.definicion);
+    setIfEmpty("tecnica", r.controlPase, r.dominioBalon, r.pase, r.control, r.manejo, r.dribbling, r.remateArco);
+    setIfEmpty("coordinacion", r.coordinacion, r.saltos);
+    setIfEmpty("comprension", r.comprension, r.tomaDeDecision, r.posicionamiento);
+    setIfEmpty("comportamiento", r.comportamiento, r.respect, r.responsibility, r.learningAttitude);
+    setIfEmpty("companerismo", r.companerismo, r.teamwork, r.empathy);
     return pickRubricComments(out);
 }
 
-/** Carga evaluaciones viejas: mapea campos legacy a la rúbrica de campo cuando faltan claves; arqueros usan solo rúbrica de arco. */
+/** Carga evaluaciones (incl. legacy): mapea a la rúbrica de 5 categorías / 5 estrellas. */
 function getDefaultValuesFromEvaluation(e: Evaluation): EvaluationFormValues {
-    const t = e.technical ?? {};
-    const tact = e.tactical ?? {};
-    const isGk = e.position === "arquero";
-    const legacyManejoCtrl = (t.manejo ?? t.control) as number | undefined;
-    const legacyPase = t.pase as number | undefined;
-    const outfield = {
-        controlPase: (t.controlPase as number | undefined) ?? legacyPase ?? legacyManejoCtrl ?? 5,
-        recepcionPecho: (t.recepcionPecho as number | undefined) ?? 5,
-        cabezazo: (t.cabezazo as number | undefined) ?? 5,
-        remateArco: (t.remateArco as number | undefined) ?? (t.tiro as number | undefined) ?? (t.definicion as number | undefined) ?? 5,
-        controlYRemate: (t.controlYRemate as number | undefined) ?? 5,
-        dribbling: (t.dribbling as number | undefined) ?? 5,
-        defensa: (t.defensa as number | undefined) ?? (tact.defensa as number | undefined) ?? (tact.presion as number | undefined) ?? 5,
-        dominioBalon: (t.dominioBalon as number | undefined) ?? legacyManejoCtrl ?? legacyPase ?? 5,
-    };
-    const goalkeeper = {
-        posicionInicial: (t.posicionInicial as number | undefined) ?? 5,
-        pasesManoPie: (t.pasesManoPie as number | undefined) ?? 5,
-        tomaBaja: (t.tomaBaja as number | undefined) ?? 5,
-        tomaMedia: (t.tomaMedia as number | undefined) ?? 5,
-        tomaAlta: (t.tomaAlta as number | undefined) ?? 5,
-        tomaBajaConCaida: (t.tomaBajaConCaida as number | undefined) ?? 5,
-        caidaDerecha: (t.caidaDerecha as number | undefined) ?? 5,
-        caidaIzquierda: (t.caidaIzquierda as number | undefined) ?? 5,
-        saltos: (t.saltos as number | undefined) ?? 5,
-        salidaPunos: (t.salidaPunos as number | undefined) ?? 5,
-    };
-    const shared = {
+    const t = e.technical as Record<string, number> | undefined;
+    const tact = e.tactical as Record<string, number> | undefined;
+    const socio = e.socioEmotional as Record<string, number> | undefined;
+    return {
+        ...defaultFormValues,
         position: e.position ?? undefined,
         coachComments: e.coachComments ?? "",
         rubricComments: mergeLegacyRubricComments(e.rubricComments as Record<string, string> | undefined),
+        tecnica: resolveRubricScore("tecnica", t, tact, socio),
+        coordinacion: resolveRubricScore("coordinacion", t, tact, socio),
+        comprension: resolveRubricScore("comprension", t, tact, socio),
+        comportamiento: resolveRubricScore("comportamiento", t, tact, socio),
+        companerismo: resolveRubricScore("companerismo", t, tact, socio),
     };
-    if (isGk) {
-        return { ...defaultFormValues, ...shared, ...goalkeeper };
-    }
-    return { ...defaultFormValues, ...shared, ...outfield };
 }
 
 /** Comentario por rubro usando FormField para evitar re-renders que quitan el foco del textarea. */
@@ -341,10 +247,6 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
         defaultValues: defaultFormValues,
     });
 
-    const watchedPosition = useWatch({ control: form.control, name: "position" });
-    const isGoalkeeperRubric = watchedPosition === "arquero";
-    const rubricSkillsActive = isGoalkeeperRubric ? rubricSkillsGoalkeeper : rubricSkillsOutfield;
-
     // Solo resetear al abrir el sheet (no mientras está abierto), para no borrar lo que escribe el usuario.
     const prevOpenRef = React.useRef(false);
     React.useEffect(() => {
@@ -391,30 +293,13 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
               ? "mediocampista"
               : undefined;
         const rubricForSave = pickRubricComments(rubricComments as Record<string, string>);
-        const isGkEval = normalizedPosition === "arquero";
-        const technical = isGkEval
-            ? {
-                  posicionInicial: ratings.posicionInicial,
-                  pasesManoPie: ratings.pasesManoPie,
-                  tomaBaja: ratings.tomaBaja,
-                  tomaMedia: ratings.tomaMedia,
-                  tomaAlta: ratings.tomaAlta,
-                  tomaBajaConCaida: ratings.tomaBajaConCaida,
-                  caidaDerecha: ratings.caidaDerecha,
-                  caidaIzquierda: ratings.caidaIzquierda,
-                  saltos: ratings.saltos,
-                  salidaPunos: ratings.salidaPunos,
-              }
-            : {
-                  controlPase: ratings.controlPase,
-                  recepcionPecho: ratings.recepcionPecho,
-                  cabezazo: ratings.cabezazo,
-                  remateArco: ratings.remateArco,
-                  controlYRemate: ratings.controlYRemate,
-                  dribbling: ratings.dribbling,
-                  defensa: ratings.defensa,
-                  dominioBalon: ratings.dominioBalon,
-              };
+        const technical = {
+            tecnica: ratings.tecnica,
+            coordinacion: ratings.coordinacion,
+            comprension: ratings.comprension,
+            comportamiento: ratings.comportamiento,
+            companerismo: ratings.companerismo,
+        };
         const payload = {
             ...(normalizedPosition && { position: normalizedPosition }),
             coachComments,
@@ -631,7 +516,7 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
                     <SheetDescription>
                         {isEditMode
                             ? "Modifica las calificaciones y comentarios. La fecha de la evaluación no cambia."
-                            : "Califica solo los rubros acordados (técnica). Los cambios se guardarán como una nueva entrada en su historial."}
+                            : "Calificá Técnica, Coordinación, Comprensión, Comportamiento y Compañerismo (1 a 5 estrellas). Se guardará como una nueva entrada en su historial."}
                     </SheetDescription>
                 </SheetHeader>
                 <ScrollArea className="flex-1 -mx-6 px-6">
@@ -671,13 +556,11 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
                             </div>
 
                             <div className="space-y-4 p-4 border rounded-lg">
-                                <h3 className="font-semibold text-lg">Rúbrica deportiva</h3>
+                                <h3 className="font-semibold text-lg">Calificaciones</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    {isGoalkeeperRubric
-                                        ? "Posición inicial, pases con mano y pie, tomas altas/medias/bajas, toma baja con caída, caídas, saltos y salidas de puños."
-                                        : "Control y pase, recepción de pecho, cabezazo, remate al arco, dribbling, defensa y dominio de balón (jueguitos)."}
+                                    Técnica, Coordinación, Comprensión, Comportamiento y Compañerismo. Escala de 1 a 5 estrellas.
                                 </p>
-                                {rubricSkillsActive.map((skill) => (
+                                {EVALUATION_RUBRIC_SKILLS.map((skill) => (
                                     <FormField
                                         key={skill.name}
                                         control={form.control}
@@ -687,7 +570,7 @@ export function AddEvaluationSheet({ playerId, schoolId, isOpen, onOpenChange, p
                                                 <FormLabel>{skill.label}</FormLabel>
                                                 <FormControl>
                                                     <StarRating
-                                                        value={typeof field.value === "number" ? field.value : 5}
+                                                        value={typeof field.value === "number" ? field.value : DEFAULT_STAR_VALUE}
                                                         max={MAX_STARS}
                                                         size={22}
                                                         onValueChange={field.onChange}

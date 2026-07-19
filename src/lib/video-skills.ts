@@ -1,6 +1,6 @@
 /**
- * Fundamentos para etiquetar videos de la videoteca.
- * Mismos ids que la rúbrica de evaluaciones deportivas (AddEvaluationSheet).
+ * Fundamentos técnicos para etiquetar videos de la videoteca.
+ * Independientes de la rúbrica de calificaciones (técnica / coordinación / etc.).
  */
 
 export interface VideoSkillOption {

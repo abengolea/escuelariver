@@ -255,7 +255,10 @@ export interface Evaluation {
   /** Posición que el entrenador califica como la más adecuada para el jugador. */
   position?: PlayerPosition;
   coachComments: string;
-  /** Comentarios opcionales por rubro: campo (controlPase, … dominioBalon) o arquero (posicionInicial, pasesManoPie, tomas, caídas, saltos, salidaPunos). */
+  /**
+   * Comentarios opcionales por rubro.
+   * Rúbrica actual: tecnica, coordinacion, comprension, comportamiento, companerismo (1–5).
+   */
   rubricComments?: Record<string, string>;
   physical?: {
     height?: { value: number, unit: 'cm' };
@@ -264,8 +267,14 @@ export interface Evaluation {
     resistanceBeepTest?: { value: number, unit: 'level' };
     agilityTest?: { value: number, unit: 's' };
   };
-  technical?: Record<string, number>; // Cambiado a number para los sliders
+  /**
+   * Calificaciones 1–5. Rúbrica actual: tecnica, coordinacion, comprension, comportamiento, companerismo.
+   * Puede contener claves legacy de evaluaciones anteriores.
+   */
+  technical?: Record<string, number>;
+  /** Historial: rúbrica táctica anterior (ya no se escribe en evaluaciones nuevas). */
   tactical?: Record<string, number>;
+  /** Historial: socio-emocional anterior (ya no se escribe en evaluaciones nuevas). */
   socioEmotional?: {
     respect?: number;
     responsibility?: number;
@@ -408,7 +417,7 @@ export interface PlayerVideo {
   title?: string;
   /** Descripción o notas del entrenador */
   description?: string;
-  /** Fundamentos (ids de rúbrica de evaluación: controlPase, tomaBaja, …). */
+  /** Fundamentos técnicos para videoteca (ids de video-skills: controlPase, tomaBaja, …). */
   skills?: string[];
   createdAt: Date;
   createdBy: string;
