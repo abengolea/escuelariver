@@ -163,10 +163,64 @@ export async function setMercadoPagoConnection(
   });
 }
 
-/** Obtiene el access_token de Mercado Pago para la escuela (para cobrar a nombre de esa escuela). Retorna null si no está conectada. */
+/** Margen antes del vencimiento para renovar el access_token de MP de forma proactiva. */
+const MP_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
+/**
+ * Renueva los tokens OAuth de Mercado Pago de la escuela y los persiste en Firestore.
+ * Lanza si no hay conexión o si MP rechaza el refresh_token.
+ */
+export async function refreshMercadoPagoConnection(
+  db: Firestore,
+  schoolId: string
+): Promise<string> {
+  const conn = await getMercadoPagoConnection(db, schoolId);
+  if (!conn?.refresh_token) {
+    throw new Error('Mercado Pago no conectado o sin refresh token');
+  }
+
+  const { refreshAccessToken } = await import('./mercadopago-oauth');
+  const tokens = await refreshAccessToken(conn.refresh_token);
+  const expiresAt = tokens.expires_in
+    ? Date.now() + tokens.expires_in * 1000
+    : undefined;
+
+  await setMercadoPagoConnection(db, schoolId, {
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expires_at: expiresAt,
+    mp_user_id: conn.mp_user_id,
+    connected_at: conn.connected_at,
+  });
+
+  return tokens.access_token;
+}
+
+/**
+ * Obtiene un access_token válido de Mercado Pago para la escuela.
+ * Renueva automáticamente si está por vencer, venció o no tiene fecha de expiración guardada.
+ * Retorna null si no está conectada o si la renovación falló.
+ */
 export async function getMercadoPagoAccessToken(db: Firestore, schoolId: string): Promise<string | null> {
   const conn = await getMercadoPagoConnection(db, schoolId);
-  return conn?.access_token ?? null;
+  if (!conn?.access_token) return null;
+
+  const needsRefresh =
+    !conn.expires_at ||
+    conn.expires_at <= Date.now() + MP_TOKEN_REFRESH_BUFFER_MS;
+
+  if (!needsRefresh) return conn.access_token;
+
+  try {
+    return await refreshMercadoPagoConnection(db, schoolId);
+  } catch (e) {
+    console.error('[payments] MP token refresh failed for school', schoolId, e);
+    // Si según nuestra fecha el token aún es válido, intentar con el guardado (fallo transitorio de red)
+    if (conn.expires_at && conn.expires_at > Date.now()) {
+      return conn.access_token;
+    }
+    return null;
+  }
 }
 
 /**

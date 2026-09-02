@@ -80,4 +80,4 @@ El `redirect_uri` que usa la app es exactamente: `{NEXT_PUBLIC_APP_URL}/api/paym
 
 ### Renovación del access token
 
-Mercado Pago expira el access token (ej. 180 días). Usar el **refresh token** para renovar sin que el admin vuelva a autorizar. Ver documentación: [Renovar Access Token](https://www.mercadopago.com.ar/developers/es/docs/security/oauth/renewal). Pendiente implementar la renovación automática (cron o al usar el token).
+Mercado Pago expira el access token (ej. 180 días). La app renueva automáticamente con el **refresh token** guardado al crear un pago o procesar un webhook. Si la renovación falla (ej. el admin revocó el acceso), hay que volver a **Reconectar Mercado Pago** en Pagos → Configuración.

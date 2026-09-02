@@ -15,8 +15,10 @@ import {
   createPayment,
   updatePlayerStatus,
   playerExistsInSchool,
-  getMercadoPagoConnection,
+  getMercadoPagoAccessToken,
+  refreshMercadoPagoConnection,
 } from '@/lib/payments/db';
+import { isMercadoPagoUnauthorizedError } from '@/lib/payments/mercadopago-oauth';
 import { sendEmailEvent } from '@/lib/payments/email-events';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import type admin from 'firebase-admin';
@@ -67,30 +69,28 @@ async function processNotification(params: {
 
   const db = getAdminFirestore();
 
-  const conn = await getMercadoPagoConnection(db, schoolId);
-  if (!conn?.access_token) {
+  let accessToken = await getMercadoPagoAccessToken(db, schoolId);
+  if (!accessToken) {
     console.warn('[webhook/mercadopago] No token for schoolId:', schoolId);
     return NextResponse.json({ ok: true });
   }
 
-  const client = new MercadoPagoConfig({
-    accessToken: conn.access_token,
-    options: { timeout: 8000 },
-  });
-  const paymentClient = new Payment(client);
-
   let payment: { status?: string; external_reference?: string; transaction_amount?: number; currency_id?: string };
   try {
-    const res = await paymentClient.get({ id: paymentId });
-    payment = {
-      status: res.status,
-      external_reference: res.external_reference,
-      transaction_amount: res.transaction_amount,
-      currency_id: res.currency_id,
-    };
+    payment = await fetchMercadoPagoPayment(accessToken, paymentId);
   } catch (e) {
-    console.error('[webhook/mercadopago] GET payment failed', paymentId, e);
-    return NextResponse.json({ ok: true });
+    if (isMercadoPagoUnauthorizedError(e)) {
+      try {
+        accessToken = await refreshMercadoPagoConnection(db, schoolId);
+        payment = await fetchMercadoPagoPayment(accessToken, paymentId);
+      } catch (retryError) {
+        console.error('[webhook/mercadopago] GET payment failed after refresh', paymentId, retryError);
+        return NextResponse.json({ ok: true });
+      }
+    } else {
+      console.error('[webhook/mercadopago] GET payment failed', paymentId, e);
+      return NextResponse.json({ ok: true });
+    }
   }
 
   if (payment.status !== 'approved') {
@@ -160,4 +160,22 @@ async function processNotification(params: {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+async function fetchMercadoPagoPayment(
+  accessToken: string,
+  paymentId: string
+): Promise<{ status?: string; external_reference?: string; transaction_amount?: number; currency_id?: string }> {
+  const client = new MercadoPagoConfig({
+    accessToken,
+    options: { timeout: 8000 },
+  });
+  const paymentClient = new Payment(client);
+  const res = await paymentClient.get({ id: paymentId });
+  return {
+    status: res.status,
+    external_reference: res.external_reference,
+    transaction_amount: res.transaction_amount,
+    currency_id: res.currency_id,
+  };
 }

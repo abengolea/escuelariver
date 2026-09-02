@@ -97,3 +97,51 @@ export async function exchangeCodeForTokens(
     expires_in: data.expires_in,
   };
 }
+
+type MercadoPagoTokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: number;
+};
+
+/** Renueva access_token usando el refresh_token guardado (OAuth). */
+export async function refreshAccessToken(
+  refreshToken: string
+): Promise<MercadoPagoTokenResponse> {
+  const clientId = process.env.MERCADOPAGO_CLIENT_ID;
+  const clientSecret = process.env.MERCADOPAGO_CLIENT_SECRET;
+  if (!clientId || !clientSecret) throw new Error('Credenciales Mercado Pago no configuradas');
+
+  const res = await fetch(MP_OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Mercado Pago refresh token: ${res.status} ${err}`);
+  }
+
+  const data = (await res.json()) as MercadoPagoTokenResponse;
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_in: data.expires_in,
+  };
+}
+
+/** Detecta errores de token inválido/expirado devueltos por la API o el SDK de MP. */
+export function isMercadoPagoUnauthorizedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: string; message?: string; status?: number };
+  if (err.status === 401) return true;
+  if (err.code === 'unauthorized') return true;
+  const msg = (err.message ?? '').toLowerCase();
+  return msg.includes('invalid access token') || msg.includes('unauthorized');
+}

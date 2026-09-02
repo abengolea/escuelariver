@@ -9,7 +9,14 @@ import { createPaymentIntentSchema } from '@/lib/payments/schemas';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { createPaymentIntent } from '@/lib/payments/db';
 import { createPaymentIntentWithProvider } from '@/lib/payments/provider-stub';
-import { getOrCreatePaymentConfig, getMercadoPagoAccessToken, getExpectedAmountForPeriod, findApprovedPayment } from '@/lib/payments/db';
+import {
+  getOrCreatePaymentConfig,
+  getMercadoPagoAccessToken,
+  refreshMercadoPagoConnection,
+  getExpectedAmountForPeriod,
+  findApprovedPayment,
+} from '@/lib/payments/db';
+import { isMercadoPagoUnauthorizedError } from '@/lib/payments/mercadopago-oauth';
 import { verifyIdToken } from '@/lib/auth-server';
 import { REGISTRATION_PERIOD } from '@/lib/payments/constants';
 import { isRegistrationPeriod, isClothingPeriod } from '@/lib/payments/schemas';
@@ -57,21 +64,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: errMsg }, { status: 400 });
     }
 
-    const mercadopagoAccessToken = provider === 'mercadopago'
+    let mercadopagoAccessToken = provider === 'mercadopago'
       ? await getMercadoPagoAccessToken(db, schoolId)
       : null;
 
     if (provider === 'mercadopago' && !mercadopagoAccessToken) {
       return NextResponse.json(
-        { error: 'Tu escuela no tiene Mercado Pago conectado. Andá a Administración → Pagos → Configuración y tocá "Conectar Mercado Pago".' },
+        {
+          error:
+            'La conexión con Mercado Pago de tu escuela expiró. Pedile al administrador que vaya a Administración → Pagos → Configuración y toque "Reconectar Mercado Pago".',
+        },
         { status: 400 }
       );
     }
 
-    const { checkoutUrl, providerPreferenceId } = await createPaymentIntentWithProvider(
-      provider,
-      { playerId, schoolId, period, amount, currency, mercadopagoAccessToken }
-    );
+    let checkoutUrl: string;
+    let providerPreferenceId: string;
+    try {
+      ({ checkoutUrl, providerPreferenceId } = await createPaymentIntentWithProvider(
+        provider,
+        { playerId, schoolId, period, amount, currency, mercadopagoAccessToken }
+      ));
+    } catch (firstError) {
+      if (provider === 'mercadopago' && isMercadoPagoUnauthorizedError(firstError)) {
+        try {
+          mercadopagoAccessToken = await refreshMercadoPagoConnection(db, schoolId);
+          ({ checkoutUrl, providerPreferenceId } = await createPaymentIntentWithProvider(
+            provider,
+            { playerId, schoolId, period, amount, currency, mercadopagoAccessToken }
+          ));
+        } catch (retryError) {
+          console.error('[payments/intent] MP retry after refresh failed', retryError);
+          return NextResponse.json(
+            {
+              error:
+                'No se pudo conectar con Mercado Pago. Pedile al administrador que vaya a Administración → Pagos → Configuración y toque "Reconectar Mercado Pago".',
+            },
+            { status: 502 }
+          );
+        }
+      } else {
+        throw firstError;
+      }
+    }
 
     const intent = await createPaymentIntent(db, {
       playerId,
