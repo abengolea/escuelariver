@@ -276,10 +276,10 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
               <Alert variant="default" className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-500/30">
                 <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
                 <AlertDescription>
-                  Ya hay una cuenta de Mercado Pago conectada para esta escuela. Si otro administrador conecta su cuenta, los cobros pasarán a acreditarse en esa cuenta (solo hay una conexión por escuela).
+                  Hay una cuenta conectada. Si los cobros fallan o querés usar otra cuenta de Mercado Pago, tocá <strong>Reconectar Mercado Pago</strong> abajo: vas a autorizar de nuevo y los cobros se acreditarán en esa cuenta (solo hay una conexión por escuela).
                 </AlertDescription>
               </Alert>
-              <Button variant="outline" onClick={handleConnectMercadoPago} disabled={mpConnecting}>
+              <Button onClick={handleConnectMercadoPago} disabled={mpConnecting} className="w-full sm:w-auto">
                 {mpConnecting ? "Redirigiendo a Mercado Pago…" : "Reconectar Mercado Pago"}
               </Button>
             </>
