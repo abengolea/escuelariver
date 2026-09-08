@@ -105,14 +105,17 @@ export interface PaymentConfig {
   updatedBy: string;
 }
 
-/** Conexión OAuth de Mercado Pago por escuela. Almacenada en schools/{schoolId}/mercadopagoConnection/default */
+/** Conexión de Mercado Pago por escuela. Almacenada en schools/{schoolId}/mercadopagoConnection/default */
 export interface MercadoPagoConnection {
   access_token: string;
-  refresh_token: string;
+  /** Solo en conexiones OAuth; ausente si se pegó un Access Token de producción. */
+  refresh_token?: string;
   /** Timestamp (ms) de expiración del access_token si MP lo informa; opcional */
   expires_at?: number;
   /** ID del usuario/vendedor en Mercado Pago (opcional, para mostrar o validar) */
   mp_user_id?: string;
+  /** Cómo se conectó: oauth (flujo Conectar) o manual (Access Token pegado). */
+  connection_method?: 'oauth' | 'manual';
   connected_at: Date;
 }
 

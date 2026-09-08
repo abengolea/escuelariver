@@ -28,6 +28,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       connected: !!connection,
       connectedAt: connection?.connected_at ? connection.connected_at.toISOString() : null,
+      connectionMethod: connection?.connection_method ?? null,
+      mpUserId: connection?.mp_user_id ?? null,
     });
   } catch (e) {
     console.error('[payments/mercadopago/status]', e);

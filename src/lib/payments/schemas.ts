@@ -23,6 +23,14 @@ export const createPaymentIntentSchema = z.object({
   currency: z.string().min(1, 'Moneda requerida').default('ARS'),
 });
 
+/** Guardar Access Token de Mercado Pago a mano (credenciales de producción). */
+export const saveMercadoPagoManualTokenSchema = z.object({
+  schoolId: z.string().min(1, 'schoolId requerido'),
+  accessToken: z.string().min(20, 'Access Token inválido'),
+  /** Opcional: si también tenés refresh token de OAuth. */
+  refreshToken: z.string().min(1).optional(),
+});
+
 export const markManualPaymentSchema = z.object({
   playerId: z.string().min(1),
   schoolId: z.string().min(1),

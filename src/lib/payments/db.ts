@@ -138,14 +138,15 @@ export async function getMercadoPagoConnection(
   const d = snap.data()!;
   return {
     access_token: d.access_token,
-    refresh_token: d.refresh_token,
+    refresh_token: d.refresh_token ?? undefined,
     expires_at: d.expires_at,
     mp_user_id: d.mp_user_id,
+    connection_method: d.connection_method === 'manual' ? 'manual' : d.refresh_token ? 'oauth' : 'manual',
     connected_at: toDate(d.connected_at),
   };
 }
 
-/** Guarda la conexión OAuth de Mercado Pago para la escuela. */
+/** Guarda la conexión de Mercado Pago para la escuela (OAuth o Access Token manual). */
 export async function setMercadoPagoConnection(
   db: Firestore,
   schoolId: string,
@@ -156,9 +157,10 @@ export async function setMercadoPagoConnection(
   const connectedAt = data.connected_at instanceof Date ? data.connected_at : new Date(data.connected_at);
   await ref.set({
     access_token: data.access_token,
-    refresh_token: data.refresh_token,
+    refresh_token: data.refresh_token ?? null,
     expires_at: data.expires_at ?? null,
     mp_user_id: data.mp_user_id ?? null,
+    connection_method: data.connection_method ?? (data.refresh_token ? 'oauth' : 'manual'),
     connected_at: admin.firestore.Timestamp.fromDate(connectedAt),
   });
 }
@@ -190,6 +192,7 @@ export async function refreshMercadoPagoConnection(
     refresh_token: tokens.refresh_token,
     expires_at: expiresAt,
     mp_user_id: conn.mp_user_id,
+    connection_method: 'oauth',
     connected_at: conn.connected_at,
   });
 
@@ -198,12 +201,17 @@ export async function refreshMercadoPagoConnection(
 
 /**
  * Obtiene un access_token válido de Mercado Pago para la escuela.
- * Renueva automáticamente si está por vencer, venció o no tiene fecha de expiración guardada.
- * Retorna null si no está conectada o si la renovación falló.
+ * Renueva automáticamente (OAuth) si está por vencer. Tokens manuales no se renuevan.
+ * Retorna null si no está conectada o si la renovación OAuth falló.
  */
 export async function getMercadoPagoAccessToken(db: Firestore, schoolId: string): Promise<string | null> {
   const conn = await getMercadoPagoConnection(db, schoolId);
   if (!conn?.access_token) return null;
+
+  // Access Token de producción / pegado a mano: no hay refresh_token
+  if (!conn.refresh_token) {
+    return conn.access_token;
+  }
 
   const needsRefresh =
     !conn.expires_at ||

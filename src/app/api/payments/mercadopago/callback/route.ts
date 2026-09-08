@@ -46,6 +46,7 @@ export async function GET(request: Request) {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       expires_at: expiresAt,
+      connection_method: 'oauth',
       connected_at: new Date(),
     });
 

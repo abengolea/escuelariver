@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { CreditCard, CheckCircle2, AlertTriangle, Layers, Shirt } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BIRTH_YEAR_ORDER, getCategoryLabelFromBirthYear } from "@/lib/utils";
@@ -44,6 +45,9 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
   const [saving, setSaving] = useState(false);
   const [mpConnected, setMpConnected] = useState<boolean | null>(null);
   const [mpConnecting, setMpConnecting] = useState(false);
+  const [mpManualToken, setMpManualToken] = useState("");
+  const [mpSavingToken, setMpSavingToken] = useState(false);
+  const [showManualToken, setShowManualToken] = useState(false);
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
@@ -252,6 +256,56 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
     }
   };
 
+  const handleSaveManualToken = async () => {
+    const token = await getToken();
+    if (!token) {
+      toast({ title: "Error", description: "Tenés que iniciar sesión", variant: "destructive" });
+      return;
+    }
+    const accessToken = mpManualToken.trim();
+    if (accessToken.length < 20) {
+      toast({
+        title: "Access Token incompleto",
+        description: "Pegá el Access Token de producción de Mercado Pago (empieza con APP_USR-).",
+        variant: "destructive",
+      });
+      return;
+    }
+    setMpSavingToken(true);
+    try {
+      const res = await fetch("/api/payments/mercadopago/manual-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ schoolId, accessToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "No se pudo guardar el token");
+      }
+      setMpConnected(true);
+      setMpManualToken("");
+      setShowManualToken(false);
+      const nickname = (data as { nickname?: string | null }).nickname;
+      toast({
+        title: "Mercado Pago conectado",
+        description: nickname
+          ? `Cuenta vinculada: ${nickname}. Los cobros se acreditarán ahí.`
+          : "Access Token guardado. Los cobros se acreditarán en esa cuenta.",
+      });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: e instanceof Error ? e.message : "No se pudo guardar el Access Token",
+        variant: "destructive",
+      });
+    } finally {
+      setMpSavingToken(false);
+    }
+  };
+
   if (loading) return <Skeleton className="h-64 w-full" />;
 
   return (
@@ -263,7 +317,7 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
             Mercado Pago
           </CardTitle>
           <CardDescription>
-            Para que tu escuela cobre directamente en su cuenta de Mercado Pago, conectá tu cuenta (autorización oficial). No tenés que enviar claves ni contraseñas.
+            Conectá la cuenta de Mercado Pago de la escuela para cobrar cuotas. Podés autorizar con OAuth o pegar el Access Token de producción.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -276,17 +330,52 @@ export function PaymentConfigTab({ schoolId, getToken }: PaymentConfigTabProps) 
               <Alert variant="default" className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-500/30">
                 <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
                 <AlertDescription>
-                  Hay una cuenta conectada. Si los cobros fallan o querés usar otra cuenta de Mercado Pago, tocá <strong>Reconectar Mercado Pago</strong> abajo: vas a autorizar de nuevo y los cobros se acreditarán en esa cuenta (solo hay una conexión por escuela).
+                  Hay una cuenta conectada. Si los cobros fallan o querés usar otra cuenta, reconectá con OAuth o pegá un Access Token nuevo (solo hay una conexión por escuela).
                 </AlertDescription>
               </Alert>
-              <Button onClick={handleConnectMercadoPago} disabled={mpConnecting} className="w-full sm:w-auto">
-                {mpConnecting ? "Redirigiendo a Mercado Pago…" : "Reconectar Mercado Pago"}
-              </Button>
             </>
-          ) : (
-            <Button onClick={handleConnectMercadoPago} disabled={mpConnecting}>
-              {mpConnecting ? "Redirigiendo a Mercado Pago…" : "Conectar Mercado Pago"}
+          ) : null}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button onClick={handleConnectMercadoPago} disabled={mpConnecting || mpSavingToken} className="w-full sm:w-auto">
+              {mpConnecting
+                ? "Redirigiendo a Mercado Pago…"
+                : mpConnected
+                  ? "Reconectar con OAuth"
+                  : "Conectar con OAuth"}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={mpConnecting || mpSavingToken}
+              className="w-full sm:w-auto"
+              onClick={() => setShowManualToken((v) => !v)}
+            >
+              {showManualToken ? "Ocultar Access Token" : "Pegar Access Token"}
+            </Button>
+          </div>
+
+          {showManualToken && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <div>
+                <Label htmlFor="mpAccessToken">Access Token de producción</Label>
+                <p className="text-sm text-muted-foreground mt-1 mb-2">
+                  En Mercado Pago → Tus integraciones → tu aplicación → Credenciales de producción. Copiá el Access Token (APP_USR-…).
+                </p>
+                <Textarea
+                  id="mpAccessToken"
+                  value={mpManualToken}
+                  onChange={(e) => setMpManualToken(e.target.value)}
+                  placeholder="APP_USR-…"
+                  rows={3}
+                  className="font-mono text-sm"
+                  autoComplete="off"
+                />
+              </div>
+              <Button onClick={handleSaveManualToken} disabled={mpSavingToken || !mpManualToken.trim()}>
+                {mpSavingToken ? "Validando y guardando…" : "Guardar Access Token"}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
