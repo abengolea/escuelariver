@@ -6,7 +6,12 @@
 import { NextResponse } from 'next/server';
 import { listPaymentsSchema } from '@/lib/payments/schemas';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { listPayments, getPlayerNames, getArchivedPlayerIds } from '@/lib/payments/db';
+import {
+  listPayments,
+  getPaymentsSummary,
+  getPlayerNames,
+  getArchivedPlayerIds,
+} from '@/lib/payments/db';
 import { verifyIdToken } from '@/lib/auth-server';
 
 export async function GET(request: Request) {
@@ -20,6 +25,8 @@ export async function GET(request: Request) {
     const schoolId = searchParams.get('schoolId');
     const parsed = listPaymentsSchema.safeParse({
       schoolId: schoolId ?? '',
+      summaryMonthFrom: searchParams.get('summaryMonthFrom') ?? undefined,
+      summaryMonthTo: searchParams.get('summaryMonthTo') ?? undefined,
       filters: {
         dateFrom: searchParams.get('dateFrom') ?? undefined,
         dateTo: searchParams.get('dateTo') ?? undefined,
@@ -44,19 +51,36 @@ export async function GET(request: Request) {
       );
     }
 
-    const { schoolId: sid, filters, limit, offset } = parsed.data;
+    const {
+      schoolId: sid,
+      filters,
+      limit,
+      offset,
+      summaryMonthFrom,
+      summaryMonthTo,
+    } = parsed.data;
     const db = getAdminFirestore();
 
     const archivedIds = await getArchivedPlayerIds(db, sid);
-    const requestedLimit = limit ?? 50;
-    const { payments: rawPayments, total: rawTotal } = await listPayments(db, sid, {
-      ...filters,
-      limit: requestedLimit,
-      offset,
-    });
+    const now = new Date();
+    const defaultMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const defaultMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const [paymentResult, summary] = await Promise.all([
+      listPayments(db, sid, {
+        ...filters,
+        limit,
+        offset,
+      }),
+      getPaymentsSummary(db, sid, {
+        ...filters,
+        currentMonthStart: summaryMonthFrom ? new Date(summaryMonthFrom) : defaultMonthStart,
+        currentMonthEnd: summaryMonthTo ? new Date(summaryMonthTo) : defaultMonthEnd,
+        excludedPlayerIds: archivedIds,
+      }),
+    ]);
+    const rawPayments = paymentResult.payments;
     const paymentsFiltered = rawPayments.filter((p) => !archivedIds.has(p.playerId));
-    const total = paymentsFiltered.length;
-    const payments = paymentsFiltered.slice(offset, offset + (limit ?? 50));
+    const payments = paymentsFiltered;
 
     // Agrupar playerIds por schoolId del pago (por si algún pago tuviera otra escuela)
     const playerIdsBySchool = new Map<string, Set<string>>();
@@ -90,7 +114,8 @@ export async function GET(request: Request) {
         paidAt: p.paidAt?.toISOString(),
         createdAt: p.createdAt.toISOString(),
       })),
-      total,
+      total: summary.total,
+      summary,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

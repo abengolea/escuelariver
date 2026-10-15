@@ -54,6 +54,9 @@ export const conceptFilterSchema = z.enum(['inscripcion', 'monthly', 'clothing']
 
 export const listPaymentsSchema = z.object({
   schoolId: z.string().min(1),
+  /** Límites del mes local del navegador, usados solo para los indicadores. */
+  summaryMonthFrom: z.string().datetime().optional(),
+  summaryMonthTo: z.string().datetime().optional(),
   filters: z.object({
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),

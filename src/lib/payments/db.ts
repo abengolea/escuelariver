@@ -724,6 +724,101 @@ export async function listPayments(
   return { payments, total };
 }
 
+export interface PaymentsSummary {
+  total: number;
+  approvedCount: number;
+  approvedAmount: number;
+  approvedCurrentMonthCount: number;
+  approvedCurrentMonthAmount: number;
+}
+
+/**
+ * Calcula indicadores sobre todos los pagos que coinciden con los filtros.
+ * La tabla se pagina por separado; de este modo sus 50 filas visibles no
+ * limitan los totales mostrados en el panel.
+ */
+export async function getPaymentsSummary(
+  db: Firestore,
+  schoolId: string,
+  opts: {
+    dateFrom?: string;
+    dateTo?: string;
+    playerId?: string;
+    status?: string;
+    period?: string;
+    provider?: string;
+    concept?: 'inscripcion' | 'monthly' | 'clothing';
+    currentMonthStart: Date;
+    currentMonthEnd: Date;
+    excludedPlayerIds?: Set<string>;
+  }
+): Promise<PaymentsSummary> {
+  let q = db
+    .collection(COLLECTIONS.payments)
+    .where('schoolId', '==', schoolId)
+    .orderBy('createdAt', 'desc') as admin.firestore.Query;
+
+  if (opts.playerId) q = q.where('playerId', '==', opts.playerId);
+  if (opts.provider) q = q.where('provider', '==', opts.provider);
+
+  if (opts.concept === 'inscripcion') {
+    q = q.where('period', '==', REGISTRATION_PERIOD);
+  } else if (opts.period && opts.concept !== 'clothing') {
+    q = q.where('period', '==', opts.period);
+  }
+
+  // Solo se necesitan estos campos para contar y sumar.
+  q = q.select('playerId', 'period', 'status', 'amount', 'paidAt', 'createdAt');
+  let docs = (await q.get()).docs;
+
+  docs = docs.filter((docSnap) => {
+    const data = docSnap.data();
+    if (opts.excludedPlayerIds?.has(data.playerId as string)) return false;
+    if (opts.status && data.status !== opts.status) return false;
+    if (
+      opts.concept === 'clothing' &&
+      !(data.period as string | undefined)?.startsWith(CLOTHING_PERIOD_PREFIX)
+    ) {
+      return false;
+    }
+
+    if (opts.dateFrom || opts.dateTo) {
+      const createdAt = toDate(data.createdAt).getTime();
+      const from = opts.dateFrom ? new Date(opts.dateFrom).getTime() : 0;
+      const to = opts.dateTo ? new Date(opts.dateTo).getTime() : Infinity;
+      if (createdAt < from || createdAt > to) return false;
+    }
+    return true;
+  });
+
+  const summary: PaymentsSummary = {
+    total: docs.length,
+    approvedCount: 0,
+    approvedAmount: 0,
+    approvedCurrentMonthCount: 0,
+    approvedCurrentMonthAmount: 0,
+  };
+  const monthStart = opts.currentMonthStart.getTime();
+  const monthEnd = opts.currentMonthEnd.getTime();
+
+  for (const docSnap of docs) {
+    const data = docSnap.data();
+    if (data.status !== 'approved') continue;
+
+    const amount = Number(data.amount) || 0;
+    summary.approvedCount += 1;
+    summary.approvedAmount += amount;
+
+    const paymentDate = toDate(data.paidAt ?? data.createdAt).getTime();
+    if (paymentDate >= monthStart && paymentDate < monthEnd) {
+      summary.approvedCurrentMonthCount += 1;
+      summary.approvedCurrentMonthAmount += amount;
+    }
+  }
+
+  return summary;
+}
+
 /**
  * Lista pagos de jugadores en todas las escuelas (superadmin).
  * Sin schoolId: orden global por createdAt; con schoolId: delega en listPayments.

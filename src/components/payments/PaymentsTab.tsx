@@ -41,6 +41,14 @@ import type { Payment, Player } from "@/lib/types";
 /** Pago con nombre de jugador enriquecido por la API */
 type PaymentWithPlayerName = Payment & { playerName?: string };
 
+interface PaymentsSummary {
+  total: number;
+  approvedCount: number;
+  approvedAmount: number;
+  approvedCurrentMonthCount: number;
+  approvedCurrentMonthAmount: number;
+}
+
 interface PaymentsTabProps {
   schoolId: string;
   getToken: () => Promise<string | null>;
@@ -97,7 +105,13 @@ function getYears(): number[] {
 
 export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   const [payments, setPayments] = useState<PaymentWithPlayerName[]>([]);
-  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<PaymentsSummary>({
+    total: 0,
+    approvedCount: 0,
+    approvedAmount: 0,
+    approvedCurrentMonthCount: 0,
+    approvedCurrentMonthAmount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     playerId: "",
@@ -188,6 +202,15 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
     const token = await getToken();
     if (!token) return;
     const params = new URLSearchParams({ schoolId });
+    const now = new Date();
+    params.set(
+      "summaryMonthFrom",
+      new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    );
+    params.set(
+      "summaryMonthTo",
+      new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
+    );
     if (filters.playerId) {
       params.set("playerId", filters.playerId);
       /** Un solo jugador: traer suficientes filas para ver historial completo en pantalla */
@@ -221,7 +244,7 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
           createdAt: new Date(p.createdAt!),
         }))
       );
-      setTotal(data.total);
+      setSummary(data.summary);
     } catch (e) {
       console.error(e);
       toast({
@@ -453,17 +476,6 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   };
 
   const now = new Date();
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).getTime();
-  const isInCurrentMonth = (p: Payment) => {
-    const date = p.paidAt ?? p.createdAt;
-    const ts = date.getTime();
-    return ts >= currentMonthStart && ts <= currentMonthEnd;
-  };
-  const approvedInList = payments.filter((p) => p.status === "approved");
-  const totalInList = approvedInList.reduce((s, p) => s + p.amount, 0);
-  const approvedThisMonth = approvedInList.filter(isInCurrentMonth);
-  const totalThisMonth = approvedThisMonth.reduce((s, p) => s + p.amount, 0);
   const currentMonthLabel = formatPeriodDisplay(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
   );
@@ -585,20 +597,20 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Pagos aprobados en lista</p>
-          <p className="text-2xl font-bold">{approvedInList.length}</p>
+          <p className="text-sm text-muted-foreground">Pagos aprobados</p>
+          <p className="text-2xl font-bold">{summary.approvedCount}</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Total en lista</p>
-          <p className="text-2xl font-bold">ARS {totalInList.toLocaleString("es-AR")}</p>
+          <p className="text-sm text-muted-foreground">Total aprobado</p>
+          <p className="text-2xl font-bold">ARS {summary.approvedAmount.toLocaleString("es-AR")}</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <p className="text-sm text-muted-foreground">Mes en curso ({currentMonthLabel})</p>
-          <p className="text-2xl font-bold">{approvedThisMonth.length} pagos</p>
+          <p className="text-2xl font-bold">{summary.approvedCurrentMonthCount} pagos</p>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <p className="text-sm text-muted-foreground">Total mes en curso</p>
-          <p className="text-2xl font-bold">ARS {totalThisMonth.toLocaleString("es-AR")}</p>
+          <p className="text-2xl font-bold">ARS {summary.approvedCurrentMonthAmount.toLocaleString("es-AR")}</p>
         </div>
       </div>
 
@@ -847,6 +859,11 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
             </TableBody>
           </Table>
         </div>
+      )}
+      {!loading && summary.total > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Mostrando {payments.length} de {summary.total} pagos que coinciden con los filtros.
+        </p>
       )}
 
       <Dialog open={editDialogOpen} onOpenChange={(o) => { if (!o) setEditPayment(null); setEditDialogOpen(o); }}>
