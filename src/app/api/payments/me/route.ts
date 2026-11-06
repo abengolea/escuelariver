@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
 import { verifyIdToken } from '@/lib/auth-server';
 import { listPayments, computeDelinquents, getOrCreatePaymentConfig, getExpectedAmountForPeriod, getClothingPendingForPlayer } from '@/lib/payments/db';
+import { REGISTRATION_PERIOD } from '@/lib/payments/constants';
 import type { DelinquentInfo } from '@/lib/types/payments';
 
 export async function GET(request: Request) {
@@ -41,19 +42,28 @@ export async function GET(request: Request) {
       computeDelinquents(db, schoolId),
     ]);
 
-    const myDelinquent: DelinquentInfo | null =
-      delinquents.find((d) => d.playerId === playerId) ?? null;
-    const hasOverdue = myDelinquent != null;
+    const myDelinquents = delinquents.filter((d) => d.playerId === playerId);
+    const toJson = (d: DelinquentInfo) => ({ ...d, dueDate: d.dueDate.toISOString() });
 
     const config = await getOrCreatePaymentConfig(db, schoolId);
     const clothingPending = await getClothingPendingForPlayer(db, schoolId, playerId, config);
     const now = new Date();
     const suggestedPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    const suggestedAmount =
-      myDelinquent != null
-        ? myDelinquent.amount
-        : await getExpectedAmountForPeriod(db, schoolId, playerId, suggestedPeriod, config);
+    const registrationPending = myDelinquents.find((d) => d.period === REGISTRATION_PERIOD) ?? null;
+    const currentMonthUnpaid = myDelinquents.some((d) => d.period === suggestedPeriod);
+    // El badge del jugador es por el mes actual o inscripción; las cuotas viejas las gestiona el admin.
+    const hasOverdue = currentMonthUnpaid || registrationPending != null;
+
+    const suggestedAmount = await getExpectedAmountForPeriod(
+      db,
+      schoolId,
+      playerId,
+      suggestedPeriod,
+      config
+    );
+
+    const myDelinquent = registrationPending ?? myDelinquents[0] ?? null;
 
     return NextResponse.json({
       schoolId,
@@ -63,12 +73,8 @@ export async function GET(request: Request) {
         paidAt: p.paidAt?.toISOString(),
         createdAt: p.createdAt.toISOString(),
       })),
-      delinquent: myDelinquent
-        ? {
-            ...myDelinquent,
-            dueDate: myDelinquent.dueDate.toISOString(),
-          }
-        : null,
+      delinquent: myDelinquent ? toJson(myDelinquent) : null,
+      delinquents: myDelinquents.map(toJson),
       hasOverdue,
       suggestedPeriod,
       suggestedAmount,

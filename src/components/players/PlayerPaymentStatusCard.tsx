@@ -98,7 +98,12 @@ export function PlayerPaymentStatusCard({ getToken, playerId: propPlayerId, scho
         const clothing = body.clothingPending ?? [];
         setClothingPending(clothing);
         setSuggestedCurrency(body.suggestedCurrency ?? "ARS");
-        const rawDelinquents = body.delinquent ? [body.delinquent] : [];
+        const rawDelinquents: (DelinquentInfo & { dueDate?: string })[] =
+          Array.isArray(body.delinquents) && body.delinquents.length > 0
+            ? body.delinquents
+            : body.delinquent
+              ? [body.delinquent]
+              : [];
         const withoutRopa =
           clothing.length > 0
             ? rawDelinquents.filter((d: DelinquentInfo) => !d.period?.startsWith?.("ropa-"))
