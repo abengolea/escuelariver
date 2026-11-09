@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import type { Payment } from "@/lib/types/payments";
 import type { DelinquentInfo } from "@/lib/types/payments";
+import { FIRST_BILLABLE_PERIOD } from "@/lib/payments/constants";
 
 const STATUS_LABELS: Record<string, string> = {
   approved: "Aprobado",
@@ -77,7 +78,8 @@ function listSelectablePeriods(): string[] {
   const periods: string[] = [];
   for (let i = -12; i <= 1; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (period >= FIRST_BILLABLE_PERIOD) periods.push(period);
   }
   return periods.reverse();
 }

@@ -84,6 +84,9 @@ export const syncPlayerAuthOnWrite = onDocumentWritten(
 /** Día de vencimiento por defecto */
 const DEFAULT_DUE_DAY = 10;
 
+/** Primer mes cobrado en la app. Febrero 2026 no se exige como cuota. */
+const FIRST_BILLABLE_PERIOD = '2026-03';
+
 /** Fecha de vencimiento para un período YYYY-MM */
 function getDueDate(period: string, dueDayOfMonth: number): Date {
   const [y, m] = period.split('-').map(Number);
@@ -232,6 +235,7 @@ export const enforceDelinquencyAndSuspensions = onSchedule(
             })();
 
         for (const period of periodsToCheck) {
+          if (period < FIRST_BILLABLE_PERIOD) continue;
           const dueDate = getDueDate(period, dueDay);
           if (dueDate > now) continue;
 

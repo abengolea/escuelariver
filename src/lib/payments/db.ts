@@ -5,7 +5,7 @@
 
 import type admin from 'firebase-admin';
 import { getAdminFirestore, getAdminAuth } from '@/lib/firebase-admin';
-import { COLLECTIONS, REGISTRATION_PERIOD, CLOTHING_PERIOD_PREFIX, MERCADOPAGO_CONNECTION_DOC } from './constants';
+import { COLLECTIONS, REGISTRATION_PERIOD, CLOTHING_PERIOD_PREFIX, MERCADOPAGO_CONNECTION_DOC, isBillableMonthlyPeriod } from './constants';
 import { getDueDate, isRegistrationPeriod, isClothingPeriod } from './schemas';
 import type {
   Payment,
@@ -1090,7 +1090,7 @@ async function getAllApprovedPaymentsForSchool(
 /**
  * Calcula morosos: jugadores que deben desde su mes de activación.
  * - Inscripción: si la escuela tiene registrationAmount > 0 y el jugador no tiene pago aprobado de inscripción, se agrega un ítem con period "inscripcion".
- * - Cuota mensual: solo períodos >= mes de activación. Si registrationCancelsMonthFee y ya pagó inscripción, el mes de alta no se exige como cuota (inscripción la cubre).
+ * - Cuota mensual: períodos >= mes de activación y >= marzo 2026 (febrero no se cobró en la app). Si registrationCancelsMonthFee y ya pagó inscripción, el mes de alta no se exige como cuota (inscripción la cubre).
  * - Si el jugador se activó después del día 15, la cuota del primer mes es 50%.
  */
 export async function computeDelinquents(
@@ -1152,6 +1152,7 @@ export async function computeDelinquents(
         })();
 
     for (const period of periodsToCheck) {
+      if (!isBillableMonthlyPeriod(period)) continue;
       const dueDate = getDueDate(period, config.dueDayOfMonth);
       if (dueDate > now) continue;
 
