@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { paymentId, schoolId, newPeriod } = parsed.data;
+    const { paymentId, schoolId, newPeriod, allowSwap } = parsed.data;
     const db = getAdminFirestore();
 
     // Solo admin de escuela o super admin puede editar pagos (NO coaches)
@@ -53,20 +53,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'El pago no pertenece a esta escuela' }, { status: 400 });
     }
 
-    const updated = await updatePaymentPeriod(db, paymentId, schoolId, newPeriod);
-    if (!updated) {
-      return NextResponse.json(
-        { error: 'No se pudo actualizar. Verificá que no exista ya un pago para ese jugador y período.' },
-        { status: 409 }
-      );
+    const result = await updatePaymentPeriod(db, paymentId, schoolId, newPeriod, { allowSwap });
+    if (!result.ok) {
+      if (result.reason === 'duplicate') {
+        const existing = result.duplicate;
+        return NextResponse.json(
+          {
+            error: 'Ya hay un pago cargado para ese jugador y período.',
+            code: 'PERIOD_TAKEN',
+            existingPayment: existing
+              ? {
+                  id: existing.id,
+                  period: existing.period,
+                  amount: existing.amount,
+                  currency: existing.currency,
+                  paidAt: existing.paidAt ? existing.paidAt.toISOString() : null,
+                }
+              : null,
+          },
+          { status: 409 }
+        );
+      }
+      const message =
+        result.reason === 'not_approved'
+          ? 'Solo se pueden editar pagos aprobados.'
+          : 'Pago no encontrado';
+      return NextResponse.json({ error: message }, { status: result.reason === 'not_found' ? 404 : 400 });
     }
 
     return NextResponse.json({
       ok: true,
+      swapped: result.swapped,
       payment: {
-        id: updated.id,
-        period: updated.period,
-        paymentType: updated.paymentType,
+        id: result.payment.id,
+        period: result.payment.period,
+        paymentType: result.payment.paymentType,
       },
     });
   } catch (e) {

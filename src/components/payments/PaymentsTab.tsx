@@ -131,6 +131,11 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   const [editPayment, setEditPayment] = useState<PaymentWithPlayerName | null>(null);
   const [editNewPeriod, setEditNewPeriod] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [swapConflict, setSwapConflict] = useState<{
+    amount: number;
+    currency: string;
+    paidAt: string | null;
+  } | null>(null);
   const [configRegistrationAmount, setConfigRegistrationAmount] = useState(0);
   const [configClothingAmount, setConfigClothingAmount] = useState(0);
   const [configClothingInstallments, setConfigClothingInstallments] = useState(2);
@@ -428,10 +433,11 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
   const openEditDialog = (p: PaymentWithPlayerName) => {
     setEditPayment(p);
     setEditNewPeriod(p.period === REGISTRATION_PERIOD ? currentPeriod() : p.period);
+    setSwapConflict(null);
     setEditDialogOpen(true);
   };
 
-  const handleEditPayment = async () => {
+  const handleEditPayment = async (allowSwap = false) => {
     if (!editPayment || !schoolId || !editNewPeriod) return;
     if (editPayment.period === editNewPeriod) {
       setEditDialogOpen(false);
@@ -455,15 +461,29 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
           paymentId: editPayment.id,
           schoolId,
           newPeriod: editNewPeriod,
+          allowSwap,
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.code === "PERIOD_TAKEN" && !allowSwap) {
+        setSwapConflict({
+          amount: typeof data.existingPayment?.amount === "number" ? data.existingPayment.amount : 0,
+          currency: data.existingPayment?.currency ?? "ARS",
+          paidAt: data.existingPayment?.paidAt ?? null,
+        });
+        return;
+      }
       if (!res.ok) {
         throw new Error(data.error ?? "Error al actualizar");
       }
-      toast({ title: "Pago actualizado correctamente." });
+      toast({
+        title: data.swapped
+          ? "Períodos intercambiados correctamente."
+          : "Pago actualizado correctamente.",
+      });
       setEditDialogOpen(false);
       setEditPayment(null);
+      setSwapConflict(null);
       fetchPayments();
     } catch (e) {
       toast({
@@ -866,12 +886,12 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
         </p>
       )}
 
-      <Dialog open={editDialogOpen} onOpenChange={(o) => { if (!o) setEditPayment(null); setEditDialogOpen(o); }}>
+      <Dialog open={editDialogOpen} onOpenChange={(o) => { if (!o) { setEditPayment(null); setSwapConflict(null); } setEditDialogOpen(o); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar tipo de pago</DialogTitle>
             <DialogDescription>
-              Cambiá el período/tipo del pago. Por ejemplo, si se cargó como inscripción pero era una cuota mensual (o viceversa).
+              Cambiá el período del pago. Por ejemplo, si se cargó noviembre y era octubre, o si se cargó como inscripción y era una cuota.
             </DialogDescription>
           </DialogHeader>
           {editPayment && (
@@ -884,7 +904,13 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
               </div>
               <div>
                 <Label htmlFor="edit-period">Nuevo período</Label>
-                <Select value={editNewPeriod} onValueChange={setEditNewPeriod}>
+                <Select
+                  value={editNewPeriod}
+                  onValueChange={(v) => {
+                    setEditNewPeriod(v);
+                    setSwapConflict(null);
+                  }}
+                >
                   <SelectTrigger id="edit-period" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -911,14 +937,38 @@ export function PaymentsTab({ schoolId, getToken }: PaymentsTabProps) {
                   </SelectContent>
                 </Select>
               </div>
+              {swapConflict && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+                  <p>
+                    {formatPeriodDisplay(editNewPeriod)} ya tiene un pago de{" "}
+                    {swapConflict.currency} {swapConflict.amount.toLocaleString("es-AR")}
+                    {swapConflict.paidAt
+                      ? ` (${format(new Date(swapConflict.paidAt), "dd/MM/yyyy", { locale: es })})`
+                      : ""}
+                    .
+                  </p>
+                  <p className="mt-1">
+                    Si te confundiste de mes, intercambiamos: este pago pasa a{" "}
+                    {formatPeriodDisplay(editNewPeriod)} y el otro a{" "}
+                    {formatPeriodDisplay(editPayment.period)}.
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleEditPayment} disabled={editSubmitting || !editPayment || editPayment.period === editNewPeriod}>
-              {editSubmitting ? "Guardando…" : "Guardar cambios"}
+            <Button
+              onClick={() => handleEditPayment(Boolean(swapConflict))}
+              disabled={editSubmitting || !editPayment || editPayment.period === editNewPeriod}
+            >
+              {editSubmitting
+                ? "Guardando…"
+                : swapConflict
+                  ? "Intercambiar períodos"
+                  : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </DialogContent>

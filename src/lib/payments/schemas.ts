@@ -47,6 +47,8 @@ export const updatePaymentPeriodSchema = z.object({
     (v) => v === REGISTRATION_PERIOD || PERIOD_REGEX.test(v),
     { message: 'newPeriod: inscripcion o YYYY-MM' }
   ),
+  /** Si el mes destino ya tiene un pago, intercambiar los períodos. */
+  allowSwap: z.boolean().optional(),
 });
 
 /** Filtro por concepto: inscripción, cuota mensual, ropa */

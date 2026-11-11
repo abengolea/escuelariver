@@ -298,49 +298,105 @@ export async function getPaymentById(db: Firestore, paymentId: string): Promise<
   return toPayment(snap);
 }
 
-/** Verifica si existe otro pago aprobado para playerId+period (excluyendo paymentIdExclude). */
-export async function existsOtherApprovedPayment(
+function paymentTypeFromPeriod(period: string): Payment['paymentType'] {
+  if (isRegistrationPeriod(period)) return 'registration';
+  if (isClothingPeriod(period)) return 'clothing';
+  return 'monthly';
+}
+
+/** Otros pagos aprobados del mismo jugador+período (misma escuela, excluye paymentIdExclude). */
+async function listOtherApprovedPayments(
   db: Firestore,
   playerId: string,
   period: string,
-  paymentIdExclude: string
-): Promise<boolean> {
+  paymentIdExclude: string,
+  schoolId: string
+): Promise<Payment[]> {
   const snap = await db
     .collection(COLLECTIONS.payments)
     .where('playerId', '==', playerId)
     .where('period', '==', period)
     .where('status', '==', 'approved')
     .get();
-  return snap.docs.some((d) => d.id !== paymentIdExclude);
+  return snap.docs
+    .filter((d) => d.id !== paymentIdExclude && (d.data().schoolId as string) === schoolId)
+    .map((d) => toPayment(d));
 }
 
-/** Actualiza el período (y paymentType) de un pago. Solo para corrección de errores (admin escuela). */
+export type UpdatePaymentPeriodResult =
+  | { ok: true; payment: Payment; swapped: boolean }
+  | { ok: false; reason: 'not_found' | 'not_approved' | 'duplicate'; duplicate?: Payment };
+
+/** Actualiza el período (y paymentType) de un pago. Solo para corrección de errores (admin escuela).
+ * Si el destino ya tiene un pago y allowSwap, intercambia los períodos. */
 export async function updatePaymentPeriod(
   db: Firestore,
   paymentId: string,
   schoolId: string,
-  newPeriod: string
-): Promise<Payment | null> {
+  newPeriod: string,
+  opts?: { allowSwap?: boolean }
+): Promise<UpdatePaymentPeriodResult> {
   const payment = await getPaymentById(db, paymentId);
-  if (!payment || payment.schoolId !== schoolId) return null;
-  if (payment.status !== 'approved') return null;
-  if (payment.period === newPeriod) return payment; // No-op
+  if (!payment || payment.schoolId !== schoolId) return { ok: false, reason: 'not_found' };
+  if (payment.status !== 'approved') return { ok: false, reason: 'not_approved' };
+  if (payment.period === newPeriod) return { ok: true, payment, swapped: false };
 
-  const duplicate = await existsOtherApprovedPayment(db, payment.playerId, newPeriod, paymentId);
-  if (duplicate) return null;
+  const others = await listOtherApprovedPayments(db, payment.playerId, newPeriod, paymentId, schoolId);
+  const duplicate = others[0];
+  if (others.length > 0 && !opts?.allowSwap) {
+    return { ok: false, reason: 'duplicate', duplicate };
+  }
+  if (others.length > 1) {
+    return { ok: false, reason: 'duplicate', duplicate };
+  }
 
-  const newPaymentType = isRegistrationPeriod(newPeriod) ? 'registration' : isClothingPeriod(newPeriod) ? 'clothing' : 'monthly';
-  const ref = db.collection(COLLECTIONS.payments).doc(paymentId);
   const admin = await import('firebase-admin');
-  await ref.update({
+  const now = admin.firestore.Timestamp.now();
+  const newPaymentType = paymentTypeFromPeriod(newPeriod);
+  const paymentRef = db.collection(COLLECTIONS.payments).doc(paymentId);
+
+  if (duplicate && opts?.allowSwap) {
+    const oldPeriod = payment.period;
+    const otherRef = db.collection(COLLECTIONS.payments).doc(duplicate.id);
+    const batch = db.batch();
+    batch.update(paymentRef, {
+      period: newPeriod,
+      paymentType: newPaymentType,
+      metadata: {
+        ...(payment.metadata ?? {}),
+        periodEditedAt: now,
+        periodEditedFrom: oldPeriod,
+        swappedWithPaymentId: duplicate.id,
+      },
+    });
+    batch.update(otherRef, {
+      period: oldPeriod,
+      paymentType: paymentTypeFromPeriod(oldPeriod),
+      metadata: {
+        ...(duplicate.metadata ?? {}),
+        periodEditedAt: now,
+        periodEditedFrom: newPeriod,
+        swappedWithPaymentId: paymentId,
+      },
+    });
+    await batch.commit();
+    const updated = await getPaymentById(db, paymentId);
+    if (!updated) return { ok: false, reason: 'not_found' };
+    return { ok: true, payment: updated, swapped: true };
+  }
+
+  await paymentRef.update({
     period: newPeriod,
     paymentType: newPaymentType,
     metadata: {
       ...(payment.metadata ?? {}),
-      periodEditedAt: admin.firestore.Timestamp.now(),
+      periodEditedAt: now,
+      periodEditedFrom: payment.period,
     },
   });
-  return getPaymentById(db, paymentId);
+  const updated = await getPaymentById(db, paymentId);
+  if (!updated) return { ok: false, reason: 'not_found' };
+  return { ok: true, payment: updated, swapped: false };
 }
 
 /** Busca pago aprobado por playerId + period (evitar duplicados) */
